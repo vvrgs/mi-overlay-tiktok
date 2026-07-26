@@ -46,7 +46,7 @@ public final class TerrainSculptor {
 
     /** Quemadura cosmética del tier S: ≤5 bloques de superficie a fuego/aire. */
     public static void scorch(ServerLevel level, BlockPos center) {
-        if (!WarConfig.COSMETIC_SCORCH.get()) {
+        if (!WarConfig.TERRAIN_DESTRUCTION.get() || !WarConfig.COSMETIC_SCORCH.get()) {
             return;
         }
         List<BlockPos> positions = new ArrayList<>(5);

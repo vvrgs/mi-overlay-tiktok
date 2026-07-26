@@ -70,7 +70,7 @@ public final class OrbitalStrikeSession extends WarSession {
 
         ModNetwork.fx(this.level, FxType.WARP_IN, pos, 2.0F);
         this.level.playSound(null, pos.x, pos.y, pos.z,
-                ModSounds.WARP_IN.get(), SoundSource.HOSTILE, 2.5F, 1.0F);
+                ModSounds.WARP_IN.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
     }
 
     @Override
@@ -82,7 +82,7 @@ public final class OrbitalStrikeSession extends WarSession {
         if (this.age == T_CHARGE) {
             this.ship.setPhase(WarshipEntity.PHASE_CHARGE);
             this.level.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
-                    ModSounds.LASER_CHARGE.get(), SoundSource.HOSTILE, 2.2F, 1.0F);
+                    ModSounds.LASER_CHARGE.get(), SoundSource.HOSTILE, 3.0F, 1.0F); // nave a ~39 bl del objetivo
         }
         if (this.age > T_CHARGE && this.age < T_BEAM) {
             float progress = (this.age - T_CHARGE) / (float) (T_BEAM - T_CHARGE);
@@ -104,7 +104,7 @@ public final class OrbitalStrikeSession extends WarSession {
             this.ship.setPhase(WarshipEntity.PHASE_WARP_OUT);
             ModNetwork.fx(this.level, FxType.WARP_OUT, this.ship.position(), 2.0F);
             this.level.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
-                    ModSounds.WARP_OUT.get(), SoundSource.HOSTILE, 2.5F, 1.0F);
+                    ModSounds.WARP_OUT.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
         }
         if (this.age >= T_END) {
             this.ship.discard();
@@ -154,7 +154,7 @@ public final class OrbitalStrikeSession extends WarSession {
                 ModSounds.EXPLOSION_NEAR.get(), SoundSource.HOSTILE, 3.0F, 0.8F);
         TerrainSculptor.crater(this.level, BlockPos.containing(this.beamPoint), 5, true);
         DamageUtil.strikeDamage(this.level, this.beamPoint, 3.0D, 9.0D, 20.0F,
-                ModDamage.ORBITAL_BEAM, this.ship);
+                ModDamage.SHOCKWAVE, this.ship);
     }
 
     @Override

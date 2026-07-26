@@ -34,6 +34,7 @@ public final class TankBlitzSession extends WarSession {
 
     private Phase phase = Phase.DROP;
     private int phaseStart;
+    private int lastShotAge = Integer.MIN_VALUE;
     private TankEntity tank;
     private float turretYaw;
     private int alignedTicks;
@@ -184,9 +185,11 @@ public final class TankBlitzSession extends WarSession {
     private void tickFire(@Nullable ServerPlayer target) {
         if (this.shotsFired < SHOT_SCRIPT.length
                 && phaseAge() >= SHOT_SCRIPT[this.shotsFired]
-                && this.alignedTicks >= 2) {
+                && this.alignedTicks >= 2
+                && this.age - this.lastShotAge >= 15) { // nunca ráfaga de hitos acumulados
             fireShell(target);
             this.shotsFired++;
+            this.lastShotAge = this.age;
         }
         if (this.shotsFired >= SHOT_SCRIPT.length
                 && phaseAge() >= SHOT_SCRIPT[SHOT_SCRIPT.length - 1] + LEAVE_DELAY) {

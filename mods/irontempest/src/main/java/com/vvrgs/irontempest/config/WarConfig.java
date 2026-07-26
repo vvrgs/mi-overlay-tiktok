@@ -23,7 +23,7 @@ public final class WarConfig {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
 
         b.push("damage");
-        DAMAGE_MULTIPLIER = b.comment("Multiplicador global de daño de todos los ataques (0 = inofensivo, solo espectáculo).")
+        DAMAGE_MULTIPLIER = b.comment("Multiplicador global de daño (0 = inofensivo, solo espectáculo). OJO: con lethalStrikes=true cualquier valor > 0 mata igual salvo tótem; el multiplicador solo escala el daño radial.")
                 .defineInRange("damageMultiplier", 1.0D, 0.0D, 10.0D);
         LETHAL_STRIKES = b.comment("Si true, los impactos directos matan salvo tótem (killIfNoTotem). Si false, solo daño radial normal.")
                 .define("lethalStrikes", true);

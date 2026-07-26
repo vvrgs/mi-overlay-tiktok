@@ -46,7 +46,7 @@ public final class CruiseMissileSession extends WarSession {
         if (this.age == 1) {
             // Klaxon de silo + venteo de vapor: el aviso llega ANTES que el misil.
             this.level.playSound(null, this.siloPos.x, this.siloPos.y, this.siloPos.z,
-                    ModSounds.KLAXON.get(), SoundSource.HOSTILE, 1.4F, 1.0F);
+                    ModSounds.KLAXON.get(), SoundSource.HOSTILE, 3.5F, 1.0F); // radio 16×vol: debe llegar al objetivo a 45 bl
             ModNetwork.fx(this.level, FxType.SILO_VENT, this.siloPos, 1.0F);
         }
         if (this.age == T_LAUNCH && target != null) {
@@ -73,7 +73,7 @@ public final class CruiseMissileSession extends WarSession {
         this.level.addFreshEntity(m);
         this.missile = m;
         this.level.playSound(null, this.siloPos.x, this.siloPos.y, this.siloPos.z,
-                ModSounds.MISSILE_LAUNCH.get(), SoundSource.HOSTILE, 1.6F, 1.0F);
+                ModSounds.MISSILE_LAUNCH.get(), SoundSource.HOSTILE, 3.5F, 1.0F);
     }
 
     @Override

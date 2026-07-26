@@ -73,8 +73,9 @@ public final class RocketRainSession extends WarSession {
         rocket.setSessionId(this.id);
         rocket.setDeltaMovement(impact.subtract(spawn).normalize().scale(1.5D));
         this.level.addFreshEntity(rocket);
+        // Volumen 2.5 → radio 40: el spawn está a 30-43 bl del jugador.
         this.level.playSound(null, spawn.x, spawn.y, spawn.z,
                 ModSounds.MLRS_LAUNCH.get(), SoundSource.HOSTILE,
-                0.7F, 0.9F + this.level.random.nextFloat() * 0.2F);
+                2.5F, 0.9F + this.level.random.nextFloat() * 0.2F);
     }
 }

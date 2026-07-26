@@ -111,7 +111,7 @@ public final class FxDirector {
         sparksRadial(level, pos, (int) (20 * sc), 0.9D, 0.45D);
         fireballCluster(level, pos, (int) (8 * sc), 0.16D);
         ScreenShake.addTrauma(Math.min(0.9F, 0.55F * sc), pos);
-        FlashOverlay.flash(0.32F * sc, 0xFFF4E0);
+        FlashOverlay.flash(0.32F * sc, 0xFFF4E0, pos);
         PostFxManager.shockwave(pos, 0.8F * sc);
         sound(level, pos, ModSounds.EXPLOSION_NEAR.get(), 3.0F, 0.95F + RNG.nextFloat() * 0.1F);
         sound(level, pos, ModSounds.EXPLOSION_FAR.get(), 2.0F, 1.0F);
@@ -159,7 +159,7 @@ public final class FxDirector {
         sparksRadial(level, pos, (int) (26 * sc), 1.1D, 0.0D);
         fireballCluster(level, pos, (int) (10 * sc), 0.2D);
         ScreenShake.addTrauma(0.5F * sc, pos);
-        FlashOverlay.flash(0.3F * sc, 0xFFF0D8);
+        FlashOverlay.flash(0.3F * sc, 0xFFF0D8, pos);
         PostFxManager.shockwave(pos, 0.7F * sc);
         sound(level, pos, ModSounds.EXPLOSION_NEAR.get(), 2.8F, 0.9F);
         sound(level, pos, ModSounds.EXPLOSION_FAR.get(), 2.0F, 1.0F);
@@ -225,7 +225,7 @@ public final class FxDirector {
     /** Salto warp: destello + motas implosionando (in) o explotando (out). */
     private static void warp(ClientLevel level, Vec3 pos, float s, boolean in) {
         spawn(level, ModParticles.WARP_FLASH.get(), pos, 1, 0.0D, 0.0D);
-        FlashOverlay.flash(0.22F, 0xCCE8FF);
+        FlashOverlay.flash(0.22F, 0xCCE8FF, pos);
         ScreenShake.addTrauma(0.3F, pos);
         PostFxManager.shockwave(pos, 0.6F * s);
         for (int i = 0; i < 16; i++) {
@@ -276,7 +276,7 @@ public final class FxDirector {
 
     private static void overloadPulse(ClientLevel level, Vec3 pos, float s) {
         explosionLarge(level, pos, s);
-        FlashOverlay.flash(0.55F, 0xE8F4FF);
+        FlashOverlay.flash(0.55F, 0xE8F4FF, pos);
         PostFxManager.shockwave(pos, 1.6F);
         schedule(3, () -> spawn(level, ModParticles.SHOCKWAVE.get(), pos.add(0.0D, 0.3D, 0.0D), 1, 0.0D, s * 1.4D));
         schedule(4, () -> embersBurst(level, pos, 40, 0.8D));

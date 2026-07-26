@@ -37,7 +37,7 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
             SynchedEntityData.defineId(CruiseMissileEntity.class, EntityDataSerializers.BYTE);
 
     /** Tasa máxima de giro en fase terminal (radianes/tick). */
-    private static final double TURN_RATE = Math.toRadians(9.0D);
+    private static final double TURN_RATE = Math.toRadians(6.0D); // esquivable con strafe duro, letal si corres recto
     private static final double PROX_FUSE = 3.5D;
 
     @Nullable

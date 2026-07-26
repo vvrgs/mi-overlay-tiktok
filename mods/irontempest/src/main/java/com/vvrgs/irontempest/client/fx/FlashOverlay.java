@@ -1,8 +1,10 @@
 package com.vvrgs.irontempest.client.fx;
 
 import com.vvrgs.irontempest.config.WarConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 /** Flash de pantalla breve (blanco cálido en explosiones, rojo en armagedón). */
 public final class FlashOverlay {
@@ -13,6 +15,18 @@ public final class FlashOverlay {
     private static float alpha;
     private static float alphaO;
     private static int rgb = 0xFFF4E0;
+
+    /** Flash con falloff por distancia de la cámara a la fuente (como el shake). */
+    public static void flash(float intensity, int color, Vec3 source) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gameRenderer == null) {
+            return;
+        }
+        double dist = mc.gameRenderer.getMainCamera().getPosition().distanceTo(source);
+        float falloff = dist <= 16.0D ? 1.0F
+                : (float) Math.max(0.0D, 1.0D - (dist - 16.0D) / 90.0D);
+        flash(intensity * falloff, color);
+    }
 
     public static void flash(float intensity, int color) {
         if (!WarConfig.FLASH_OVERLAY.get()) {
