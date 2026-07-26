@@ -48,6 +48,10 @@ export const SHADE = {
   GLOW: 3,
   /** Madera y cuero: arcos, astas, correas, mangos. */
   LEATHER: 4,
+  /** Cara del escudo: lleva emblema heráldico procedural. */
+  HERALDRY: 5,
+  /** Cota de malla: se textura con anillos en vez de tejido. */
+  CHAINMAIL: 6,
 } as const;
 
 export type Detail = 'high' | 'low' | 'simple';
@@ -71,11 +75,25 @@ class Builder {
   pivots2: number[] = [];
   shades: number[] = [];
   occlusion: number[] = [];
+  /** UV cilíndrica: u = longitud de arco alrededor de la pieza, v = altura. */
+  uvs: number[] = [];
   indices: number[] = [];
 
-  private push(x: number, y: number, z: number, nx: number, ny: number, nz: number, bone: Bone, occ: number): number {
+  private push(
+    x: number,
+    y: number,
+    z: number,
+    nx: number,
+    ny: number,
+    nz: number,
+    bone: Bone,
+    occ: number,
+    u = 0,
+    v = y,
+  ): number {
     const index = this.positions.length / 3;
     this.positions.push(x, y, z);
+    this.uvs.push(u, v);
     this.normals.push(nx, ny, nz);
     this.limbs.push(bone.limb);
     this.pivots.push(bone.pivot[0], bone.pivot[1], bone.pivot[2]);
@@ -146,9 +164,13 @@ class Builder {
       nz *= inv;
       const ny = slope * inv;
 
-      ringBottom.push(this.push(x + cos * bottom[0], y, z + sin * bottom[1], nx, ny, nz, bone, occBottom));
+      // u = longitud de arco: mantiene la densidad del patrón constante entre un
+      // brazo fino y un torso ancho, que es lo que delataría una textura escalada.
+      const arcBottom = angle * (bottom[0] + bottom[1]) * 0.5;
+      const arcTop = angle * (top[0] + top[1]) * 0.5;
+      ringBottom.push(this.push(x + cos * bottom[0], y, z + sin * bottom[1], nx, ny, nz, bone, occBottom, arcBottom, y));
       ringTop.push(
-        this.push(x + leanX + cos * top[0], y + height, z + leanZ + sin * top[1], nx, ny, nz, bone, occTop),
+        this.push(x + leanX + cos * top[0], y + height, z + leanZ + sin * top[1], nx, ny, nz, bone, occTop, arcTop, y + height),
       );
     }
 
@@ -159,23 +181,27 @@ class Builder {
     }
 
     if (capTop && (top[0] > 1e-4 || top[1] > 1e-4)) {
-      const center = this.push(x + leanX, y + height, z + leanZ, 0, 1, 0, bone, occTop);
+      const center = this.push(x + leanX, y + height, z + leanZ, 0, 1, 0, bone, occTop, 0, 0);
       const cap: number[] = [];
       for (let i = 0; i < sides; i++) {
         const angle = spin + (i / sides) * Math.PI * 2;
+        const cx = Math.cos(angle) * top[0];
+        const cz = Math.sin(angle) * top[1];
         cap.push(
-          this.push(x + leanX + Math.cos(angle) * top[0], y + height, z + leanZ + Math.sin(angle) * top[1], 0, 1, 0, bone, occTop),
+          this.push(x + leanX + cx, y + height, z + leanZ + cz, 0, 1, 0, bone, occTop, cx, cz),
         );
       }
       for (let i = 0; i < sides; i++) this.indices.push(center, cap[i], cap[(i + 1) % sides]);
     }
 
     if (capBottom && (bottom[0] > 1e-4 || bottom[1] > 1e-4)) {
-      const center = this.push(x, y, z, 0, -1, 0, bone, occBottom);
+      const center = this.push(x, y, z, 0, -1, 0, bone, occBottom, 0, 0);
       const cap: number[] = [];
       for (let i = 0; i < sides; i++) {
         const angle = spin + (i / sides) * Math.PI * 2;
-        cap.push(this.push(x + Math.cos(angle) * bottom[0], y, z + Math.sin(angle) * bottom[1], 0, -1, 0, bone, occBottom));
+        const cx = Math.cos(angle) * bottom[0];
+        const cz = Math.sin(angle) * bottom[1];
+        cap.push(this.push(x + cx, y, z + cz, 0, -1, 0, bone, occBottom, cx, cz));
       }
       for (let i = 0; i < sides; i++) this.indices.push(center, cap[(i + 1) % sides], cap[i]);
     }
@@ -206,6 +232,28 @@ class Builder {
     const before = this.positions.length / 3;
     // Un prisma de 4 lados girado 45° es exactamente una caja.
     this.prism(bone, { ...rest, sides: 4, spin: (rest.spin ?? 0) + Math.PI / 4 });
+
+    // Las cajas se re-mapean en triplanar. La UV cilíndrica usa la altura como V,
+    // y en una pieza plana y horizontal —el ala de un dragón, la hoja de un
+    // hacha— la altura apenas cambia: el tejido degeneraba en rayas.
+    for (let i = before; i < this.positions.length / 3; i++) {
+      const px = this.positions[i * 3];
+      const py = this.positions[i * 3 + 1];
+      const pz = this.positions[i * 3 + 2];
+      const nx = Math.abs(this.normals[i * 3]);
+      const ny = Math.abs(this.normals[i * 3 + 1]);
+      const nz = Math.abs(this.normals[i * 3 + 2]);
+      if (ny >= nx && ny >= nz) {
+        this.uvs[i * 2] = px;
+        this.uvs[i * 2 + 1] = pz;
+      } else if (nx >= nz) {
+        this.uvs[i * 2] = pz;
+        this.uvs[i * 2 + 1] = py;
+      } else {
+        this.uvs[i * 2] = px;
+        this.uvs[i * 2 + 1] = py;
+      }
+    }
     if (tiltZ !== 0) {
       const cos = Math.cos(tiltZ);
       const sin = Math.sin(tiltZ);
@@ -296,6 +344,7 @@ class Builder {
     geometry.setAttribute('aPivot2', new THREE.Float32BufferAttribute(this.pivots2, 3));
     geometry.setAttribute('aShade', new THREE.Float32BufferAttribute(this.shades, 1));
     geometry.setAttribute('aOcc', new THREE.Float32BufferAttribute(this.occlusion, 1));
+    geometry.setAttribute('aUv', new THREE.Float32BufferAttribute(this.uvs, 2));
     geometry.setIndex(this.indices);
     geometry.computeBoundingSphere();
     // Radio generoso: las instancias se desplazan en el shader, así que el
@@ -356,7 +405,7 @@ function legs(b: Builder, shade: number, boots = SHADE.LEATHER, sides = 8): void
     });
     // Rótula: una esfera en la articulación. Sin ella, al doblar la rodilla se
     // abre un hueco entre muslo y pantorrilla y se ve el interior del prisma.
-    b.dome(shin, { x: side * H.hipX, y: H.knee - 0.052, radius: [0.086, 0.092], height: 0.105, sides, rings: 2, occ: 0.6 });
+    b.dome(shin, { x: side * H.hipX, y: H.knee - 0.052, radius: [0.086, 0.092], height: 0.105, sides, rings: 2, occ: 0.86 });
     // Pantorrilla: vientre del gemelo y tobillo fino.
     b.prism(shin, {
       x: side * H.hipX,
@@ -488,7 +537,7 @@ function arm(b: Builder, side: number, shade: number, sides = 8, pauldron = true
     capTop: false,
   });
   // Codo: misma solución que la rodilla.
-  b.dome(fore, { x: side * H.shoulderX, y: H.elbow - 0.045, radius: [0.055, 0.058], height: 0.075, sides: 6, rings: 2, occ: 0.62 });
+  b.dome(fore, { x: side * H.shoulderX, y: H.elbow - 0.045, radius: [0.055, 0.058], height: 0.075, sides: 6, rings: 2, occ: 0.86 });
   b.prism(fore, {
     x: side * H.shoulderX,
     y: H.wrist,
@@ -552,8 +601,8 @@ function soldier(detail: Detail): THREE.BufferGeometry {
 
   if (detail === 'simple') return b.toGeometry();
 
-  arm(b, -1, SHADE.TEAM, sides, detail === 'high');
-  arm(b, 1, SHADE.TEAM, sides, detail === 'high');
+  arm(b, -1, SHADE.CHAINMAIL, sides, detail === 'high');
+  arm(b, 1, SHADE.CHAINMAIL, sides, detail === 'high');
   helmet(b, sides);
 
   const right: Bone = {
@@ -566,7 +615,7 @@ function soldier(detail: Detail): THREE.BufferGeometry {
     limb: LIMB.FORE_L,
     pivot: [-H.shoulderX, H.elbow, 0],
     pivot2: [-H.shoulderX, H.shoulder - 0.04, 0],
-    shade: SHADE.TEAM,
+    shade: SHADE.HERALDRY,
   };
 
   // Espada: empuñadura, guarda y hoja que se afila hacia la punta.
@@ -657,8 +706,8 @@ function champion(detail: Detail): THREE.BufferGeometry {
   head(b, sides);
   if (detail === 'simple') return b.toGeometry();
 
-  arm(b, -1, SHADE.METAL, sides, true);
-  arm(b, 1, SHADE.METAL, sides, true);
+  arm(b, -1, SHADE.CHAINMAIL, sides, true);
+  arm(b, 1, SHADE.CHAINMAIL, sides, true);
   helmet(b, sides, 0.16);
 
   // Peto sobre la túnica: distingue al campeón del soldado raso.
@@ -691,7 +740,7 @@ function giant(detail: Detail): THREE.BufferGeometry {
     const thigh: Bone = { limb: isLeft ? LIMB.THIGH_L : LIMB.THIGH_R, pivot: [side * 0.17, 0.86, 0], shade: SHADE.TEAM };
     const shin: Bone = { limb: isLeft ? LIMB.SHIN_L : LIMB.SHIN_R, pivot: [side * 0.17, 0.46, 0], pivot2: [side * 0.17, 0.86, 0], shade: SHADE.TEAM };
     b.prism(thigh, { x: side * 0.17, y: 0.46, height: 0.4, bottom: [0.12, 0.13], top: [0.165, 0.175], sides, occBottom: 0.7, occTop: 0.5, capTop: false });
-    b.dome(shin, { x: side * 0.17, y: 0.4, radius: [0.13, 0.14], height: 0.15, sides, rings: 2, occ: 0.6 });
+    b.dome(shin, { x: side * 0.17, y: 0.4, radius: [0.13, 0.14], height: 0.15, sides, rings: 2, occ: 0.86 });
     b.prism(shin, { x: side * 0.17, y: 0.06, height: 0.4, bottom: [0.095, 0.1], top: [0.125, 0.135], sides, occBottom: 0.6, occTop: 0.8, capTop: false });
     b.slab({ ...shin, shade: SHADE.LEATHER }, { x: side * 0.17, y: 0, z: 0.04, height: 0.08, bottom: [0.13, 0.2], top: [0.11, 0.15], occBottom: 0.4, occTop: 0.6 });
   }
@@ -713,7 +762,7 @@ function giant(detail: Detail): THREE.BufferGeometry {
     const fore: Bone = { limb: isLeft ? LIMB.FORE_L : LIMB.FORE_R, pivot: [side * 0.36, 1.12, 0], pivot2: shoulderPivot, shade: SHADE.SKIN };
     b.dome({ ...upper, shade: SHADE.METAL }, { x: side * 0.37, y: 1.46, radius: [0.16, 0.165], height: 0.16, sides, rings: 2 });
     b.prism(upper, { x: side * 0.36, y: 1.12, height: 0.38, bottom: [0.085, 0.09], top: [0.115, 0.12], sides, occBottom: 0.7, occTop: 0.85, capTop: false });
-    b.dome(fore, { x: side * 0.36, y: 1.06, radius: [0.098, 0.104], height: 0.12, sides, rings: 2, occ: 0.62 });
+    b.dome(fore, { x: side * 0.36, y: 1.06, radius: [0.098, 0.104], height: 0.12, sides, rings: 2, occ: 0.86 });
     b.prism(fore, { x: side * 0.36, y: 0.78, height: 0.34, bottom: [0.078, 0.082], top: [0.095, 0.1], sides, occBottom: 0.72, occTop: 0.8, capTop: false });
   }
 

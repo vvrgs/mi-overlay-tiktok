@@ -16,6 +16,7 @@ import { clamp, createRng, normalizeText, type Rng } from '../shared/math';
 import type { MainToWorker, Snapshot } from '../sim/protocol';
 import type { Hud } from '../ui/hud';
 import { buildArchetypes } from './archetypes';
+import { SEASON_PROFILES, SEASONS, WEATHER_PROFILES, type Season, type WeatherKind } from '../render/weather';
 import { GiftResolver } from './gifts';
 import type { RankingStore } from './ranking';
 
@@ -76,6 +77,7 @@ export class Game {
   private statusTimer = 0;
   private donorTimer = 0;
   private roundSeed = 1;
+  private seasonIndex = 0;
 
   constructor(deps: GameDeps) {
     this.config = deps.config;
@@ -90,6 +92,7 @@ export class Game {
     this.rng = createRng(this.config.simulator.seed + 17);
     this.countries = { red: this.config.teams.red.country, blue: this.config.teams.blue.country };
     this.roundSeed = this.config.simulator.seed;
+    this.seasonIndex = Math.max(0, SEASONS.indexOf(this.config.world?.season ?? 'summer'));
 
     this.worker = new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' });
     this.worker.onmessage = (ev: MessageEvent) => this.onWorkerMessage(ev);
@@ -313,6 +316,17 @@ export class Game {
       case 'setGraphics':
         this.renderer.setQuality(command.quality as GameConfig['graphics']['quality']);
         break;
+      case 'setSeason': {
+        const index = SEASONS.indexOf(command.season as Season);
+        if (index >= 0) this.seasonIndex = index;
+        this.renderer.setSeason(command.season as Season);
+        this.announceAtmosphere();
+        break;
+      }
+      case 'setWeather':
+        this.renderer.setWeather(command.weather as WeatherKind);
+        this.announceAtmosphere();
+        break;
     }
   }
 
@@ -406,12 +420,38 @@ export class Game {
     this.send({ t: 'reset', seed: this.roundSeed, startingTroops: this.config.battle.startingTroops });
     this.send({ t: 'setSuddenDeath', multiplier: 1 });
 
+    this.applyRoundAtmosphere();
     this.renderer.resetRound();
     this.hud.clearFeed();
     this.hud.setRound(this.round);
     this.hud.setCountries(this.countries.red, this.countries.blue);
     this.hud.snapSoldiers(this.config.battle.startingTroops, this.config.battle.startingTroops);
     this.hud.setCta(this.config.identity.callToAction);
+  }
+
+  /**
+   * Estación y clima de la ronda. La estación avanza en orden —para que a lo
+   * largo de un directo se vea el año entero— y el clima se sortea entre los
+   * que tienen sentido en esa estación: no nieva en verano.
+   */
+  private applyRoundAtmosphere(): void {
+    const world = this.config.world;
+    if (!world) return;
+    if (world.cycleSeasonEachRound && this.round > 1) {
+      this.seasonIndex = (this.seasonIndex + 1) % SEASONS.length;
+    }
+    this.renderer.setSeason(SEASONS[this.seasonIndex]);
+    if (world.randomWeatherEachRound) this.renderer.rollWeather();
+    else this.renderer.setWeather(world.weather as WeatherKind);
+    this.announceAtmosphere();
+  }
+
+  private announceAtmosphere(): void {
+    const { season, weather } = this.renderer.atmosphere;
+    const seasonLabel = SEASON_PROFILES[season]?.label ?? season;
+    const weatherLabel = WEATHER_PROFILES[weather]?.label ?? weather;
+    const icons: Record<string, string> = { clear: '☀️', rain: '🌧️', snow: '❄️', fog: '🌫️', storm: '⛈️' };
+    this.hud.pushFeed({ text: `${icons[weather] ?? ''} ${seasonLabel} · ${weatherLabel}` });
   }
 
   private beginBattle(): void {
@@ -622,6 +662,8 @@ export class Game {
       soldiers: { ...this.soldiers },
       rage: { ...this.rage },
       countries: { ...this.countries },
+      season: this.renderer.atmosphere.season,
+      weather: this.renderer.atmosphere.weather,
       entities: { ...this.entities },
       champions: { ...this.championCount },
       fps: Math.round(this.renderer.fps),

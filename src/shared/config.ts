@@ -91,6 +91,12 @@ export interface GameConfig {
     rotateCountriesOnRoundEnd: boolean;
     resetSeriesOnComplete: boolean;
   };
+  world: {
+    season: 'spring' | 'summer' | 'autumn' | 'winter';
+    weather: 'clear' | 'rain' | 'snow' | 'fog' | 'storm';
+    cycleSeasonEachRound: boolean;
+    randomWeatherEachRound: boolean;
+  };
   teams: Record<TeamId, TeamConfig>;
   countries: Record<string, CountryConfig>;
   countryRotation: Record<TeamId, string[]>;
@@ -182,6 +188,10 @@ export interface GameConfig {
     propDensity: number;
     /** Distancia (en unidades) a partir de la cual se usa la malla reducida. */
     lodDistance: number;
+    /** Distancia hasta la que se calcula el detalle de material (tejido, malla, cuero). */
+    textureDistance: number;
+    /** Partículas de lluvia/nieve a calidad 'high'. Escala con la calidad. */
+    precipitationParticles: number;
   };
   hud: {
     showScoreboard: boolean;
@@ -240,6 +250,7 @@ const EMERGENCY_CONFIG = {
     rotateCountriesOnRoundEnd: false,
     resetSeriesOnComplete: true,
   },
+  world: { season: 'summer', weather: 'clear', cycleSeasonEachRound: true, randomWeatherEachRound: true },
   teams: {
     red: { name: 'Equipo Rojo', shortName: 'ROJO', color: '#ff2f45', colorDark: '#7a0d18', colorLight: '#ff8a96', country: 'MX', keywords: ['rojo', '1'] },
     blue: { name: 'Equipo Azul', shortName: 'AZUL', color: '#2f7bff', colorDark: '#0b2f7a', colorLight: '#8ab6ff', country: 'CR', keywords: ['azul', '2'] },
@@ -318,6 +329,8 @@ const EMERGENCY_CONFIG = {
     clouds: 0.85,
     propDensity: 1,
     lodDistance: 70,
+    textureDistance: 45,
+    precipitationParticles: 9000,
   },
   hud: {
     showScoreboard: true,

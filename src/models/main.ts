@@ -43,6 +43,7 @@ async function boot(): Promise<void> {
     // Sin niebla: aquí interesa el modelo, no la atmósfera.
     fogDensity: 0,
     lodDistance: 1000,
+    textureDistance: 1000,
   });
   units.setLighting(
     new THREE.Color('#9dc0ea'),
@@ -112,6 +113,9 @@ async function boot(): Promise<void> {
   let lastY = 0;
   let team: 0 | 1 = 0;
   let animate = true;
+  // Unidad enfocada: la cámara orbita a su alrededor y la distancia se ajusta a
+  // su tamaño, para que un soldado y un dragón se encuadren igual de bien.
+  let focusIndex = 0;
 
   canvas.addEventListener('pointerdown', (ev) => {
     dragging = true;
@@ -131,6 +135,11 @@ async function boot(): Promise<void> {
     distance = Math.max(3, Math.min(60, distance + ev.deltaY * 0.02));
     ev.preventDefault();
   }, { passive: false });
+  function focusOn(index: number): void {
+    focusIndex = (index + archetypes.length) % archetypes.length;
+    distance = 3.2 + archetypes[focusIndex].scale * 3.4;
+  }
+
   window.addEventListener('keydown', (ev) => {
     if (ev.code === 'Space') {
       team = team === 0 ? 1 : 0;
@@ -138,7 +147,15 @@ async function boot(): Promise<void> {
       ev.preventDefault();
     }
     if (ev.key.toLowerCase() === 'a') animate = !animate;
+    if (ev.key === 'ArrowRight') focusOn(focusIndex + 1);
+    if (ev.key === 'ArrowLeft') focusOn(focusIndex - 1);
+    // 0 = vista general de toda la fila.
+    if (ev.key === '0') {
+      focusIndex = -1;
+      distance = totalWidth * 0.8 + 8;
+    }
   });
+  focusOn(0);
 
   function resize(): void {
     const width = canvas.clientWidth || window.innerWidth;
@@ -168,12 +185,14 @@ async function boot(): Promise<void> {
       source[o + 6] = cycle < 2 ? Math.min(0.999, 0.85) : 1 + Math.abs(Math.sin(phase * 6)) * 0.99;
     }
 
+    const centerX = focusIndex >= 0 ? source[focusIndex * UNIT_STRIDE] : 0;
+    const centerY = focusIndex >= 0 ? archetypes[focusIndex].scale * 0.95 : 1.0;
     camera.position.set(
-      Math.sin(yaw) * distance * Math.cos(pitch),
-      1.1 + Math.sin(pitch) * distance,
+      centerX + Math.sin(yaw) * distance * Math.cos(pitch),
+      centerY + Math.sin(pitch) * distance,
       Math.cos(yaw) * distance * Math.cos(pitch),
     );
-    camera.lookAt(0, 1.0, 0);
+    camera.lookAt(centerX, centerY, 0);
 
     units.update(source, groups, camera.position);
     post.update();

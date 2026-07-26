@@ -18,6 +18,13 @@
     "rotateCountriesOnRoundEnd": true,
     "resetSeriesOnComplete": true
   },
+  "world": {
+    "_comment": "Estación y clima. 'auto' sortea uno nuevo en cada ronda; la estación avanza en orden y el clima se sortea entre los posibles de esa estación.",
+    "season": "summer",
+    "weather": "clear",
+    "cycleSeasonEachRound": true,
+    "randomWeatherEachRound": true
+  },
   "teams": {
     "red": {
       "name": "Equipo Rojo",
@@ -615,7 +622,9 @@
     "sharpen": 0.22,
     "clouds": 0.85,
     "propDensity": 1.0,
-    "lodDistance": 70
+    "lodDistance": 70,
+    "textureDistance": 45,
+    "precipitationParticles": 9000
   },
   "hud": {
     "showScoreboard": true,

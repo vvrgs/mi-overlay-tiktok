@@ -17,6 +17,7 @@ import { Effects } from './effects';
 import { Nametags, type ChampionInfo } from './nametags';
 import { PostProcessing } from './post';
 import { Props } from './props';
+import { Weather, SEASON_PROFILES, type Season, type WeatherKind } from './weather';
 import { NOISE_2D } from './shader-chunks';
 import { buildArchetypes } from '../game/archetypes';
 import { PALETTES, TerrainRenderer, type TerrainPalette } from './terrain-mesh';
@@ -94,6 +95,7 @@ export class GameRenderer {
   private skyMaterial: THREE.ShaderMaterial;
   private post: PostProcessing;
   private props: Props;
+  private weather: Weather;
   private terrain: Terrain;
   private palette: TerrainPalette;
   private elapsed = 0;
@@ -190,6 +192,7 @@ export class GameRenderer {
       fogColor: this.palette.fog,
       fogDensity: config.graphics.fogDensity,
       lodDistance: config.graphics.lodDistance ?? 70,
+      textureDistance: config.graphics.textureDistance ?? 45,
     });
     this.unitsRenderer.setLighting(this.palette.sky, this.palette.ground, this.palette.sun, this.palette.lightDir);
     this.scene.add(this.unitsRenderer.root);
@@ -214,6 +217,20 @@ export class GameRenderer {
       exposure: config.graphics.exposure,
       sharpen: config.graphics.sharpen,
     });
+
+    // --- Estación y clima ---
+    // La caja de precipitación es pequeña a propósito: sigue a la cámara, así que
+    // solo tiene que cubrir lo que se ve. Cuanto más chica, más densa se ve la
+    // lluvia con las mismas partículas.
+    const precipScale = { low: 0, medium: 0.45, high: 1, ultra: 1.6 }[config.graphics.quality] ?? 1;
+    this.weather = new Weather({
+      particleCount: Math.round((config.graphics.precipitationParticles ?? 9000) * precipScale),
+      boxSize: 78,
+      boxHeight: 46,
+    });
+    this.scene.add(this.weather.root);
+    this.setSeason(config.world?.season ?? 'summer');
+    this.setWeather(config.world?.weather ?? 'clear');
 
     this.director = new CameraDirector(this.camera, this.terrain, config);
     this.nametags = new Nametags(nametagContainer, config.chat.showNametags ? config.chat.maxNametags : 0);
@@ -266,6 +283,13 @@ export class GameRenderer {
   render(dt: number): void {
     this.elapsed += dt;
     this.director.update(dt);
+    this.weather.update(dt, this.elapsed, this.camera.position);
+    // El viento es global: mueve capas, alas, copas y precipitación a la vez.
+    this.unitsRenderer.setTime(this.elapsed, this.weather.wind);
+    this.props.setTime(this.elapsed, this.weather.wind);
+    if (this.weather.lightning > 0) {
+      this.post.addFlash(this.weather.lightning * 0.5, new THREE.Color('#dce8ff'));
+    }
     this.terrainRenderer.update(dt, this.elapsed);
     this.effects.update(dt);
     // El cielo viaja con la cámara para que nunca se alcance su borde.
@@ -341,11 +365,8 @@ export class GameRenderer {
     this.skyMaterial.uniforms.uHorizon.value.copy(this.palette.horizon);
     this.skyMaterial.uniforms.uSun.value.copy(this.palette.sun);
     this.skyMaterial.uniforms.uSunDir.value.copy(this.palette.lightDir).normalize();
-    this.props.setLighting(
-      this.palette.sky, this.palette.ground, this.palette.sun,
-      this.palette.lightDir, this.palette.fog, this.config.graphics.fogDensity,
-    );
-    this.renderer.setClearColor(this.palette.fog, 1);
+    // La franja horaria es la base; estación y clima se aplican encima.
+    this.applyAtmosphere();
   }
 
   setQuality(quality: GameConfig['graphics']['quality']): void {
@@ -387,9 +408,86 @@ export class GameRenderer {
     this.post.addFlash(amount, color ? new THREE.Color(color) : undefined);
   }
 
+  /** Cambia la estación: paleta del suelo, follaje, nieve y tono del agua. */
+  setSeason(season: Season): void {
+    const profile = SEASON_PROFILES[season] ?? SEASON_PROFILES.summer;
+    this.weather.setSeason(season);
+    this.terrainRenderer.setSeason(profile);
+    this.props.setFoliage(profile.foliageA, profile.foliageB);
+    this.applyAtmosphere();
+  }
+
+  /** Cambia el clima: precipitación, niebla, oscurecimiento y suelo mojado. */
+  setWeather(weather: WeatherKind): void {
+    this.weather.setWeather(weather);
+    this.applyAtmosphere();
+  }
+
+  /**
+   * Recalcula todo lo que depende a la vez de estación y clima. Se llama al
+   * cambiar cualquiera de los dos porque se multiplican entre sí: la nieve de
+   * invierno con tormenta no se ve igual que con cielo despejado.
+   */
+  private applyAtmosphere(): void {
+    const season = this.weather.seasonProfile;
+    const sky = this.weather.weatherProfile;
+
+    const gloom = 1 - sky.gloom * 0.8;
+    const sun = this.palette.sun.clone().multiply(season.sunTint).multiplyScalar(gloom);
+    const skyColor = this.palette.sky.clone().multiply(season.skyTint).multiplyScalar(gloom);
+    const fogColor = this.palette.fog.clone().multiply(season.skyTint).multiplyScalar(0.35 + gloom * 0.65);
+    const fogDensity = this.config.graphics.fogDensity * sky.fogScale;
+
+    // El agua es color base + especular, así que no se entera de que el sol se ha
+    // apagado: bajo tormenta seguía siendo una plancha azul turquesa. Hay que
+    // oscurecerla a mano. El tinte de estación NO va aquí: ya lo aplica el shader
+    // con `uSeasonWater` desde setSeason, y aplicarlo dos veces lo dobla.
+    const waterDim = 0.4 + gloom * 0.6;
+    const water = this.palette.water.clone().multiplyScalar(waterDim);
+    const waterDeep = this.palette.waterDeep.clone().multiplyScalar(waterDim);
+
+    this.terrainRenderer.setPalette({
+      ...this.palette,
+      sun,
+      sky: skyColor,
+      fog: fogColor,
+      water,
+      waterDeep,
+    });
+    this.terrainRenderer.setSeason(season);
+    this.terrainRenderer.setFogDensity(fogDensity);
+    this.terrainRenderer.setWetness(sky.wetness);
+
+    this.unitsRenderer.setLighting(skyColor, this.palette.ground, sun, this.palette.lightDir);
+    this.unitsRenderer.setFog(fogColor, fogDensity);
+    // Nieve en los hombros solo si de verdad está nevando o el manto es espeso.
+    this.unitsRenderer.setWeather(sky.wetness, Math.max(sky.snowy * 0.7, season.groundSnow * 0.35));
+
+    this.props.setFoliage(season.foliageA, season.foliageB);
+    this.props.setLighting(skyColor, this.palette.ground, sun, this.palette.lightDir, fogColor, fogDensity);
+
+    this.skyMaterial.uniforms.uSky.value.copy(skyColor);
+    this.skyMaterial.uniforms.uHorizon.value.copy(this.palette.horizon).multiplyScalar(gloom);
+    this.skyMaterial.uniforms.uSun.value.copy(sun);
+    this.skyMaterial.uniforms.uCloudAmount.value = Math.min(1, (this.config.graphics.clouds ?? 0.85) + sky.cloudBoost);
+    this.renderer.setClearColor(fogColor, 1);
+  }
+
+  /** Sortea un clima acorde a la estación actual y lo aplica. */
+  rollWeather(): WeatherKind {
+    const next = this.weather.rollWeather();
+    this.setWeather(next);
+    return next;
+  }
+
+  get atmosphere(): { season: Season; weather: WeatherKind } {
+    return { season: this.weather.currentSeason, weather: this.weather.currentWeather };
+  }
+
   dispose(): void {
     this.post.dispose();
     this.props.dispose();
+    this.weather.dispose();
     this.unitsRenderer.dispose();
     this.terrainRenderer.dispose();
     this.effects.dispose();

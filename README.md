@@ -26,6 +26,7 @@ npm start
 | 💬 **Comentarios → campeones** | Escribir `rojo` o `azul` mete al viewer a la batalla como un campeón con su nombre flotando, vida propia y contador de bajas. Cuando cae, sale en el killfeed y entra al ranking de supervivencia. |
 | ❤️ **Likes → furia → ultimates** | Los likes llenan la barra del equipo. Al llenarse cae una ultimate: lluvia de meteoros, refuerzos masivos, furia de guerra, escudo divino o nigromante. |
 | 🏳️ **Países y serie de rondas** | Cada equipo representa un país con su bandera. Marcador al mejor de N, rotación automática de países, celebración del campeón e histórico por país. |
+| 🌦️ **Estaciones y clima** | Primavera, verano, otoño e invierno cambian la paleta del campo, el follaje y el agua; encima llueve, nieva, cae niebla o revienta una tormenta con relámpagos y viento. Rota solo cada ronda, o lo fijas desde el panel. |
 | 🩸 **Batalla que se ve** | El campo y el río se van tiñendo de rojo con las bajas reales. Cadáveres, sangre, flechas, explosiones con onda de choque, chispas, humo y meteoros con estela. |
 | ✨ **Presentación HDR** | Render en espacio lineal con bloom real, tonemapping ACES, viñeta y grading. El fuego rebosa luz; el resto no. |
 | 🎥 **Cámara automática** | Se dirige sola: encuadra donde más gente está muriendo, corta con planos variados y se sacude con las ultimates. Nadie tiene que pilotarla en un directo de 8 horas. |
@@ -80,11 +81,36 @@ silueta es lo único que distingue una unidad de otra —el color ya lo ocupa el
 Cada instancia varía además de estatura y tono, para que el ejército no parezca una
 figura clonada mil veces.
 
+**Materiales, no colores planos.** Ninguna unidad usa una sola imagen: los materiales
+se generan dentro del shader a partir de las coordenadas del propio modelo. El paño
+tiene trama de tejido, la cota de malla su anillado, el peto acero cepillado con
+reflejo anisótropo, el cuero su grano y veteado, la madera del arco y del asta sus
+vetas, y el escudo su heráldica —franjas, cuartelado o chevrón según la unidad—. Para
+que las piezas planas (escudos, capas, gualdrapas) no degeneraran en una rejilla hubo
+que remapear sus UV de forma triplanar: en un prisma la coordenada vertical avanza con
+la altura, pero en una losa es casi constante y el patrón se estiraba a rayas.
+
+Las texturas solo se calculan dentro de `graphics.textureDistance`; más allá la unidad
+usa color liso. A la distancia a la que se ve un ejército de 9.000 figuras, el detalle
+no aporta nada y sí cuesta.
+
+**Variedad por instancia.** Cada figura recibe su propio tono de piel, de cuero y de
+metal, además de barro en las botas que va subiendo con la refriega. Dos soldados
+contiguos nunca son el mismo píxel repetido, pero el color de equipo se mantiene
+intacto y legible: es lo único que el espectador tiene que distinguir a la primera.
+
 **Animación con esqueleto de dos huesos.** Cada vértice conoce su articulación y la de
 su hueso padre, así que el shader dobla rodillas y codos rotando primero sobre una y
 después sobre la otra. De ahí salen la flexión de rodilla al despegar el pie, el codo
 que se extiende en el golpe, la contrarrotación del torso, la cabeza que se mantiene
 mirando al frente y la inclinación del cuerpo al correr. Todo en GPU, cero coste de CPU.
+
+Sobre ese esqueleto hay repertorio: tres estilos de ataque (tajo descendente, estocada
+y golpe lateral) repartidos por instancia para que una línea de choque no golpee al
+unísono, una postura de guardia con el escudo alzado cuando la unidad aguanta sin
+avanzar, y tres formas distintas de caer —de rodillas, de espaldas y de bruces— con un
+giro sobre el eje para que ningún cadáver quede clonado del de al lado. Las capas y
+túnicas ondean con el viento del clima actual.
 
 Para juzgar los modelos sin cazar el momento en que la cámara pasa cerca, hay un
 previsualizador en **`models.html`**: muestra un ejemplar de cada arquetipo con los
@@ -104,6 +130,24 @@ fogonazo plano. Los meteoros caen con estela de fuego y sacuden la cámara.
 **Escenario.** Cielo con nubes procedurales en dos capas y disco solar, río que
 serpentea con espuma en la orilla y corriente, bosque y rocas en las laderas para dar
 escala, y suelo mezclado en tres escalas de ruido con barro en la ribera.
+
+**Estaciones y clima.** Son dos sistemas que se multiplican entre sí. La **estación**
+define el aspecto del terreno: el ocre de otoño no se consigue multiplicando el verde
+—un multiplicador solo escala canales y nunca cambia el tono—, sino con un
+desplazamiento de tono que conserva la luminancia, así que el campo cambia de color sin
+perder el relieve ni el contraste. Además tiñe el follaje, el agua y la luz, y en
+invierno cuaja nieve en lo llano —menos en las pendientes, y se derrite donde hay
+sangre—.
+
+El **clima** añade lo que se mueve: lluvia y nieve como partículas instanciadas en una
+caja que sigue a la cámara y se recicla con `mod()` sobre el tiempo (no tiene sentido
+simular precipitación en el mapa entero cuando solo se ve un trozo), niebla que se
+espesa, cielo que se oscurece, suelo y ropa mojados con reflejo especular, viento que
+arrastra la precipitación y agita capas y árboles, y relámpagos que iluminan la escena
+entera en tormenta. Al terminar cada ronda la estación avanza y el clima se sortea
+entre los que encajan con ella —en invierno sale nieve mucho más a menudo que
+tormenta—; con `world.cycleSeasonEachRound` y `world.randomWeatherEachRound` en `false`
+se queda fijo en lo que elijas desde el panel.
 
 ---
 
@@ -153,8 +197,13 @@ index.html?battle.difficulty=1.5&graphics.timeOfDay=sunset&camera.mode=orbit
 | `battle.renderCapPerTeam` | Figuras dibujadas por equipo. Baja esto si te faltan FPS |
 | `graphics.bloomIntensity` | Cuánta luz rebosa del fuego. `graphics.bloomThreshold` sube el listón de qué brilla |
 | `graphics.timeOfDay` | `day`, `sunset` o `night`: cambia toda la paleta de golpe |
+| `world.season` / `world.weather` | Estación y clima de arranque |
+| `world.cycleSeasonEachRound` | La estación avanza sola al terminar cada ronda |
+| `world.randomWeatherEachRound` | Sortea clima nuevo cada ronda entre los propios de la estación |
 | `graphics.clouds` / `propDensity` | Nubes y densidad de bosque |
 | `graphics.lodDistance` | A partir de qué distancia se usa la malla reducida |
+| `graphics.textureDistance` | Hasta dónde se calculan las texturas de material de las unidades |
+| `graphics.precipitationParticles` | Densidad de lluvia y nieve. Lo primero que bajar si la tormenta cuesta FPS |
 | `hud.safeAreaTop` | Hueco arriba para tu cámara |
 | `battle.autoBalance` | Da ventaja al bando que va perdiendo para que la ronda no se muera |
 

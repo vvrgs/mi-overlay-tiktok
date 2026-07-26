@@ -20,6 +20,10 @@ const PROP_VERTEX = /* glsl */ `
   attribute float aRot;
   attribute float aTint;
 
+  uniform float uTime;
+  uniform vec2 uWind;
+  uniform float uSway;
+
   varying vec3 vNormal;
   varying float vTint;
   varying float vHeight;
@@ -31,6 +35,12 @@ const PROP_VERTEX = /* glsl */ `
     vec3 scaled = position * aScale;
     vec3 rotated = vec3(scaled.x * c + scaled.z * s, scaled.y, -scaled.x * s + scaled.z * c);
     vec3 world = rotated + aOffset;
+
+    // Balanceo: proporcional a la altura sobre el tronco, así la copa se mueve y
+    // la base queda clavada. Cada árbol lleva su propia fase.
+    float sway = uSway * max(0.0, position.y) * aScale.y;
+    float phase = uTime * 1.1 + aOffset.x * 0.21 + aOffset.z * 0.17;
+    world.xz += uWind * sway * (0.6 + sin(phase) * 0.4);
 
     vec3 n = normal;
     vec3 rn = vec3(n.x * c + n.z * s, n.y, -n.x * s + n.z * c);
@@ -158,6 +168,8 @@ export class Props {
   readonly root = new THREE.Group();
   private materials: THREE.ShaderMaterial[] = [];
   private geometries: THREE.BufferGeometry[] = [];
+  /** Solo la capa de árboles cambia de color con la estación. */
+  private foliageMaterial: THREE.ShaderMaterial | null = null;
 
   constructor(terrain: Terrain, options: PropsOptions) {
     if (options.density <= 0) return;
@@ -195,7 +207,8 @@ export class Props {
     }
 
     this.addLayer(rockGeometry(), rocks, new THREE.Color('#6e6a63'), new THREE.Color('#4c4a45'), 0.25, options);
-    this.addLayer(treeGeometry(), trees, new THREE.Color('#3d6b2c'), new THREE.Color('#2b5220'), 0.45, options);
+    this.addLayer(treeGeometry(), trees, new THREE.Color('#3d6b2c'), new THREE.Color('#2b5220'), 0.45, options, 0.055);
+    this.foliageMaterial = this.materials[this.materials.length - 1] ?? null;
   }
 
   private addLayer(
@@ -205,6 +218,7 @@ export class Props {
     colorB: THREE.Color,
     occlusion: number,
     options: PropsOptions,
+    sway = 0,
   ): void {
     if (placements.length === 0) {
       base.dispose();
@@ -251,6 +265,10 @@ export class Props {
         uFogColor: { value: options.fogColor.clone() },
         uFogDensity: { value: options.fogDensity },
         uOcclusion: { value: occlusion },
+        uTime: { value: 0 },
+        uWind: { value: new THREE.Vector2() },
+        // Las rocas no se mecen; los árboles sí.
+        uSway: { value: sway },
       },
     });
 
@@ -270,6 +288,21 @@ export class Props {
       material.uniforms.uLightDir.value.copy(dir).normalize();
       material.uniforms.uFogColor.value.copy(fog);
       material.uniforms.uFogDensity.value = fogDensity;
+    }
+  }
+
+  /** Color del follaje según la estación. */
+  setFoliage(colorA: THREE.Color, colorB: THREE.Color): void {
+    if (!this.foliageMaterial) return;
+    this.foliageMaterial.uniforms.uColorA.value.copy(colorA);
+    this.foliageMaterial.uniforms.uColorB.value.copy(colorB);
+  }
+
+  /** Reloj y viento: mecen las copas. */
+  setTime(time: number, wind: THREE.Vector2): void {
+    for (const material of this.materials) {
+      material.uniforms.uTime.value = time;
+      material.uniforms.uWind.value.copy(wind);
     }
   }
 

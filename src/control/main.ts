@@ -115,6 +115,14 @@ function applyStatus(status: OverlayStatus): void {
 
   const simToggle = q<HTMLInputElement>('simToggle');
   if (document.activeElement !== simToggle) simToggle.checked = status.simulator;
+
+  const seasons: Record<string, string> = { spring: '🌱 Primavera', summer: '☀️ Verano', autumn: '🍂 Otoño', winter: '❄️ Invierno' };
+  const weathers: Record<string, string> = { clear: '☀️ Despejado', rain: '🌧️ Lluvia', snow: '❄️ Nieve', fog: '🌫️ Niebla', storm: '⛈️ Tormenta' };
+  q('atmosphere').textContent = `${seasons[status.season] ?? status.season ?? '—'} · ${weathers[status.weather] ?? status.weather ?? '—'}`;
+  const seasonSelect = q<HTMLSelectElement>('season');
+  const weatherSelect = q<HTMLSelectElement>('weather');
+  if (document.activeElement !== seasonSelect && status.season) seasonSelect.value = status.season;
+  if (document.activeElement !== weatherSelect && status.weather) weatherSelect.value = status.weather;
 }
 
 /** El overlay late cada 500 ms: si deja de hacerlo, se marca como desconectado. */
@@ -196,6 +204,8 @@ function populateSelectors(): void {
     ultSelect.appendChild(option);
   }
 
+  q<HTMLSelectElement>('season').value = config.world?.season ?? 'summer';
+  q<HTMLSelectElement>('weather').value = config.world?.weather ?? 'clear';
   q<HTMLSelectElement>('camera').value = config.camera.mode;
   q<HTMLSelectElement>('quality').value = config.graphics.quality;
   q<HTMLInputElement>('difficulty').value = String(config.battle.difficulty);
@@ -314,6 +324,14 @@ function bindActions(): void {
 
   q('quality').addEventListener('change', (ev) =>
     send({ type: 'control', action: 'setGraphics', quality: (ev.target as HTMLSelectElement).value }),
+  );
+
+  q('season').addEventListener('change', (ev) =>
+    send({ type: 'control', action: 'setSeason', season: (ev.target as HTMLSelectElement).value }),
+  );
+
+  q('weather').addEventListener('change', (ev) =>
+    send({ type: 'control', action: 'setWeather', weather: (ev.target as HTMLSelectElement).value }),
   );
 }
 

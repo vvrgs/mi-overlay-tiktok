@@ -82,7 +82,9 @@ export type ControlCommand =
   | { type: 'control'; action: 'unban'; uniqueId: string }
   | { type: 'control'; action: 'setSimulator'; enabled: boolean }
   | { type: 'control'; action: 'setCamera'; mode: string }
-  | { type: 'control'; action: 'setGraphics'; quality: string };
+  | { type: 'control'; action: 'setGraphics'; quality: string }
+  | { type: 'control'; action: 'setSeason'; season: string }
+  | { type: 'control'; action: 'setWeather'; weather: string };
 
 /** Estado que el overlay publica hacia el panel de control. */
 export interface OverlayStatus {
@@ -94,6 +96,8 @@ export interface OverlayStatus {
   soldiers: { red: number; blue: number };
   rage: { red: number; blue: number };
   countries: { red: string; blue: string };
+  season: string;
+  weather: string;
   entities: { red: number; blue: number };
   champions: { red: number; blue: number };
   fps: number;

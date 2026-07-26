@@ -20,6 +20,7 @@
 
 import * as THREE from 'three';
 import { UNIT_STRIDE, type UnitGroup } from '../sim/protocol';
+import { NOISE_2D } from './shader-chunks';
 import { createArchetypeGeometry, createBlobShadowGeometry, type Detail } from './unit-geometry';
 
 const UNIT_VERTEX_SHADER = /* glsl */ `
@@ -28,6 +29,7 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
   attribute vec3 aPivot2;
   attribute float aShade;
   attribute float aOcc;
+  attribute vec2 aUv;
 
   attribute vec3 aOffset;
   attribute float aRot;
@@ -44,10 +46,15 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
   varying float vRandom;
   varying float vOcc;
   varying vec3 vViewDir;
+  varying vec2 vUv;
+  varying float vDist;
 
   vec3 rotX(vec3 p, float a) { float s = sin(a), c = cos(a); return vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c); }
   vec3 rotY(vec3 p, float a) { float s = sin(a), c = cos(a); return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); }
   vec3 rotZ(vec3 p, float a) { float s = sin(a), c = cos(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }
+
+  uniform float uTime;
+  uniform vec2 uWind;
 
   void main() {
     // aState codifica el estado: 0..1 marcha (valor = ritmo), 1..2 ataque, 2..3 caída.
@@ -64,8 +71,27 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
     // Zancada. Un ángulo positivo lleva el miembro hacia ATRÁS (el modelo mira a +Z).
     float stride = sin(t) * (0.22 + walk * 1.0);
     float armSwing = stride * 0.55;
-    // El golpe lanza el brazo derecho al frente y extiende el codo.
-    float punch = -2.1 * strike;
+
+    // Estilo de ataque por instancia: unos tiran un tajo alto, otros una estocada
+    // y otros un revés. Con un solo golpe para todos, mil soldados se mueven como
+    // un único muñeco y el ojo lo detecta enseguida.
+    float style = floor(vRandom * 3.0);
+    float punch;
+    float punchLift = 0.0;
+    if (style < 1.0) {
+      // Tajo descendente: el brazo sube y cae.
+      punch = -2.4 * strike;
+      punchLift = sin(strike * 3.14159) * 0.8;
+    } else if (style < 2.0) {
+      // Estocada: brazo casi recto hacia adelante.
+      punch = -1.5 * strike;
+    } else {
+      // Revés: cruza el cuerpo.
+      punch = -1.9 * strike;
+    }
+
+    // Guardia: entre golpe y golpe el arma no vuelve del todo al costado.
+    float guard = (mode > 0.5 && mode < 1.5) ? 0.45 : 0.0;
 
     float angle = 0.0;   // rotación sobre la articulación propia
     float parent = 0.0;  // rotación sobre la articulación del padre
@@ -83,16 +109,18 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
       angle = max(0.0, -stride) * 1.5 + 0.06;
       parent = -stride;
     } else if (aLimb == 3.0) {
-      angle = -armSwing;
+      // Brazo del escudo: se alza a cubrirse cuando la unidad está peleando.
+      angle = -armSwing - guard * 0.7;
     } else if (aLimb == 4.0) {
-      angle = armSwing + punch;
+      angle = armSwing + punch - guard * 0.5;
+      yaw = (style > 1.5) ? -strike * 0.5 : 0.0;
     } else if (aLimb == 10.0) {
-      angle = 0.34 + max(0.0, armSwing) * 0.6;
-      parent = -armSwing;
+      angle = 0.34 + max(0.0, armSwing) * 0.6 + guard * 0.9;
+      parent = -armSwing - guard * 0.7;
     } else if (aLimb == 11.0) {
       // El codo derecho se extiende en el impacto y se recoge al volver.
-      angle = 0.4 - 0.34 * strike + max(0.0, -armSwing) * 0.6;
-      parent = armSwing + punch;
+      angle = 0.4 - 0.34 * strike + max(0.0, -armSwing) * 0.6 + guard * 0.6 + punchLift;
+      parent = armSwing + punch - guard * 0.5;
     } else if (aLimb == 5.0) {
       // La cabeza compensa el giro del torso: mira al frente aunque el cuerpo rote.
       yaw = stride * 0.14;
@@ -110,11 +138,16 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
 
     if (aLimb == 6.0) {
       // Capas, alas y colas: ondean sobre Z y se abren hacia atrás con la marcha.
-      float flap = sin(t * 3.0 + vRandom * 3.0) * (0.3 + walk * 0.45) * sign(local.x + 0.0001);
+      float windPush = length(uWind);
+      float flap = sin(t * 3.0 + vRandom * 3.0 + uTime * (1.5 + windPush * 3.0)) * (0.3 + walk * 0.45 + windPush * 0.5) * sign(local.x + 0.0001);
       vec3 rel = local - aPivot;
       local = aPivot + rotZ(rel, flap);
       nrm = rotZ(nrm, flap);
+      // El viento arrastra la tela; la marcha la abre hacia atrás.
       local.z -= walk * 0.16;
+      float cloth = max(0.0, aPivot.y - position.y) * 0.6;
+      local.x += uWind.x * cloth;
+      local.z += uWind.y * cloth;
     } else if (aLimb != 7.0) {
       // Primero la articulación propia (rodilla, codo, cuello)...
       vec3 rel = local - aPivot;
@@ -142,12 +175,19 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
       nrm = rotX(nrm, -walk * 0.11);
     }
 
-    // Caída: el cuerpo rota hacia adelante desde los pies y se hunde un poco.
+    // Caída, con tres variantes: de bruces, de espaldas o desplomándose de
+    // rodillas. Que todos caigan igual delata la copia tanto como el ataque.
     if (death > 0.0) {
       float fall = death * death;
-      local = rotX(local, fall * 1.55);
-      nrm = rotX(nrm, fall * 1.55);
-      local.y -= fall * 0.2;
+      float dstyle = floor(vRandom * 3.0);
+      float dir = dstyle < 1.0 ? 1.55 : dstyle < 2.0 ? -1.5 : 0.9;
+      local = rotX(local, fall * dir);
+      nrm = rotX(nrm, fall * dir);
+      // El desplome también gira sobre sí mismo al desmadejarse.
+      float twist = (vRandom - 0.5) * fall * 1.1;
+      local = rotY(local, twist);
+      nrm = rotY(nrm, twist);
+      local.y -= fall * (dstyle < 2.0 ? 0.2 : 0.55);
     }
 
     // Ligera variación de estatura: dos soldados idénticos delatan la copia.
@@ -163,6 +203,8 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
     vHealth = aHealth;
     vDeath = death;
     vOcc = aOcc;
+    vUv = aUv;
+    vDist = -mv.z;
     vFogDepth = -mv.z;
     vViewDir = normalize(-mv.xyz);
     gl_Position = projectionMatrix * mv;
@@ -171,9 +213,11 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
 
 const UNIT_FRAGMENT_SHADER = /* glsl */ `
   precision highp float;
+${NOISE_2D}
 
   uniform vec3 uTeamColor;
   uniform vec3 uTeamColorDark;
+  uniform vec3 uTeamColorLight;
   uniform vec3 uSkinColor;
   uniform vec3 uMetalColor;
   uniform vec3 uLeatherColor;
@@ -185,6 +229,11 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uGroundColor;
   uniform vec3 uFogColor;
   uniform float uFogDensity;
+  uniform float uTextureDistance;
+  /** 0 = seco, 1 = empapado. Oscurece y da brillo, como la ropa mojada. */
+  uniform float uWetness;
+  /** Nieve acumulada en hombros y cascos. */
+  uniform float uSnow;
 
   varying vec3 vNormal;
   varying float vShade;
@@ -194,6 +243,69 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
   varying float vRandom;
   varying float vOcc;
   varying vec3 vViewDir;
+  varying vec2 vUv;
+  varying float vDist;
+
+  // ---------------------------------------------------------- materiales
+  // Todos los patrones son procedurales: no hay ni un archivo de imagen, así que
+  // no hay atlas que cargar, ni límite de resolución, ni coste de memoria.
+
+  /** Tejido: urdimbre y trama cruzadas, con pliegues de baja frecuencia. */
+  float clothPattern(vec2 uv) {
+    float weave = sin(uv.x * 110.0) * sin(uv.y * 110.0);
+    float folds = fbm2(uv * 9.0, 3);
+    return 0.9 + weave * 0.06 + (folds - 0.5) * 0.22;
+  }
+
+  /** Cota de malla: filas de anillos desplazadas media celda, como la real. */
+  float chainPattern(vec2 uv) {
+    vec2 cell = vec2(uv.x * 58.0, uv.y * 58.0);
+    // Las filas impares se desplazan: sin eso parece una rejilla, no una malla.
+    cell.x += step(1.0, mod(floor(cell.y), 2.0)) * 0.5;
+    vec2 f = fract(cell) - 0.5;
+    float ring = abs(length(f) - 0.34);
+    return 0.62 + smoothstep(0.14, 0.02, ring) * 0.5;
+  }
+
+  /** Placa: rayado de forja en una dirección más desgaste en los cantos. */
+  float platePattern(vec2 uv) {
+    float brushed = sin(uv.x * 180.0 + fbm2(uv * 24.0, 2) * 6.0) * 0.045;
+    float wear = fbm2(uv * 14.0, 3);
+    return 0.94 + brushed + (wear - 0.5) * 0.18;
+  }
+
+  /** Cuero: celdas irregulares separadas por grietas oscuras. */
+  float leatherPattern(vec2 uv) {
+    float grain = fbm2(uv * 42.0, 3);
+    float cracks = smoothstep(0.42, 0.5, fbm2(uv * 18.0, 2));
+    return 0.86 + grain * 0.24 - cracks * 0.22;
+  }
+
+  /** Madera: vetas estiradas a lo largo del asta. */
+  float woodPattern(vec2 uv) {
+    float rings = fract(fbm2(vec2(uv.x * 30.0, uv.y * 3.0), 3) * 7.0);
+    return 0.88 + rings * 0.2;
+  }
+
+  /**
+   * Emblema del escudo. Cuatro diseños repartidos por instancia: banda, cruz,
+   * chevrón y cuartelado. Es lo que hace que una formación no parezca una fila
+   * de tablas idénticas.
+   */
+  vec3 heraldry(vec2 uv, vec3 field, vec3 charge) {
+    // Coordenadas normalizadas del escudo, centradas.
+    vec2 p = vec2(uv.x * 3.0, (uv.y - 1.05) * 2.2);
+    float emblem = floor(vRandom * 4.0);
+    float mask = 0.0;
+    if (emblem < 1.0) mask = step(abs(p.y + p.x * 0.35), 0.22);                   // banda
+    else if (emblem < 2.0) mask = max(step(abs(p.x), 0.16), step(abs(p.y), 0.16)); // cruz
+    else if (emblem < 3.0) mask = step(abs(abs(p.x) - p.y - 0.1), 0.2);            // chevrón
+    else mask = step(0.0, p.x * p.y);                                             // cuartelado
+    vec3 color = mix(field, charge, mask);
+    // Ribete oscuro en el borde del escudo.
+    float border = smoothstep(0.62, 0.72, max(abs(p.x), abs(p.y) * 0.8));
+    return mix(color, field * 0.45, border);
+  }
 
   void main() {
     vec3 n = normalize(vNormal);
@@ -203,8 +315,10 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
     float gloss = 0.0;
     bool emissive = false;
     if (vShade < 0.5) { base = uSkinColor; gloss = 0.12; }
-    else if (vShade > 2.5 && vShade < 3.5) { base = uGlowColor; emissive = true; }
-    else if (vShade > 3.5) { base = uLeatherColor; gloss = 0.08; }
+    else if (vShade > 5.5) { base = uMetalColor * 0.86; gloss = 0.8; }        // cota de malla
+    else if (vShade > 4.5) { base = uTeamColor; gloss = 0.05; }               // heráldica
+    else if (vShade > 3.5) { base = uLeatherColor; gloss = 0.14; }            // cuero/madera
+    else if (vShade > 2.5) { base = uGlowColor; emissive = true; }
     else if (vShade > 1.5) { base = uMetalColor; gloss = 1.0; }
 
     float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
@@ -215,8 +329,40 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
       return;
     }
 
-    // Variación por instancia: sin ella el ejército parece una figura clonada.
-    base *= 0.88 + vRandom * 0.24;
+    // Variación por instancia. El tono de piel varía de verdad —una multitud
+    // monocroma no existe— y el cuero y el metal cambian de matiz por unidad.
+    float tint = vRandom;
+    if (vShade < 0.5) {
+      base *= mix(vec3(0.62, 0.52, 0.46), vec3(1.14, 1.06, 1.0), tint);
+    } else if (vShade > 3.5 && vShade < 4.5) {
+      base *= mix(vec3(0.72, 0.66, 0.6), vec3(1.2, 1.1, 0.92), tint);
+    } else if (vShade > 1.5 && vShade < 2.5) {
+      base *= mix(vec3(0.86, 0.88, 0.94), vec3(1.1, 1.06, 0.98), tint);
+    } else {
+      base *= 0.88 + tint * 0.24;
+    }
+
+    // El detalle de material solo se calcula cerca. De lejos ocupa menos de un
+    // píxel: pagarlo sería tirar relleno para producir ruido.
+    if (vDist < uTextureDistance) {
+      float detail = smoothstep(uTextureDistance, uTextureDistance * 0.55, vDist);
+      float pattern = 1.0;
+      if (vShade > 5.5) pattern = chainPattern(vUv);
+      else if (vShade > 4.5) {
+        base = heraldry(vUv, base, mix(uTeamColorLight, vec3(0.92, 0.88, 0.8), step(2.0, floor(vRandom * 4.0))));
+        pattern = clothPattern(vUv);
+      }
+      else if (vShade > 3.5) pattern = mix(leatherPattern(vUv), woodPattern(vUv), step(0.5, fract(vRandom * 7.0)));
+      else if (vShade > 1.5) pattern = platePattern(vUv);
+      else if (vShade < 0.5) pattern = 0.96 + fbm2(vUv * 60.0, 2) * 0.08;
+      else pattern = clothPattern(vUv);
+      base *= mix(1.0, pattern, detail);
+
+      // Suciedad: se acumula de las rodillas hacia abajo, más en las botas.
+      float mud = smoothstep(0.45, 0.0, vUv.y) * (0.25 + fbm2(vUv * 6.0, 2) * 0.4);
+      base = mix(base, vec3(0.21, 0.16, 0.12), clamp(mud * 0.4, 0.0, 0.34) * detail);
+    }
+
     // Oclusión horneada: oscurece axilas, entrepierna y bajo las hombreras. Es
     // lo que da sensación de volumen sin calcular sombras propias.
     base *= mix(0.42, 1.0, vOcc);
@@ -224,6 +370,10 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
     // Heridas: la unidad se oscurece y enrojece conforme pierde vida.
     base = mix(mix(uTeamColorDark, vec3(0.32, 0.05, 0.05), 0.45), base, clamp(vHealth, 0.0, 1.0) * 0.75 + 0.25);
     base *= 1.0 - vDeath * 0.55;
+
+    // Mojado: la tela empapada se oscurece y refleja más.
+    base *= 1.0 - uWetness * 0.28;
+    gloss = min(1.0, gloss + uWetness * 0.55);
 
     // Iluminación "half-Lambert": las caras que no miran al sol se atenúan, pero
     // nunca llegan a negro. Con Lambert puro, media unidad quedaba en sombra dura
@@ -246,6 +396,12 @@ const UNIT_FRAGMENT_SHADER = /* glsl */ `
       vec3 halfway = normalize(lightDir + viewDir);
       float spec = pow(max(dot(n, halfway), 0.0), mix(18.0, 58.0, gloss));
       lit += uSunColor * spec * gloss * 0.85 * (1.0 - vDeath) * vOcc;
+    }
+
+    // Nieve posada: solo en las superficies que miran al cielo.
+    if (uSnow > 0.0) {
+      float up = smoothstep(0.35, 0.85, n.y);
+      lit = mix(lit, vec3(0.92, 0.95, 1.0) * (0.6 + diffuse * 0.5), up * uSnow * vOcc);
     }
 
     // Borde iluminado por el cielo: despega la silueta del fondo.
@@ -310,6 +466,8 @@ export interface UnitsRendererOptions {
   fogDensity: number;
   /** Distancia a partir de la cual una unidad usa la malla reducida. */
   lodDistance: number;
+  /** Distancia hasta la que se calcula el detalle de material del shader. */
+  textureDistance: number;
 }
 
 /** Capacidad de los grupos de unidades élite (gigantes, dragones, campeones). */
@@ -398,6 +556,7 @@ export class UnitsRenderer {
       geometry.setAttribute('aPivot2', base.getAttribute('aPivot2'));
       geometry.setAttribute('aShade', base.getAttribute('aShade'));
       geometry.setAttribute('aOcc', base.getAttribute('aOcc'));
+      geometry.setAttribute('aUv', base.getAttribute('aUv'));
       geometry.setAttribute('aRot', new THREE.InterleavedBufferAttribute(buffer, 1, 3));
       geometry.setAttribute('aPhase', new THREE.InterleavedBufferAttribute(buffer, 1, 5));
       geometry.setAttribute('aHealth', new THREE.InterleavedBufferAttribute(buffer, 1, 7));
@@ -428,6 +587,7 @@ export class UnitsRenderer {
       uniforms: {
         uTeamColor: { value: teamColor.color.clone() },
         uTeamColorDark: { value: teamColor.dark.clone() },
+        uTeamColorLight: { value: teamColor.color.clone().lerp(new THREE.Color('#ffffff'), 0.55) },
         uSkinColor: { value: new THREE.Color('#c58f6a') },
         uMetalColor: { value: new THREE.Color('#aeb7c4') },
         uLeatherColor: { value: new THREE.Color('#6b4a2c') },
@@ -439,6 +599,11 @@ export class UnitsRenderer {
         uGroundColor: { value: new THREE.Color('#4a4030') },
         uFogColor: { value: this.options.fogColor.clone() },
         uFogDensity: { value: this.options.fogDensity },
+        uTime: { value: 0 },
+        uWind: { value: new THREE.Vector2() },
+        uTextureDistance: { value: this.options.textureDistance },
+        uWetness: { value: 0 },
+        uSnow: { value: 0 },
       },
     });
     this.materials.push(material);
@@ -513,8 +678,29 @@ export class UnitsRenderer {
     for (const material of this.materialsByTeam[team]) {
       material.uniforms.uTeamColor.value.copy(color);
       material.uniforms.uTeamColorDark.value.copy(dark);
+      material.uniforms.uTeamColorLight.value.copy(color).lerp(new THREE.Color('#ffffff'), 0.55);
       material.uniforms.uGlowColor.value.copy(color).lerp(new THREE.Color('#ffffff'), 0.45);
     }
+  }
+
+  /** Reloj y viento globales: mueven capas y alas. */
+  setTime(time: number, wind: THREE.Vector2): void {
+    for (const material of this.materials) {
+      material.uniforms.uTime.value = time;
+      material.uniforms.uWind.value.copy(wind);
+    }
+  }
+
+  /** Efectos del clima sobre las unidades: ropa mojada y nieve en los hombros. */
+  setWeather(wetness: number, snow: number): void {
+    for (const material of this.materials) {
+      material.uniforms.uWetness.value = wetness;
+      material.uniforms.uSnow.value = snow;
+    }
+  }
+
+  setTextureDistance(distance: number): void {
+    for (const material of this.materials) material.uniforms.uTextureDistance.value = distance;
   }
 
   setShadowsEnabled(enabled: boolean): void {

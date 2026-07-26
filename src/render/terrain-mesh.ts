@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { clamp } from '../shared/math';
 import type { Terrain } from '../shared/terrain';
 import { NOISE_2D } from './shader-chunks';
+import type { SeasonProfile } from './weather';
 
 export interface TerrainPalette {
   grass: THREE.Color;
@@ -109,6 +110,14 @@ ${NOISE_2D}
   uniform float uWaterLevel;
   uniform vec2 uFieldHalf;
   uniform sampler2D uBlood;
+  uniform vec3 uSeasonGrass;
+  uniform vec3 uSeasonDirt;
+  // Color de estación normalizado a luminancia 1: multiplicarlo por la luminancia
+  // del píxel cambia el TONO sin tocar el brillo ni el contraste del terreno.
+  uniform vec3 uSeasonHue;
+  uniform float uSeasonHueAmount;
+  uniform float uGroundSnow;
+  uniform float uWetness;
 
   varying vec3 vWorld;
   varying vec3 vNormal;
@@ -133,6 +142,16 @@ ${NOISE_2D}
     // Barro húmedo justo en la ribera.
     color *= mix(1.0, 0.72, smoothstep(uWaterLevel + 1.6, uWaterLevel, vWorld.y));
 
+    // Tinte de estación: el mismo terreno pasa de verde tierno a pajizo, a ocre
+    // de otoño o a apagado de invierno sin regenerar la malla.
+    // El multiplicador solo aclara u oscurece canales: por sí solo jamás convierte
+    // un verde en un ocre de otoño. Por eso encima va un desplazamiento de tono
+    // que conserva la luminancia, y solo en lo llano (la roca no cambia de color).
+    float grassy = clamp(1.0 - slope * 2.0, 0.0, 1.0);
+    color *= mix(uSeasonDirt, uSeasonGrass, grassy);
+    float lum = dot(color, vec3(0.299, 0.587, 0.114));
+    color = mix(color, uSeasonHue * lum, uSeasonHueAmount * grassy);
+
     // Hebras de hierba: ruido muy fino y anisótropo que insinúa textura vegetal.
     float blades = noise2(vWorld.xz * vec2(2.6, 9.0));
     color *= 0.82 + noise2(vWorld.xz * 0.9) * 0.16 + blades * 0.1;
@@ -144,6 +163,21 @@ ${NOISE_2D}
     vec3 bloodColor = mix(vec3(0.28, 0.02, 0.02), vec3(0.55, 0.05, 0.04), noise2(vWorld.xz * 0.5));
     color = mix(color, bloodColor, clamp(blood, 0.0, 1.0) * 0.92);
 
+    // Nieve: cuaja en lo llano y se agarra menos en las pendientes, con un borde
+    // irregular. Se aplica ANTES de la iluminación para que reciba sombra normal.
+    if (uGroundSnow > 0.0) {
+      // Ojo: "flat" es palabra reservada en GLSL ES 3.0 (calificador de interpolación).
+      float level = smoothstep(0.42, 0.08, slope);
+      float edge = fbm2(vWorld.xz * 0.22, 3);
+      float cover = clamp(level * uGroundSnow * smoothstep(0.32, 0.62, edge + uGroundSnow * 0.35), 0.0, 1.0);
+      // La sangre derrite la nieve: el contraste rojo sobre blanco es brutal.
+      cover *= 1.0 - clamp(blood * 1.6, 0.0, 1.0);
+      color = mix(color, vec3(0.86, 0.9, 0.96), cover);
+    }
+
+    // Suelo mojado: se oscurece y gana un reflejo especular ancho.
+    color *= 1.0 - uWetness * 0.3;
+
     float diffuse = max(dot(n, normalize(uLightDir)), 0.0);
     float hemi = n.y * 0.5 + 0.5;
     vec3 ambient = mix(uGroundColor, uSkyColor, hemi);
@@ -151,6 +185,12 @@ ${NOISE_2D}
     // no cerca de 1.0: así queda margen para que el tonemapping module las altas
     // luces y solo el fuego real llegue al bloom.
     color = color * (ambient * 0.45 + uSunColor * diffuse * 0.6);
+
+    if (uWetness > 0.0) {
+      vec3 viewDir = normalize(cameraPosition - vWorld);
+      vec3 halfway = normalize(normalize(uLightDir) + viewDir);
+      color += uSunColor * pow(max(dot(n, halfway), 0.0), 26.0) * uWetness * 0.5;
+    }
 
     float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
     color = mix(color, uFogColor, clamp(fogFactor, 0.0, 1.0));
@@ -185,6 +225,7 @@ ${NOISE_2D}
   uniform float uMeanderAmp;
   uniform float uMeanderFreq;
   uniform float uRiverHalf;
+  uniform vec3 uSeasonWater;
 
   varying vec3 vWorld;
   varying float vFogDepth;
@@ -216,6 +257,8 @@ ${NOISE_2D}
     vec2 bloodUv = vWorld.xz / (uFieldHalf * 2.0) + 0.5;
     float blood = texture2D(uBlood, clamp(bloodUv, 0.0, 1.0)).r;
     color = mix(color, vec3(0.38, 0.03, 0.03), clamp(blood * 1.15, 0.0, 0.9));
+
+    color *= uSeasonWater;
 
     float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
     color = mix(color, uFogColor, clamp(fogFactor, 0.0, 1.0));
@@ -322,6 +365,12 @@ export class TerrainRenderer {
         uWaterLevel: { value: terrain.waterLevel },
         uFieldHalf: { value: this.halfExtent.clone() },
         uBlood: { value: this.bloodTexture },
+        uSeasonGrass: { value: new THREE.Color(1, 1, 1) },
+        uSeasonDirt: { value: new THREE.Color(1, 1, 1) },
+        uSeasonHue: { value: new THREE.Color(1, 1, 1) },
+        uSeasonHueAmount: { value: 0 },
+        uGroundSnow: { value: 0 },
+        uWetness: { value: 0 },
       },
     });
 
@@ -348,6 +397,7 @@ export class TerrainRenderer {
         uMeanderAmp: { value: terrain.meanderAmp },
         uMeanderFreq: { value: terrain.meanderFreq },
         uRiverHalf: { value: terrain.riverWidth * 0.62 },
+        uSeasonWater: { value: new THREE.Color(1, 1, 1) },
       },
       transparent: true,
       depthWrite: false,
@@ -434,6 +484,27 @@ export class TerrainRenderer {
   setFogDensity(density: number): void {
     this.groundMaterial.uniforms.uFogDensity.value = density;
     this.waterMaterial.uniforms.uFogDensity.value = density;
+  }
+
+  /** Estación: tiñe hierba, tierra y agua, y decide cuánta nieve cuaja. */
+  setSeason(season: SeasonProfile): void {
+    const u = this.groundMaterial.uniforms;
+    u.uSeasonGrass.value.copy(season.grassTint);
+    u.uSeasonDirt.value.copy(season.dirtTint);
+    // El tono se normaliza a luminancia 1 para que multiplicarlo por la del
+    // píxel no cambie el brillo: solo el color.
+    const hue = u.uSeasonHue.value as THREE.Color;
+    hue.copy(season.groundHue);
+    const lum = hue.r * 0.299 + hue.g * 0.587 + hue.b * 0.114;
+    hue.multiplyScalar(1 / Math.max(lum, 1e-4));
+    u.uSeasonHueAmount.value = season.groundHueAmount;
+    u.uGroundSnow.value = season.groundSnow;
+    this.waterMaterial.uniforms.uSeasonWater.value.copy(season.waterTint);
+  }
+
+  /** Clima: cuánto brilla y se oscurece el suelo por estar mojado. */
+  setWetness(wetness: number): void {
+    this.groundMaterial.uniforms.uWetness.value = wetness;
   }
 
   dispose(): void {

@@ -66,14 +66,25 @@ va justo, en este orden:
    solo se dibujan menos figuras)
 3. `graphics.postProcessing` → `false` (quita bloom, viñeta y grading; ahorra varias
    pasadas a pantalla completa)
-4. `graphics.lodDistance` → `40` (menos figuras con el modelo detallado)
-5. `graphics.propDensity` → `0` y `graphics.clouds` → `0`
-6. `graphics.shadows` → `false`
-7. `graphics.particleLimit` → `2000`
-8. `graphics.bloodTextureSize` → `256`
+4. `graphics.textureDistance` → `20` (las texturas de tela, malla y acero solo se
+   calculan de cerca; a 20 apenas se nota y se ahorra mucho fragmento)
+5. `graphics.lodDistance` → `40` (menos figuras con el modelo detallado)
+6. `graphics.precipitationParticles` → `4000` (solo cuesta cuando llueve o nieva; en
+   cielo despejado no se dibuja ni una partícula)
+7. `graphics.propDensity` → `0` y `graphics.clouds` → `0`
+8. `graphics.shadows` → `false`
+9. `graphics.particleLimit` → `2000`
+10. `graphics.bloodTextureSize` → `256`
 
 Poner `graphics.quality` en `"low"` hace varios de estos pasos de golpe: apaga el
-post-procesado, el decorado, las sombras y la sangre, y usa siluetas simplificadas.
+post-procesado, el decorado, las sombras, la sangre y la precipitación, y usa siluetas
+simplificadas.
+
+Del clima, lo que cuesta es la **tormenta**: es el único que junta precipitación al
+máximo, niebla espesa y destellos de relámpago. Si el directo solo se atasca en
+tormenta, baja `graphics.precipitationParticles` antes de tocar nada más. Y si prefieres
+no jugártelo, deja `world.randomWeatherEachRound` en `false` y fija el clima que
+aguante tu equipo desde el panel.
 
 Todo se puede probar sin editar el archivo, pasándolo por la URL:
 

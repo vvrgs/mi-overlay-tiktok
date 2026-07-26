@@ -26,6 +26,7 @@
           <div class="stat"><span class="stat__label">Tiempo</span><span class="stat__value" data-el="elapsed">—</span></div>
           <div class="stat"><span class="stat__label">FPS</span><span class="stat__value" data-el="fps">—</span></div>
           <div class="stat"><span class="stat__label">Entidades</span><span class="stat__value" data-el="entities">—</span></div>
+          <div class="stat"><span class="stat__label">Clima</span><span class="stat__value" data-el="atmosphere">—</span></div>
         </div>
         <div class="armies">
           <div class="army army--red">
@@ -145,6 +146,31 @@
           <button data-action="unban">✓ Quitar ban</button>
         </div>
         <ul class="banlist" data-el="banList"></ul>
+      </section>
+
+      <!-- Estación y clima -->
+      <section class="card">
+        <h2>Estación y clima</h2>
+        <label class="field">
+          Estación
+          <select data-el="season">
+            <option value="spring">🌱 Primavera</option>
+            <option value="summer">☀️ Verano</option>
+            <option value="autumn">🍂 Otoño</option>
+            <option value="winter">❄️ Invierno</option>
+          </select>
+        </label>
+        <label class="field">
+          Clima
+          <select data-el="weather">
+            <option value="clear">☀️ Despejado</option>
+            <option value="rain">🌧️ Lluvia</option>
+            <option value="snow">❄️ Nieve</option>
+            <option value="fog">🌫️ Niebla</option>
+            <option value="storm">⛈️ Tormenta</option>
+          </select>
+        </label>
+        <p class="hint">Con <code>world.cycleSeasonEachRound</code> la estación avanza sola cada ronda y el clima se sortea entre los que encajan con ella.</p>
       </section>
 
       <!-- Presentación -->
