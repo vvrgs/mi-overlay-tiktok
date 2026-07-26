@@ -402,6 +402,11 @@ public final class FxDirector {
         return v.normalize();
     }
 
+    /** Dirección unitaria dentro de un cono alrededor de {@code dir} (spread = apertura relativa). */
+    private static Vec3 cone(Vec3 dir, double spread) {
+        return dir.add(randomDir().scale(spread)).normalize();
+    }
+
     private static void sound(ClientLevel level, Vec3 pos, SoundEvent event, float vol, float pitch) {
         // distanceDelay=true: el trueno llega tarde si estás lejos. Detalle que se siente.
         level.playLocalSound(pos.x, pos.y, pos.z, event, SoundSource.HOSTILE, vol, pitch, true);

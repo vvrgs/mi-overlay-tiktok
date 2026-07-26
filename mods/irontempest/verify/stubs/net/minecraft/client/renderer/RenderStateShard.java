@@ -20,25 +20,25 @@ public abstract class RenderStateShard {
         this.name = name;
     }
 
-    public static class TransparencyStateShard extends RenderStateShard {
+    protected static class TransparencyStateShard extends RenderStateShard {
         public TransparencyStateShard(String name, Runnable setupState, Runnable clearState) {
             super(name, setupState, clearState);
         }
     }
 
-    public static class CullStateShard extends RenderStateShard {
+    protected static class CullStateShard extends RenderStateShard {
         public CullStateShard(boolean cull) {
             super("cull", () -> {}, () -> {});
         }
     }
 
-    public static class WriteMaskStateShard extends RenderStateShard {
+    protected static class WriteMaskStateShard extends RenderStateShard {
         public WriteMaskStateShard(boolean writeColor, boolean writeDepth) {
             super("write_mask_state", () -> {}, () -> {});
         }
     }
 
-    public static class ShaderStateShard extends RenderStateShard {
+    protected static class ShaderStateShard extends RenderStateShard {
         public ShaderStateShard() {
             super("shader", () -> {}, () -> {});
         }
@@ -48,7 +48,7 @@ public abstract class RenderStateShard {
         }
     }
 
-    public static class EmptyTextureStateShard extends RenderStateShard {
+    protected static class EmptyTextureStateShard extends RenderStateShard {
         public EmptyTextureStateShard(Runnable setupState, Runnable clearState) {
             super("texture", setupState, clearState);
         }
@@ -58,7 +58,7 @@ public abstract class RenderStateShard {
         }
     }
 
-    public static class TextureStateShard extends EmptyTextureStateShard {
+    protected static class TextureStateShard extends EmptyTextureStateShard {
         public TextureStateShard(ResourceLocation texture, boolean blur, boolean mipmap) {
         }
     }
