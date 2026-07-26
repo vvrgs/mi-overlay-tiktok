@@ -13,6 +13,7 @@ const UI = (() => {
     water: '¡AHOGADO!',
     fell: '¡ARRASTRADO POR EL RÍO!',
     volcano: '¡CALCINADO POR EL VOLCÁN!',
+    boulder: '¡APLASTADO POR UNA ROCA!',
     lightning: '¡FULMINADO POR UN RAYO!',
     ufo: '¡ABDUCIDO!',
     eagle: '¡CAZADO POR EL ÁGUILA!',

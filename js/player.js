@@ -169,7 +169,7 @@ const Player = (() => {
     },
 
     playDeath(cause) {
-      if (cause === 'car' || cause === 'supertruck' || cause === 'train') {
+      if (cause === 'car' || cause === 'supertruck' || cause === 'train' || cause === 'boulder') {
         this.mesh.scale.set(1.35, 0.12, 1.35);
         AudioFX.squash();
         const p = this.mesh.position.clone();

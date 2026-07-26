@@ -11,6 +11,7 @@ const Game = (() => {
   let eagleActive = null;
   let slowmo = 0;
   let zoomCur = 1;
+  let punchVal = 0;
   let stormTarget = 0, stormCur = 0;
   const SKY = new THREE.Color(0x6fd3f7);
   const SKY_STORM = new THREE.Color(0x46586e);
@@ -92,6 +93,9 @@ const Game = (() => {
     },
 
     setStorm(v) { stormTarget = v; },
+
+    /* golpe de zoom para momentos de impacto */
+    punch(v) { punchVal = Math.max(punchVal, v); },
 
     addCoin() {
       this.coins++;
@@ -203,26 +207,44 @@ const Game = (() => {
       Effects.clear();
       World.reset();
       Player.reset();
-      if (eagleActive) { scene.remove(eagleActive.mesh); eagleActive = null; }
+      this.clearEagle();
       focusRow = 0; focusX = 0;
       stormTarget = 0;
       slowmo = 0;
+      punchVal = 0;
       AudioFX.jingle();
     },
 
-    /* --- Águila por inactividad --- */
+    /* --- Águila por inactividad (rodea con su sombra y ataca) --- */
     updateEagle(dt, now) {
       if (eagleActive) {
         const e = eagleActive;
         e.mesh.userData.wings[0].rotation.z = Math.sin(now * 14) * 0.5;
         e.mesh.userData.wings[1].rotation.z = -Math.sin(now * 14) * 0.5;
-        if (e.phase === 'swoop') {
+        // sombra proyectada en el suelo
+        if (e.shadow) {
+          e.shadow.position.set(e.mesh.position.x, 0.11, e.mesh.position.z);
+          const k = Math.min(1, e.t / 1.5);
+          e.shadow.scale.setScalar(0.5 + k * 0.7);
+          e.shadow.material.opacity = 0.12 + k * 0.25;
+        }
+        if (e.phase === 'circle') {
+          e.t += dt;
+          const p = Player.mesh.position;
+          const a = e.t * 2.6;
+          const goal = new THREE.Vector3(p.x + Math.cos(a) * 4.2, 5.5, p.z + Math.sin(a) * 4.2);
+          e.mesh.position.lerp(goal, Math.min(1, 4 * dt));
+          e.mesh.lookAt(goal.x - Math.sin(a) * 3, 5.2, goal.z + Math.cos(a) * 3);
+          if (e.t > 0.9 && !e.cried) { e.cried = true; AudioFX.eagle(); }
+          if (e.t > 2.3) { e.phase = 'swoop'; AudioFX.eagle(); }
+        } else if (e.phase === 'swoop') {
           const target = Player.mesh.position.clone().add(new THREE.Vector3(0, 0.35, 0));
-          e.mesh.position.lerp(target, Math.min(1, 3.5 * dt));
+          e.mesh.position.lerp(target, Math.min(1, 3.8 * dt));
           e.mesh.lookAt(target.x, e.mesh.position.y, target.z - 4);
           if (e.mesh.position.distanceTo(target) < 0.5) {
             e.phase = 'grab';
             if (Player.state === 'alive') Player.setCarried();
+            Effects.feathers(target, 8);
             AudioFX.eagle();
           }
         } else if (e.phase === 'grab') {
@@ -234,8 +256,7 @@ const Game = (() => {
             Player.state = 'dead';
             this.die('eagle', { alreadyDead: true });
             Player.mesh.visible = false;
-            scene.remove(e.mesh);
-            eagleActive = null;
+            this.clearEagle();
           }
         }
         return;
@@ -244,11 +265,28 @@ const Game = (() => {
           now - Player.lastMoveTime > CONFIG.idleEagleSec) {
         const mesh = Models.eagle();
         const p = Player.mesh.position;
-        mesh.position.set(p.x, 7, p.z + 10);
+        mesh.position.set(p.x + 4, 6, p.z + 8);
         scene.add(mesh);
-        eagleActive = { mesh, phase: 'swoop' };
+        const shadow = new THREE.Mesh(
+          new THREE.CircleGeometry(0.9, 20),
+          new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.1, depthWrite: false })
+        );
+        shadow.rotation.x = -Math.PI / 2;
+        scene.add(shadow);
+        eagleActive = { mesh, shadow, phase: 'circle', t: 0, cried: false };
         AudioFX.eagle();
       }
+    },
+
+    clearEagle() {
+      if (!eagleActive) return;
+      scene.remove(eagleActive.mesh);
+      if (eagleActive.shadow) {
+        scene.remove(eagleActive.shadow);
+        eagleActive.shadow.geometry.dispose();
+        eagleActive.shadow.material.dispose();
+      }
+      eagleActive = null;
     },
 
     tick() {
@@ -277,19 +315,20 @@ const Game = (() => {
       // tormenta: cielo y luces se oscurecen
       stormCur += (stormTarget - stormCur) * Math.min(1, 3 * rawDt);
       skyNow.copy(SKY).lerp(SKY_STORM, stormCur);
-      dirLight.intensity = 0.85 * (1 - 0.5 * stormCur);
-      hemiLight.intensity = 0.75 * (1 - 0.4 * stormCur);
+      dirLight.intensity = 0.85 * (1 - 0.62 * stormCur);
+      hemiLight.intensity = 0.75 * (1 - 0.55 * stormCur);
 
       World.ensure(Math.ceil(focusRow) + 28);
       World.cull(Math.floor(focusRow) - 16);
       World.update(dt, focusRow, Player.row);
       Player.update(dt);
       Disasters.update(dt);
-      Effects.update(dt);
+      Effects.update(dt, focusX, focusRow);
 
-      // cámara isométrica con zoom dramático en la muerte
+      // cámara isométrica con zoom dramático (muerte + golpes de impacto)
       focusX += (Math.max(-2.5, Math.min(2.5, Player.mesh.position.x)) - focusX) * Math.min(1, 3 * dt);
-      const zoomTarget = slowmo > 0 ? 1.14 : 1;
+      punchVal *= Math.max(0, 1 - 3.5 * rawDt);
+      const zoomTarget = (slowmo > 0 ? 1.14 : 1) + punchVal;
       if (Math.abs(zoomCur - zoomTarget) > 0.001) {
         zoomCur += (zoomTarget - zoomCur) * Math.min(1, 6 * rawDt);
         camera.zoom = zoomCur;
@@ -297,6 +336,8 @@ const Game = (() => {
       }
       const fz = -focusRow;
       const shake = Effects.getShakeOffset();
+      const roll = Effects.getRoll();
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
       camera.position.set(focusX + 5.2 + shake.x, 11, fz + 7.2 + shake.y);
       camera.lookAt(focusX + shake.x, 0, fz - 1.2 + shake.y);
 

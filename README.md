@@ -33,17 +33,20 @@ dependencias externas (Three.js y la fuente pixel van incluidas en `vendor/`).
 
 ## 💥 Desastres y acciones (regalos)
 
+Cada desastre es una secuencia cinematográfica con fases de anticipación,
+clímax y resolución, con clima, cámara y sonido propios:
+
 | Acción | Qué hace |
 |---|---|
-| 💎 **RESET** | Mata la run al instante |
-| 🍓 **SAVE THE RUN** | Da un escudo (aguanta una muerte y te recoloca a salvo) |
+| 💎 **RESET** | Un diamante gigante cae del cielo persiguiéndote, revienta en esquirlas y mata la run |
+| 🍓 **SAVE THE RUN** | Pilar de luz dorada + halo descendente; da un escudo (aguanta una muerte y te recoloca a salvo) |
 | 🪽 **MOVE LEFT** / 💗 **MOVE RIGHT** | Mueven al pollo un paso |
-| 🚛 **SUPER CAMIÓN** | Un camión gigante barre la fila del pollo, aplasta árboles y manda los coches por los aires |
-| 🌋 **VOLCÁN** | Brota un volcán con luz propia, la erupción te empuja 3 filas atrás y llueven bombas de lava con estela de brasas |
-| 🫨 **TERREMOTO** | Los carriles ondulan, la pantalla tiembla y te empuja 4 filas atrás |
-| 🌪️ **TORNADO** | Cruza el mapa levantando polvo y árboles; si te atrapa, te arrastra muchas filas atrás |
-| 🛸 **OVNI** | Te abduce con su rayo y deja un círculo quemado en el pasto |
-| ⚡ **RAYO** | El cielo se oscurece, marca tu casilla y cae un rayo con doble destello |
+| 🚛 **SUPER CAMIÓN** | El suelo se agrieta por donde va a pasar; entra un camión monstruo con pala quitanieves, ruedas girando, fuego en los escapes, chispas, derrapes... y manda los coches por los aires |
+| 🌋 **VOLCÁN** | El suelo se resquebraja incandescente, el volcán revienta lanzando rocas, escupe una columna de humo y bombas de lava con estela de brasas que dejan charcos ardientes |
+| 🫨 **TERREMOTO** | La cámara se ladea, se abren fisuras que cruzan el mapa, los árboles se desploman y rocas gigantes cruzan rebotando (y aplastan) |
+| 🌪️ **TORNADO** | Se hace de noche con ráfagas de viento; el embudo se retuerce, absorbe cosas del suelo, voltea coches y arranca árboles; si te atrapa, te arrastra muchas filas atrás |
+| 🛸 **OVNI** | Cae la noche; el platillo te busca con su foco, te abduce aspirando todo con su rayo y despega en warp dejando un círculo quemado |
+| ⚡ **TORMENTA** | Lluvia, cielo negro y rayos aleatorios cayendo alrededor… antes del rayo final teledirigido con doble destello |
 
 Cada evento muestra un banner con el nombre del regalo y del espectador, y el
 panel lateral (como el del video) lleva el conteo de cada acción.

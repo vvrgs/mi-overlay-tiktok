@@ -127,25 +127,57 @@ const Models = (() => {
     const g = new THREE.Group();
     const s = new THREE.Group();
     s.add(box(1.3, 1.5, 1.5, 0x8e1616, 1.9, 0.95, 0));               // cabina
+    s.add(box(1.3, 0.14, 1.54, 0x5e0e0e, 1.9, 1.72, 0));             // techo
     s.add(box(0.18, 0.55, 1.34, 0xd8d8e0, 2.55, 0.60, 0));           // parrilla cromada
-    s.add(box(0.10, 0.20, 1.5, 0xb0b0ba, 2.60, 0.30, 0));            // defensa
     s.add(box(0.5, 0.16, 1.3, 0xfff6a8, 2.45, 1.05, 0));             // faros
-    s.add(box(0.16, 0.8, 0.16, 0x555560, 1.45, 2.05, 0.55));         // escapes
-    s.add(box(0.16, 0.8, 0.16, 0x555560, 1.45, 2.05, -0.55));
-    s.add(box(0.24, 0.10, 0.24, 0x333338, 1.45, 2.48, 0.55));
-    s.add(box(0.24, 0.10, 0.24, 0x333338, 1.45, 2.48, -0.55));
+    // pala quitanieves
+    s.add(box(0.35, 0.8, 1.9, 0x3a3a42, 2.95, 0.45, 0));
+    s.add(box(0.25, 0.55, 1.94, 0xe8552d, 3.10, 0.36, 0));
+    s.add(box(0.18, 0.25, 1.98, 0xffd23b, 3.22, 0.20, 0));
+    // escapes (guardados para echar fuego)
+    const ex1 = box(0.16, 0.9, 0.16, 0x555560, 1.45, 2.1, 0.55);
+    const ex2 = box(0.16, 0.9, 0.16, 0x555560, 1.45, 2.1, -0.55);
+    s.add(ex1, ex2);
+    s.add(box(0.24, 0.10, 0.24, 0x333338, 1.45, 2.6, 0.55));
+    s.add(box(0.24, 0.10, 0.24, 0x333338, 1.45, 2.6, -0.55));
     s.add(box(3.6, 1.7, 1.6, 0x1c1c22, -0.85, 1.15, 0));             // remolque
     s.add(box(3.6, 0.30, 1.64, 0xe8552d, -0.85, 0.75, 0));           // franja de fuego
     s.add(box(3.0, 0.16, 1.62, 0xf0c229, -0.85, 0.95, 0));
+    s.add(box(0.10, 1.2, 1.2, 0xd8d8e0, -2.68, 1.15, 0));            // trasera cromada
     s.add(box(0.8, 0.5, 0.05, 0xf2f2f2, 2.0, 1.15, 0.76));           // placa calavera
     s.add(box(0.18, 0.18, 0.03, 0x1c1c22, 1.85, 1.2, 0.79));
     s.add(box(0.18, 0.18, 0.03, 0x1c1c22, 2.15, 1.2, 0.79));
+    const wheelList = [];
     for (const x of [1.9, 0.3, -0.7, -1.9]) {
-      s.add(box(0.55, 0.55, 0.22, 0x222228, x, 0.28, 0.78));
-      s.add(box(0.55, 0.55, 0.22, 0x222228, x, 0.28, -0.78));
+      const w1 = box(0.62, 0.62, 0.24, 0x222228, x, 0.31, 0.78);
+      const w2 = box(0.62, 0.62, 0.24, 0x222228, x, 0.31, -0.78);
+      s.add(w1, w2);
+      wheelList.push(w1, w2);
     }
     g.add(s);
-    g.userData.len = 6.0; g.userData.height = 2.2;
+    g.userData.len = 6.4; g.userData.height = 2.4;
+    g.userData.wheels = wheelList;
+    g.userData.exhausts = [ex1, ex2];
+    return g;
+  }
+
+  /* --- Roca gigante que rebota (terremoto) --- */
+  function boulder() {
+    const g = new THREE.Group();
+    g.add(box(0.85, 0.75, 0.8, 0x8a8a94, 0, 0, 0));
+    g.add(box(0.55, 0.5, 0.6, 0x9a9aa4, 0.2, 0.3, 0.1));
+    g.add(box(0.5, 0.45, 0.5, 0x7a7a84, -0.25, -0.2, -0.15));
+    g.userData.r = 0.55;
+    return g;
+  }
+
+  /* --- Diamante gigante (reset) --- */
+  function diamond() {
+    const g = new THREE.Group();
+    const o = { emissive: 0x1aa8d8, emissiveIntensity: 0.55, transparent: true, opacity: 0.95 };
+    const layers = [[0.35, 0], [0.8, 0.3], [1.25, 0.6], [0.8, 0.9], [0.35, 1.2]];
+    for (const [w, y] of layers) g.add(box(w, 0.3, w, 0x7fd8ff, 0, y, 0, o));
+    g.add(box(0.5, 0.12, 0.5, 0xffffff, -0.25, 0.72, -0.25, { transparent: true, opacity: 0.85 })); // brillo
     return g;
   }
 
@@ -319,18 +351,18 @@ const Models = (() => {
   function tornado() {
     const g = new THREE.Group();
     const layers = [];
-    const grays = [0xcfd4da, 0xbfc6cd, 0xaeb6bf, 0x9aa3ad, 0x8a939e, 0x7b848f];
-    for (let i = 0; i < 6; i++) {
-      const s = 0.5 + i * 0.42;
-      const b = box(s, 0.55, s, grays[i], 0, 0.3 + i * 0.55, 0, { transparent: true, opacity: 0.85 });
+    const grays = [0xd8dde2, 0xcfd4da, 0xbfc6cd, 0xaeb6bf, 0x9aa3ad, 0x8a939e, 0x7b848f, 0x6d7680];
+    for (let i = 0; i < 8; i++) {
+      const s = 0.45 + i * 0.44;
+      const b = box(s, 0.52, s, grays[i], 0, 0.28 + i * 0.52, 0, { transparent: true, opacity: 0.85 });
       layers.push(b); g.add(b);
     }
     const debris = [];
-    for (let i = 0; i < 8; i++) {
-      const colors = [0x8a5a33, 0x2f9e41, 0x9a9aa4];
-      const d = box(0.16, 0.16, 0.16, colors[i % 3], 0, 0.5 + Math.random() * 2.5, 0);
+    for (let i = 0; i < 12; i++) {
+      const colors = [0x8a5a33, 0x2f9e41, 0x9a9aa4, 0xe8552d];
+      const d = box(0.16, 0.16, 0.16, colors[i % 4], 0, 0.5 + Math.random() * 3.6, 0);
       d.userData.ang = Math.random() * Math.PI * 2;
-      d.userData.r = 0.7 + Math.random() * 1.1;
+      d.userData.r = 0.7 + Math.random() * 1.6;
       debris.push(d); g.add(d);
     }
     g.userData.layers = layers;
@@ -364,8 +396,17 @@ const Models = (() => {
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = -3.3;
     g.add(glow);
+    // foco de búsqueda (cono inclinado que barre el suelo al girar el ovni)
+    const search = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 1.3, 7, 12, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false })
+    );
+    search.position.set(1.4, -3.3, 0);
+    search.rotation.z = 0.42;
+    g.add(search);
     g.userData.beam = beam;
     g.userData.glow = glow;
+    g.userData.search = search;
     g.userData.lights = lights;
     return g;
   }
@@ -421,6 +462,6 @@ const Models = (() => {
     mat, box, chicken, car, taxi, police, bus, truck, superTruck, train,
     railSignal, tree, rock, bush, flower, tuft, log, lilypad, coin, cloud,
     volcano, lavaBomb, tornado, ufo, eagle, lightningBolt, shieldBubble,
-    targetMarker, CAR_COLORS,
+    targetMarker, boulder, diamond, CAR_COLORS,
   };
 })();
