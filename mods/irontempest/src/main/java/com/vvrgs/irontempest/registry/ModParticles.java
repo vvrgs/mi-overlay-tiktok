@@ -25,7 +25,10 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> EMBER = simple("ember");
 
     private static RegistryObject<SimpleParticleType> simple(String name) {
-        return REGISTER.register(name, () -> new SimpleParticleType(false));
+        // true = overrideLimiter/alwaysShow: sin esto el LevelRenderer culla toda
+        // partícula a >32 bloques y los FX cinemáticos lejanos (nave orbital a 38,
+        // misiles a 45) serían invisibles. También ignora el ajuste "Mínimo".
+        return REGISTER.register(name, () -> new SimpleParticleType(true));
     }
 
     private ModParticles() {}

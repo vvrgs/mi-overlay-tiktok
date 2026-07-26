@@ -26,27 +26,12 @@ import org.slf4j.Logger;
  * puente se desactiva para siempre (log una sola vez, nunca crashea).
  *
  * El mapping evento → effek vive en assets/irontempest/effeks/manifest.json;
- * las entradas con valor "" se ignoran. FxDirector llama con el nombre del
- * FxType en minúsculas, así que además del lookup directo hay una tabla de
- * alias FxType → clave del manifest (el lookup directo tiene prioridad).
+ * las claves son el nombre del FxType en minúsculas (exactamente lo que manda
+ * FxDirector) y las entradas con valor "" se ignoran.
  */
 public final class EffekBridge {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-
-    // Alias FxType (minúsculas) → clave de evento del manifest.
-    private static final Map<String, String> FXTYPE_ALIASES = Map.ofEntries(
-            Map.entry("explosion_small", "rocket.impact"),
-            Map.entry("explosion_large", "missile.impact"),
-            Map.entry("airburst", "missile.impact"),
-            Map.entry("muzzle_flash", "tank.muzzle"),
-            Map.entry("tank_landing", "tank.landing"),
-            Map.entry("warp_in", "orbital.warp_in"),
-            Map.entry("warp_out", "orbital.warp_out"),
-            Map.entry("charge_burst", "orbital.charge"),
-            Map.entry("beam_sweep", "orbital.beam"),
-            Map.entry("overload_pulse", "orbital.overload"),
-            Map.entry("armageddon_opening", "armageddon.opening"));
 
     private static final Map<String, String> EVENT_TO_EFFEK = new HashMap<>();
 
@@ -78,12 +63,6 @@ public final class EffekBridge {
             return;
         }
         String path = EVENT_TO_EFFEK.get(eventKey);
-        if (path == null) {
-            String alias = FXTYPE_ALIASES.get(eventKey);
-            if (alias != null) {
-                path = EVENT_TO_EFFEK.get(alias);
-            }
-        }
         if (path == null || path.isEmpty()) {
             return; // evento sin effek asignado: solo FX nativos
         }
@@ -94,7 +73,7 @@ public final class EffekBridge {
         try {
             Object info = emitterInfoCtor.newInstance(new ResourceLocation("irontempest", path));
             positionMethod.invoke(info, x, y, z);
-            if (rotation != null) {
+            if (rotation != null && rotationLocalMethod != null) {
                 rotationLocalMethod.invoke(info, rotation[0], rotation[1], rotation[2]);
             }
             addParticleMethod.invoke(null, level, true, info);
@@ -120,11 +99,19 @@ public final class EffekBridge {
             addParticleMethod = aaaLevel.getMethod("addParticle", Level.class, boolean.class, emitterInfo);
             emitterInfoCtor = emitterInfo.getConstructor(ResourceLocation.class);
             positionMethod = emitterInfo.getMethod("position", double.class, double.class, double.class);
-            rotationLocalMethod = emitterInfo.getMethod("rotationLocal", float.class, float.class, float.class);
         } catch (Throwable t) {
             disabled = true;
             LOGGER.warn("[irontempest] AAA Particles presente pero API incompatible: puente effek desactivado", t);
             return;
+        }
+        // rotationLocal es OPCIONAL: sin ella solo se pierde la rotación de effeks,
+        // jamás el puente entero (ninguna receta actual la usa).
+        try {
+            Class<?> emitterInfo = Class.forName("mod.chloeprime.aaaparticles.api.common.ParticleEmitterInfo");
+            rotationLocalMethod = emitterInfo.getMethod("rotationLocal", float.class, float.class, float.class);
+        } catch (Throwable t) {
+            rotationLocalMethod = null;
+            LOGGER.info("[irontempest] AAA Particles sin rotationLocal: effeks sin rotación (resto OK)");
         }
         loadManifest();
     }

@@ -186,10 +186,15 @@ public final class FxDirector {
         }
         spawn(level, ModParticles.FLASH.get(), pos, 1, 0.02D, 0.0D);
         ScreenShake.addTrauma(0.30F, pos);
-        // Anillo de humo del freno de boca (perpendicular al disparo).
+        // Anillo de humo del freno de boca: velocidades en el plano PERPENDICULAR
+        // al disparo (toroide real, no un segundo cono frontal).
         schedule(1, () -> {
             for (int i = 0; i < 10; i++) {
-                Vec3 v = cone(dir, 0.5D).scale(0.12D);
+                Vec3 side = randomDir().cross(dir);
+                if (side.lengthSqr() < 1.0E-4D) {
+                    side = new Vec3(dir.y, dir.z, dir.x).cross(dir);
+                }
+                Vec3 v = side.normalize().scale(0.12D);
                 particle(level, ModParticles.SMOKE.get(), pos, v.x, v.y + 0.03D, v.z);
             }
         });
