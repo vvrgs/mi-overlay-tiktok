@@ -19,3 +19,4 @@ eclipse/
 
 # Verificación local (stubs del API, no forman parte del mod)
 verify/build/
+__pycache__/
