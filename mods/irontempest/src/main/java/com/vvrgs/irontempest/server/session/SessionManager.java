@@ -7,7 +7,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -187,6 +186,10 @@ public final class SessionManager {
         };
         if (started) {
             PENDING.poll();
+        } else if (PENDING.size() > 1) {
+            // Anti head-of-line: si la cabeza no puede arrancar (cupo lleno),
+            // rota al final para que los ataques de otros jugadores no se congelen.
+            PENDING.add(PENDING.poll());
         }
     }
 
@@ -239,9 +242,9 @@ public final class SessionManager {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
-        Iterator<WarSession> it = SESSIONS.iterator();
-        while (it.hasNext()) {
-            WarSession s = it.next();
+        // Iterar SIEMPRE sobre copia: un tick puede REGISTRAR sesiones nuevas
+        // (el armagedón lanza sub-ataques) y mutar la lista viva sería CME.
+        for (WarSession s : new ArrayList<>(SESSIONS)) {
             if (!s.isEnded()) {
                 try {
                     s.tick();
@@ -251,11 +254,14 @@ public final class SessionManager {
                     s.end("exception");
                 }
             }
+        }
+        SESSIONS.removeIf(s -> {
             if (s.isEnded()) {
                 ACTIVE_IDS.remove(s.id);
-                it.remove();
+                return true;
             }
-        }
+            return false;
+        });
         TerrainSculptor.serverTick();
         processPending(event.getServer());
     }
@@ -265,6 +271,10 @@ public final class SessionManager {
     public static void onServerStopping(ServerStoppingEvent event) {
         int n = stopAll();
         ultraActive = false;
+        // El tick loop ya no volverá a purgar: soltar TODO aquí para no retener
+        // el ServerLevel del mundo cerrado entre mundos (servidor integrado).
+        SESSIONS.clear();
+        ACTIVE_IDS.clear();
         IronTempest.LOGGER.info("[irontempest] cleanup por ServerStopping: {} sesiones cerradas", n);
     }
 

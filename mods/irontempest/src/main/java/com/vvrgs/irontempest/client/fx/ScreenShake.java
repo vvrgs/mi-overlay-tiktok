@@ -43,6 +43,11 @@ public final class ScreenShake {
         trauma = Math.max(0.0F, trauma - DECAY);
     }
 
+    public static void reset() {
+        trauma = 0.0F;
+        traumaO = 0.0F;
+    }
+
     public static void apply(ViewportEvent.ComputeCameraAngles event) {
         float pt = (float) event.getPartialTick();
         float t = Mth.lerp(pt, traumaO, trauma);

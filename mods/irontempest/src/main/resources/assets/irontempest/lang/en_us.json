@@ -19,7 +19,6 @@
   "subtitles.irontempest.tank_tracks": "Tracks advancing",
   "subtitles.irontempest.shell_casing": "Casing ejected",
   "subtitles.irontempest.crater_sizzle": "Crater sizzling",
-
   "death.attack.irontempest.tank_shell": "%1$s was blown apart by a tank shell",
   "death.attack.irontempest.tank_shell.player": "%1$s was blown apart by a tank shell whilst fighting %2$s",
   "death.attack.irontempest.missile": "%1$s was vaporized by a cruise missile",
@@ -30,13 +29,11 @@
   "death.attack.irontempest.orbital_beam.player": "%1$s was disintegrated from orbit whilst fighting %2$s",
   "death.attack.irontempest.shockwave": "%1$s was shattered by a shockwave",
   "death.attack.irontempest.shockwave.player": "%1$s was shattered by a shockwave whilst fighting %2$s",
-
   "entity.irontempest.war_tank": "Assault Tank",
   "entity.irontempest.tank_shell": "AP Shell",
   "entity.irontempest.cruise_missile": "Cruise Missile",
   "entity.irontempest.mlrs_rocket": "MLRS Rocket",
   "entity.irontempest.warship": "Orbital Warship",
-
   "irontempest.msg.attack_queued": "§6[Iron Tempest]§r %s queued against §c%s§r (position %d)",
   "irontempest.msg.attack_started": "§6[Iron Tempest]§r %s unleashed against §c%s§r!",
   "irontempest.msg.ultra_busy": "§6[Iron Tempest]§r §cAn ARMAGEDDON is already active on this server. Wait for it to finish.",
@@ -48,5 +45,6 @@
   "irontempest.attack.cruisemissile": "Cruise Missile",
   "irontempest.attack.rocketrain": "Rocket Rain",
   "irontempest.attack.orbitalstrike": "Orbital Strike",
-  "irontempest.attack.armageddon": "Armageddon"
+  "irontempest.attack.armageddon": "Armageddon",
+  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cAttack queue full: this attack was dropped."
 }

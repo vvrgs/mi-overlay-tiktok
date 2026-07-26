@@ -90,6 +90,11 @@ public final class FxDirector {
         }
     }
 
+    /** Limpieza dura al salir del mundo: las lambdas capturan el ClientLevel viejo. */
+    public static void clear() {
+        QUEUE.clear();
+    }
+
     private static void schedule(int delayTicks, Runnable action) {
         if (QUEUE.size() >= MAX_QUEUE) {
             return; // presupuesto duro: se sacrifica cola, nunca el framerate

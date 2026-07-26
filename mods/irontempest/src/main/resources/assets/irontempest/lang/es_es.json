@@ -19,7 +19,6 @@
   "subtitles.irontempest.tank_tracks": "Orugas avanzando",
   "subtitles.irontempest.shell_casing": "Casquillo eyectado",
   "subtitles.irontempest.crater_sizzle": "Cráter chisporroteando",
-
   "death.attack.irontempest.tank_shell": "%1$s fue volado en pedazos por un obús de tanque",
   "death.attack.irontempest.tank_shell.player": "%1$s fue volado en pedazos por un obús de tanque mientras luchaba contra %2$s",
   "death.attack.irontempest.missile": "%1$s fue vaporizado por un misil de crucero",
@@ -30,13 +29,11 @@
   "death.attack.irontempest.orbital_beam.player": "%1$s fue desintegrado desde la órbita mientras luchaba contra %2$s",
   "death.attack.irontempest.shockwave": "%1$s fue destrozado por una onda de choque",
   "death.attack.irontempest.shockwave.player": "%1$s fue destrozado por una onda de choque mientras luchaba contra %2$s",
-
   "entity.irontempest.war_tank": "Tanque de asalto",
   "entity.irontempest.tank_shell": "Obús perforante",
   "entity.irontempest.cruise_missile": "Misil de crucero",
   "entity.irontempest.mlrs_rocket": "Cohete MLRS",
   "entity.irontempest.warship": "Nave de guerra orbital",
-
   "irontempest.msg.attack_queued": "§6[Iron Tempest]§r %s en cola contra §c%s§r (posición %d)",
   "irontempest.msg.attack_started": "§6[Iron Tempest]§r ¡%s desatado contra §c%s§r!",
   "irontempest.msg.ultra_busy": "§6[Iron Tempest]§r §cYa hay un ARMAGEDÓN activo en el servidor. Espera a que termine.",
@@ -48,5 +45,6 @@
   "irontempest.attack.cruisemissile": "Misil de crucero",
   "irontempest.attack.rocketrain": "Lluvia de cohetes",
   "irontempest.attack.orbitalstrike": "Ataque orbital",
-  "irontempest.attack.armageddon": "Armagedón"
+  "irontempest.attack.armageddon": "Armagedón",
+  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cCola de ataques llena: este ataque se descartó."
 }

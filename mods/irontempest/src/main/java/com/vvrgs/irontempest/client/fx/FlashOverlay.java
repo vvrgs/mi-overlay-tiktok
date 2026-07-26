@@ -29,6 +29,11 @@ public final class FlashOverlay {
         alpha = Math.max(0.0F, alpha - DECAY);
     }
 
+    public static void reset() {
+        alpha = 0.0F;
+        alphaO = 0.0F;
+    }
+
     public static void render(GuiGraphics graphics, float partialTick) {
         float a = Mth.lerp(partialTick, alphaO, alpha);
         if (a <= 0.01F) {

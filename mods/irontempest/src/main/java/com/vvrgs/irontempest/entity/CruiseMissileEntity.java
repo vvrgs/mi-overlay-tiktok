@@ -91,6 +91,9 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
         this.phaseTicks++;
         if (!this.level().isClientSide) {
             steer();
+            if (this.isRemoved()) {
+                return; // el fusible de proximidad ya detonó: no integrar ni re-impactar
+            }
         }
         super.tick();
     }

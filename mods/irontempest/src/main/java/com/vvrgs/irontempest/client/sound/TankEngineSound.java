@@ -29,10 +29,13 @@ public class TankEngineSound extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
-        if (this.tank.isRemoved() || !this.tank.isEngineOn()) {
+        if (this.tank.isRemoved()) {
             this.stop();
             return;
         }
+        // stop() es definitivo: con el motor apagado (caída del drop-pod) solo
+        // se silencia, y arranca de verdad cuando la sesión enciende el motor.
+        this.volume = this.tank.isEngineOn() ? 1.2F : 0.0F;
         this.x = this.tank.getX();
         this.y = this.tank.getY();
         this.z = this.tank.getZ();

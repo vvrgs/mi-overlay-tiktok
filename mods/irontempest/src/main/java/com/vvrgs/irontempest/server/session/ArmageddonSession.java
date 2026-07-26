@@ -48,9 +48,9 @@ public final class ArmageddonSession extends WarSession {
             p.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
             p.connection.send(new ClientboundSetTitleTextPacket(title));
             p.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+            // La sirena debe oírla TODO el server, no solo un radio de 64 bloques.
+            p.playNotifySound(ModSounds.ULTRA_SIREN.get(), SoundSource.HOSTILE, 4.0F, 1.0F);
         }
-        this.level.playSound(null, target.getX(), target.getY(), target.getZ(),
-                ModSounds.ULTRA_SIREN.get(), SoundSource.HOSTILE, 4.0F, 1.0F);
         ModNetwork.fx(this.level, FxType.ARMAGEDDON_OPENING, target.position(), 2.0F);
         SessionManager.broadcastStarted(this.level, "armageddon", this.targetName);
     }

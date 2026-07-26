@@ -151,6 +151,11 @@ public final class WarCommands {
 
     private static void feedback(CommandContext<CommandSourceStack> ctx, String attackKey,
                                  ServerPlayer target, int queued) {
+        if (queued < 0) {
+            // Cola global llena: el ataque se DESCARTÓ — jamás reportar éxito falso.
+            ctx.getSource().sendFailure(Component.translatable("irontempest.msg.queue_full"));
+            return;
+        }
         if (queued > 0) {
             ctx.getSource().sendSuccess(() -> Component.translatable("irontempest.msg.attack_queued",
                     Component.translatable("irontempest.attack." + attackKey),

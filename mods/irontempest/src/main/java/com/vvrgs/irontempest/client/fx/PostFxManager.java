@@ -63,6 +63,11 @@ public final class PostFxManager {
         WAVES.add(new Wave(pos, Mth.clamp(strength, 0.0F, 2.0F)));
     }
 
+    /** Limpieza al salir del mundo: las ondas guardan posiciones del mundo viejo. */
+    public static void clearWaves() {
+        WAVES.clear();
+    }
+
     public static void tick() {
         Iterator<Wave> it = WAVES.iterator();
         while (it.hasNext()) {
