@@ -2,7 +2,7 @@
 """
 gen_sounds.py — Procedural sound designer for the irontempest Forge mod.
 
-Generates 18 OGG/Vorbis files (44100 Hz, MONO, float32) with layered synthesis:
+Generates 26 OGG/Vorbis files (44100 Hz, MONO, float32) with layered synthesis:
 brown/pink noise beds, detuned oscillators, exponential pitch envelopes, tanh
 saturation, multitap delays and hand-built ADSR envelopes.
 
@@ -212,25 +212,48 @@ def make_loop(render, dur, xfade=0.35):
 # Sound designs
 # ----------------------------------------------------------------------------
 
-def s_explosion_near():
-    T, n = 2.6, nsamp(2.6)
+def _explosion_design(seed, T, sub_f0, sub_f1, sub2_f0, sub2_f1,
+                      crk_count, crk_t1, crk_bias, crk_lo, crk_hi, rum_tau):
+    """Close-range explosion: transient + sub-boom + crackle + rumble.
+
+    Parametrized so REAL variations can be rendered (different noise seed,
+    different 32-60 Hz sub-boom pitch, different crackle pattern) — the RNG
+    call order matches the original v1 render exactly, so seed 101 with the
+    v1 parameters reproduces explosion_near.ogg bit-for-bit."""
+    n = nsamp(T)
     t = taxis(n)
-    rng = np.random.default_rng(101)
+    rng = np.random.default_rng(seed)
     # L1: brutal 5 ms transient + crunch body
     trans = white(rng, n) * (1.6 * np.exp(-t / 0.005) + 0.55 * np.exp(-t / 0.035))
     trans = lowpass(trans, 9000, 2)
-    # L2: sub-boom, 55 -> 35 Hz pitch drop, ~1.8 s decay
-    fsub = sweep_exp(n, 55.0, 35.0, 1.8)
+    # L2: sub-boom pitch drop, ~1.8 s decay
+    fsub = sweep_exp(n, sub_f0, sub_f1, 1.8)
     sub = np.sin(phase_of(fsub)) * env_exp(n, 0.42) * env_attack(n, 0.004)
-    sub += 0.35 * np.sin(phase_of(sweep_exp(n, 96.0, 52.0, 0.5))) * env_exp(n, 0.12)
-    # L3: crackle bursts in the first 700 ms
-    crk = grains(rng, n, 60, 0.0, 0.7, 0.002, 0.011,
-                 lambda p: max(0.05, 1.0 - p / 0.75), bias=1.8)
-    crk = bandpass(crk, 700, 5200, 2)
+    sub += 0.35 * np.sin(phase_of(sweep_exp(n, sub2_f0, sub2_f1, 0.5))) \
+        * env_exp(n, 0.12)
+    # L3: crackle bursts
+    crk = grains(rng, n, crk_count, 0.0, crk_t1, 0.002, 0.011,
+                 lambda p: max(0.05, 1.0 - p / (crk_t1 + 0.05)), bias=crk_bias)
+    crk = bandpass(crk, crk_lo, crk_hi, 2)
     # L4: rumble tail
-    rum = lowpass(brown(rng, n), 170, 3) * env_exp(n, 0.85) * env_attack(n, 0.02)
+    rum = lowpass(brown(rng, n), 170, 3) * env_exp(n, rum_tau) * env_attack(n, 0.02)
     mix = 1.35 * trans + 1.15 * sub + 0.55 * crk + 0.95 * norm(rum)
     return fade_io(sat(mix, 1.8), 0.003, 0.14)
+
+def s_explosion_near():
+    return _explosion_design(101, 2.6, 55.0, 35.0, 96.0, 52.0,
+                             60, 0.7, 1.8, 700, 5200, 0.85)
+
+def s_explosion_near_1():
+    # tighter, angrier variant: sub 60 -> 38 Hz, denser brighter early crackle
+    return _explosion_design(201, 2.45, 60.0, 38.0, 112.0, 58.0,
+                             88, 0.55, 1.3, 900, 6200, 0.72)
+
+def s_explosion_near_2():
+    # heavier variant: sub sinks to 32 Hz, sparse darker late crackle,
+    # longer rumble tail
+    return _explosion_design(202, 2.75, 47.0, 32.0, 84.0, 45.0,
+                             46, 0.95, 2.2, 600, 4300, 0.98)
 
 def s_explosion_far():
     T, n = 3.2, nsamp(3.2)
@@ -245,21 +268,33 @@ def s_explosion_far():
     mix *= env_exp(n, 1.15)                          # let the tail die inside file
     return fade_io(sat(mix, 1.25), 0.008, 0.30)
 
-def s_shell_whistle():
-    T, n = 2.2, nsamp(2.2)
+def _whistle_design(seed, T, f0, f1, vrate, vd0, vd1, h2, cresc_pow, trem):
+    """Falling-shell whistle; parametrized pitch curve and vibrato so real
+    variations can be rendered (v1 = seed 103 parameters, bit-for-bit)."""
+    n = nsamp(T)
     t = taxis(n)
-    rng = np.random.default_rng(103)
-    base = sweep_exp(n, 1400.0, 280.0, T)
-    vib_depth = 0.004 + 0.030 * (t / T)              # growing 6 Hz vibrato
-    f = base * (1.0 + vib_depth * np.sin(2 * np.pi * 6.0 * t))
+    rng = np.random.default_rng(seed)
+    base = sweep_exp(n, f0, f1, T)
+    vib_depth = vd0 + vd1 * (t / T)                  # growing vibrato
+    f = base * (1.0 + vib_depth * np.sin(2 * np.pi * vrate * t))
     ph = phase_of(f)
-    tone = np.sin(ph) + 0.28 * np.sin(2.0 * ph + 0.7)
+    tone = np.sin(ph) + h2 * np.sin(2.0 * ph + 0.7)
     nb = slow_noise(rng, n, 130)                     # narrowband noise rides
     band = nb * np.cos(ph + 1.3)                     # the same freq curve
-    cresc = 0.07 + 0.93 * (t / T) ** 2.3             # dramatic doppler swell
+    cresc = 0.07 + 0.93 * (t / T) ** cresc_pow       # dramatic doppler swell
     mix = (tone + 0.55 * band) * cresc
-    mix *= 1.0 + 0.10 * np.sin(2 * np.pi * 6.0 * t + 1.0)
+    mix *= 1.0 + 0.10 * np.sin(2 * np.pi * trem * t + 1.0)
     return fade_io(mix, 0.010, 0.015)
+
+def s_shell_whistle():
+    return _whistle_design(103, 2.2, 1400.0, 280.0, 6.0, 0.004, 0.030,
+                           0.28, 2.3, 6.0)
+
+def s_shell_whistle_1():
+    # variant: 1600 -> 350 Hz curve, faster deeper 8.5 Hz vibrato,
+    # earlier swell, slower tremolo
+    return _whistle_design(203, 2.0, 1600.0, 350.0, 8.5, 0.010, 0.038,
+                           0.34, 2.0, 4.4)
 
 def s_cannon_fire():
     T, n = 1.4, nsamp(1.4)
@@ -351,25 +386,39 @@ def s_missile_loop():
         return jet * turbine + tone + whistle
     return make_loop(render, 2.0, 0.40)
 
-def s_mlrs_launch():
-    T, n = 1.1, nsamp(1.1)
+def _mlrs_whoosh(seed, T, f0, fpk, f1, t_up, t_dn, nb1, nb2, ratio,
+                 dec_t0, dec_tau, hiss_t0, hiss_tau):
+    """Rocket whoosh: bandpass sweep f0 -> fpk -> f1 (ring-mod technique).
+    Parametrized for real variations (v1 = seed 109 parameters)."""
+    n = nsamp(T)
     t = taxis(n)
-    rng = np.random.default_rng(109)
-    # bandpass sweep 300 -> 2500 -> 600 Hz within 500 ms (ring-mod technique)
+    rng = np.random.default_rng(seed)
+    t_set = t_up + t_dn
     f = np.empty(n)
-    m1, m2 = t < 0.28, (t >= 0.28) & (t < 0.50)
-    f[m1] = 300.0 * (2500.0 / 300.0) ** (t[m1] / 0.28)
-    f[m2] = 2500.0 * (600.0 / 2500.0) ** ((t[m2] - 0.28) / 0.22)
-    f[t >= 0.50] = 600.0
-    nb = slow_noise(rng, n, 260)
-    whoosh = nb * np.sin(phase_of(f)) + 0.4 * slow_noise(rng, n, 420) \
-        * np.cos(phase_of(f * 1.12))
+    m1, m2 = t < t_up, (t >= t_up) & (t < t_set)
+    f[m1] = f0 * (fpk / f0) ** (t[m1] / t_up)
+    f[m2] = fpk * (f1 / fpk) ** ((t[m2] - t_up) / t_dn)
+    f[t >= t_set] = f1
+    nb = slow_noise(rng, n, nb1)
+    whoosh = nb * np.sin(phase_of(f)) + 0.4 * slow_noise(rng, n, nb2) \
+        * np.cos(phase_of(f * ratio))
     wenv = env_attack(n, 0.035) * np.where(
-        t < 0.45, 1.0, np.exp(-(t - 0.45) / 0.16))
-    hiss = norm(highpass(white(rng, n), 1900, 2)) * env_exp(n, 0.24, 0.32) * 0.5
+        t < dec_t0, 1.0, np.exp(-(t - dec_t0) / dec_tau))
+    hiss = norm(highpass(white(rng, n), 1900, 2)) \
+        * env_exp(n, hiss_tau, hiss_t0) * 0.5
     body = norm(bandpass(white(rng, n), 350, 3200, 2)) * wenv * 0.4
     mix = whoosh * wenv + body + hiss
     return fade_io(sat(mix, 1.3), 0.006, 0.05)
+
+def s_mlrs_launch():
+    return _mlrs_whoosh(109, 1.1, 300.0, 2500.0, 600.0, 0.28, 0.22,
+                        260, 420, 1.12, 0.45, 0.16, 0.32, 0.24)
+
+def s_mlrs_launch_1():
+    # variant: snappier rise to a higher 2950 Hz peak, lower settle,
+    # breathier faster decay
+    return _mlrs_whoosh(209, 1.0, 250.0, 2950.0, 460.0, 0.21, 0.26,
+                        320, 520, 1.09, 0.40, 0.14, 0.26, 0.20)
 
 def s_laser_charge():
     T, n = 4.2, nsamp(4.2)
@@ -532,6 +581,113 @@ def s_debris_clank_2():
                          (1.0, 0.68, 0.52, 0.34, 0.21),
                          bounce=0.28)
 
+def s_turret_servo():
+    """Electric turret-rotation servo (seamless loop): 120 Hz DC motor with
+    harmonics + 480 Hz gear mesh chewed by 8 Hz AM + a very subtle 2.4 kHz
+    drive whine + commutator hash breathing with the mesh."""
+    def render(m):
+        t = taxis(m)
+        rng = np.random.default_rng(120)
+        load = slow_noise(rng, m, 1.8)                 # slow load wobble
+        phm = phase_of(120.0 * (1.0 + 0.005 * load))   # DC motor fundamental
+        motor = np.zeros(m)
+        for k, a in ((1, 1.0), (2, 0.48), (3, 0.26), (4, 0.14), (6, 0.06)):
+            motor += a * np.sin(k * phm + rng.uniform(0, 6.28))
+        phg = phase_of(480.0 * (1.0 + 0.005 * load))   # gear mesh
+        mesh_am = 0.55 + 0.45 * (0.5 + 0.5 * np.sin(2 * np.pi * 8.0 * t)) ** 1.4
+        gear = (np.sin(phg) + 0.35 * np.sin(2.0 * phg + 0.9)) * mesh_am
+        whine = 0.05 * np.sin(phase_of(2400.0 * (1.0 + 0.002 * load)))
+        hash_ = norm(bandpass(white(rng, m), 900, 3600, 2)) \
+            * (0.10 + 0.05 * mesh_am)
+        return sat(0.95 * motor + 0.45 * gear + whine + hash_, 1.4)
+    return make_loop(render, 1.6, 0.30)
+
+def s_tank_tracks():
+    """Tank tracks advancing (seamless loop): rhythmic metallic link clanks
+    (~4/s with timing/pitch/level jitter) + deep ground rumble breathing
+    with the rhythm + faint wandering road-wheel squeal + grind bed."""
+    def render(m):
+        t = taxis(m)
+        rng = np.random.default_rng(121)
+        Tm = m / SR
+        out = np.zeros(m)
+        # track-link clanks on a jittered ~4/s grid over the whole render;
+        # the equal-power crossfade blends the (uncorrelated) head/tail
+        # instances so the rhythm carries seamlessly across the wrap
+        for k in range(int(np.ceil(4.0 * Tm))):
+            tc = (k + rng.uniform(0.15, 0.85)) / 4.0
+            i = nsamp(tc)
+            if i >= m - 32:
+                continue
+            L = min(nsamp(0.22), m - i)
+            tl = np.arange(L) / SR
+            f0 = rng.uniform(230.0, 430.0)
+            g = rng.uniform(0.45, 1.0)
+            hit = np.zeros(L)
+            for r, a in ((1.0, 1.0), (1.63, 0.62), (2.51, 0.40), (3.87, 0.22)):
+                tau = rng.uniform(0.035, 0.075) / np.sqrt(r)
+                hit += a * np.sin(2 * np.pi * f0 * r * tl
+                                  + rng.uniform(0, 6.28)) * np.exp(-tl / tau)
+            hit += 0.8 * rng.standard_normal(L) * np.exp(-tl / 0.004)
+            e = min(64, L // 2)
+            hit[:e] *= np.linspace(0.0, 1.0, e)
+            out[i:i + L] += g * hit
+        clank = bandpass(out, 300, 5200, 2)
+        breathe = 1.0 + 0.22 * np.sin(2 * np.pi * 4.0 * t + 0.8) \
+            + 0.10 * slow_noise(rng, m, 2.5)
+        rum = norm(lowpass(brown(rng, m), 120, 3)) * 0.9 * breathe
+        fsq = 1350.0 * (1.0 + 0.06 * slow_noise(rng, m, 0.9))
+        squeal = np.sin(phase_of(fsq)) * (0.05 + 0.035 * slow_noise(rng, m, 1.6))
+        grind = norm(bandpass(white(rng, m), 500, 2600, 2)) * 0.16
+        return sat(0.8 * clank + rum + squeal + grind, 1.5)
+    return make_loop(render, 2.2, 0.40)
+
+def s_shell_casing():
+    """Ejected brass casing: bright inharmonic PING (1.2k / 1.9k / 2.7 kHz
+    partials, ~0.4 s ring) followed by a duller, lower double bounce."""
+    T, n = 0.8, nsamp(0.8)
+    t = taxis(n)
+    rng = np.random.default_rng(122)
+    modes = ((1200.0, 0.115, 1.00), (1900.0, 0.088, 0.74),
+             (2700.0, 0.066, 0.55), (3960.0, 0.042, 0.30),
+             (5330.0, 0.026, 0.16))
+    def ping(t0, gain, det, damp):
+        y = np.zeros(n)
+        for fq, tau, a in modes:
+            fq *= det * (1.0 + rng.uniform(-0.004, 0.004))
+            y += a * np.sin(2 * np.pi * fq * t + rng.uniform(0, 6.28)) \
+                * env_exp(n, tau * damp, t0)
+        tick = highpass(white(rng, n) * env_exp(n, 0.0016, t0), 2600, 2)
+        return gain * (y + 0.55 * tick)
+    mix = ping(0.0, 1.0, 1.0, 1.0)          # primary ping, rings ~0.4 s
+    mix += ping(0.27, 0.48, 0.86, 0.60)     # first bounce: lower, damped
+    mix += ping(0.45, 0.24, 0.74, 0.42)     # second bounce: lower still
+    ground = lowpass(white(rng, n), 900, 2) * (
+        env_exp(n, 0.010, 0.27) + 0.7 * env_exp(n, 0.008, 0.45)) * 0.5
+    return fade_io(mix + ground, 0.003, 0.06)
+
+def s_crater_sizzle():
+    """Smoking crater: scattered ember crackle thinning out over a steam
+    hiss whose filter and level sink as the crater cools."""
+    T, n = 2.5, nsamp(2.5)
+    t = taxis(n)
+    rng = np.random.default_rng(123)
+    cool = np.clip(1.0 - t / T, 0.0, 1.0)
+    crk = grains(rng, n, 150, 0.02, 2.42, 0.001, 0.0055,
+                 lambda p: 0.30 + 0.70 * max(0.0, 1.0 - p / 2.45), bias=0.75)
+    crk = bandpass(crk, 1400, 7800, 2)
+    # descending filtered hiss: bright steam morphs into dull smoulder
+    bright = norm(bandpass(white(rng, n), 900, 7000, 2))
+    dark = norm(bandpass(white(rng, n), 220, 1900, 2))
+    mixf = cool ** 1.3
+    breath = np.clip(0.55 + 0.20 * slow_noise(rng, n, 2.8), 0.10, 1.0)
+    bed = (bright * mixf + dark * (1.0 - 0.45 * mixf)) * breath \
+        * (0.35 + 0.65 * cool ** 0.8)
+    ember = 0.06 * cool * np.sin(phase_of(
+        163.0 * (1.0 + 0.04 * slow_noise(rng, n, 1.2))))
+    mix = 0.9 * crk + 0.75 * bed + ember
+    return fade_io(mix, 0.012, 0.22)
+
 # ----------------------------------------------------------------------------
 # Build list, write with post-encode validation, retry until everything passes
 # ----------------------------------------------------------------------------
@@ -555,6 +711,16 @@ SOUNDS = [
     ("debris_clank_0.ogg", 0.9, False, s_debris_clank_0),
     ("debris_clank_1.ogg", 0.9, False, s_debris_clank_1),
     ("debris_clank_2.ogg", 0.9, False, s_debris_clank_2),
+    # ---- v2: anti-repetition variants ---------------------------------------
+    ("explosion_near_1.ogg", 2.45, False, s_explosion_near_1),
+    ("explosion_near_2.ogg", 2.75, False, s_explosion_near_2),
+    ("shell_whistle_1.ogg", 2.0, False, s_shell_whistle_1),
+    ("mlrs_launch_1.ogg",  1.0, False, s_mlrs_launch_1),
+    # ---- v2: new events ------------------------------------------------------
+    ("turret_servo.ogg",   1.6, True,  s_turret_servo),
+    ("tank_tracks.ogg",    2.2, True,  s_tank_tracks),
+    ("shell_casing.ogg",   0.8, False, s_shell_casing),
+    ("crater_sizzle.ogg",  2.5, False, s_crater_sizzle),
 ]
 
 def write_validated(name, x, dur, is_loop):
@@ -599,7 +765,7 @@ def main():
 
     # ---- final validation pass ---------------------------------------------
     print()
-    hdr = (f"{'file':<20} {'dur(s)':>7} {'target':>7} {'ch':>3} "
+    hdr = (f"{'file':<22} {'dur(s)':>7} {'target':>7} {'ch':>3} "
            f"{'peak':>7} {'loopdiff':>9} {'status':>7}")
     print(hdr)
     print("-" * len(hdr))
@@ -615,7 +781,7 @@ def main():
               and (ld is None or ld < 0.01))
         all_ok &= ok
         lds = f"{ld:9.5f}" if ld is not None else "        -"
-        print(f"{name:<20} {got:7.3f} {dur:7.1f} {ch:3d} "
+        print(f"{name:<22} {got:7.3f} {dur:7.2f} {ch:3d} "
               f"{pk:7.4f} {lds} {'PASS' if ok else 'FAIL':>7}")
     print("-" * len(hdr))
     print("ALL PASS" if all_ok else "FAILURES PRESENT")

@@ -15,12 +15,14 @@ public final class MlrsRocketGeometry {
         PartDefinition root = mesh.getRoot();
         PartDefinition p_body = root.addOrReplaceChild("body",
                 CubeListBuilder.create()
-                .texOffs(0, 0).addBox(-1.5000F, -1.5000F, -7.0000F, 3.0000F, 3.0000F, 14.0000F),
+                .texOffs(0, 0).addBox(-1.5000F, -1.5000F, -7.0000F, 3.0000F, 3.0000F, 14.0000F)
+                .texOffs(29, 18).addBox(-0.5000F, -2.2000F, -4.0000F, 1.0000F, 1.0000F, 2.0000F)
+                .texOffs(36, 18).addBox(-0.5000F, -2.2000F, 2.0000F, 1.0000F, 1.0000F, 2.0000F),
                 PartPose.offset(0.0000F, 0.0000F, 0.0000F));
         PartDefinition p_nose = root.addOrReplaceChild("nose",
                 CubeListBuilder.create()
                 .texOffs(9, 18).addBox(-1.0000F, -1.0000F, -3.0000F, 2.0000F, 2.0000F, 3.0000F)
-                .texOffs(29, 18).addBox(-0.5000F, -0.5000F, -5.0000F, 1.0000F, 1.0000F, 2.0000F),
+                .texOffs(43, 18).addBox(-0.5000F, -0.5000F, -5.0000F, 1.0000F, 1.0000F, 2.0000F),
                 PartPose.offset(0.0000F, 0.0000F, -7.0000F));
         PartDefinition p_rfin0 = root.addOrReplaceChild("rfin0",
                 CubeListBuilder.create()
