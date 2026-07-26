@@ -93,6 +93,12 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
     // Guardia: entre golpe y golpe el arma no vuelve del todo al costado.
     float guard = (mode > 0.5 && mode < 1.5) ? 0.45 : 0.0;
 
+    // Arquería: el brazo del arco apunta al frente y el otro tensa la cuerda.
+    // Se calculan aquí porque el arco (que no rota) necesita el MISMO ángulo que
+    // el brazo para saber dónde acaba la mano.
+    float bowAim = -1.22 - strike * 0.1 + armSwing * 0.12;
+    float drawPull = smoothstep(0.0, 0.7, strike) - smoothstep(0.76, 0.9, strike);
+
     float angle = 0.0;   // rotación sobre la articulación propia
     float parent = 0.0;  // rotación sobre la articulación del padre
     float yaw = 0.0;
@@ -131,6 +137,20 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
       angle = strike * -0.16;
     } else if (aLimb == 12.0) {
       yaw = stride * 0.16;
+    } else if (aLimb == 13.0 || aLimb == 16.0) {
+      // Brazo del arco: extendido al frente y sostenido ahí. Apenas acompaña la
+      // marcha, porque un arquero no bracea con el arco: lo lleva firme.
+      angle = bowAim;
+      yaw = -0.3;
+    } else if (aLimb == 14.0) {
+      // Hombro del brazo que tensa: sube a la altura del arco.
+      angle = -1.05 + armSwing * 0.1;
+      yaw = 0.28;
+    } else if (aLimb == 15.0) {
+      // Antebrazo: se pliega hacia la mejilla al tensar y se suelta de golpe.
+      // El tirón es lento (la cuerda cuesta) y la suelta instantánea.
+      angle = 1.5 + drawPull * 0.5;
+      parent = -1.05 + armSwing * 0.1;
     }
 
     vec3 local = position;
@@ -148,6 +168,13 @@ const UNIT_VERTEX_SHADER = /* glsl */ `
       float cloth = max(0.0, aPivot.y - position.y) * 0.6;
       local.x += uWind.x * cloth;
       local.z += uWind.y * cloth;
+    } else if (aLimb == 16.0) {
+      // El arco NO rota: se queda vertical y solo se traslada a donde acabe la
+      // mano del brazo que lo sostiene. Aquí aPivot2 guarda la posición de esa
+      // mano en reposo, no la articulación del padre.
+      vec3 hand = aPivot + rotX(aPivot2 - aPivot, angle);
+      hand = aPivot + rotY(hand - aPivot, yaw);
+      local += hand - aPivot2;
     } else if (aLimb != 7.0) {
       // Primero la articulación propia (rodilla, codo, cuello)...
       vec3 rel = local - aPivot;
@@ -307,6 +334,49 @@ ${NOISE_2D}
     return mix(color, field * 0.45, border);
   }
 
+  /**
+   * Un único punto de entrada al patrón de la pieza. Existe para poder evaluarlo
+   * tres veces —en uv y en dos vecinos— y sacar de ahí un relieve: sin relieve
+   * cada polígono es perfectamente plano y por muy bien texturado que esté sigue
+   * leyéndose como un bloque de plástico.
+   */
+  float materialPattern(vec2 uv, float shade, float seed) {
+    if (shade > 6.5) return clothPattern(uv);
+    if (shade > 5.5) return chainPattern(uv);
+    if (shade > 4.5) return clothPattern(uv);
+    if (shade > 3.5) return mix(leatherPattern(uv), woodPattern(uv), step(0.5, fract(seed * 7.0)));
+    if (shade > 1.5) return platePattern(uv);
+    if (shade < 0.5) return 0.96 + fbm2(uv * 60.0, 2) * 0.08;
+    return clothPattern(uv);
+  }
+
+  /**
+   * Altura del material para el relieve. NO es el mismo campo que el color: la
+   * trama del tejido va a 110 ciclos por unidad y a la distancia de juego cae muy
+   * por debajo del píxel, así que derivarla produce moiré, no volumen. Aquí solo
+   * entran los rasgos GRUESOS —pliegues, celdas del cuero, abolladuras— que son
+   * los que de verdad recogen la luz.
+   */
+  float materialHeight(vec2 uv, float shade) {
+    if (shade > 6.5) return fbm2(uv * 8.0, 3);           // pliegues de la prenda
+    if (shade > 5.5) return chainPattern(uv);            // los anillos sí son bulto real
+    if (shade > 3.5 && shade < 4.5) return fbm2(uv * 16.0, 2);
+    if (shade > 1.5 && shade < 2.5) return fbm2(uv * 12.0, 3);
+    if (shade < 0.5) return fbm2(uv * 20.0, 2);
+    return fbm2(uv * 8.0, 3);                            // pliegues de la tela
+  }
+
+  /** Fuerza del relieve por material. La malla abulta; el acero pulido casi no. */
+  float reliefStrength(float shade) {
+    if (shade > 6.5) return 1.0;    // prenda de faena
+    if (shade > 5.5) return 0.5;    // cota de malla
+    if (shade > 4.5) return 0.9;    // tela con heráldica
+    if (shade > 3.5) return 1.0;    // cuero y madera
+    if (shade > 1.5) return 0.55;   // placa abollada
+    if (shade < 0.5) return 0.35;   // piel
+    return 1.0;                     // tela
+  }
+
   void main() {
     vec3 n = normalize(vNormal);
 
@@ -315,6 +385,10 @@ ${NOISE_2D}
     float gloss = 0.0;
     bool emissive = false;
     if (vShade < 0.5) { base = uSkinColor; gloss = 0.12; }
+    else if (vShade > 6.5) {                                                  // prenda de faena
+      base = mix(uTeamColorDark, vec3(0.2, 0.185, 0.17), 0.55);
+      gloss = 0.0;
+    }
     else if (vShade > 5.5) { base = uMetalColor * 0.86; gloss = 0.8; }        // cota de malla
     else if (vShade > 4.5) { base = uTeamColor; gloss = 0.05; }               // heráldica
     else if (vShade > 3.5) { base = uLeatherColor; gloss = 0.14; }            // cuero/madera
@@ -338,25 +412,47 @@ ${NOISE_2D}
       base *= mix(vec3(0.72, 0.66, 0.6), vec3(1.2, 1.1, 0.92), tint);
     } else if (vShade > 1.5 && vShade < 2.5) {
       base *= mix(vec3(0.86, 0.88, 0.94), vec3(1.1, 1.06, 0.98), tint);
+    } else if (vShade > 6.5) {
+      // La ropa de faena de cada uno está lavada y gastada de forma distinta.
+      base *= mix(vec3(0.72, 0.7, 0.68), vec3(1.22, 1.18, 1.12), tint);
     } else {
       base *= 0.88 + tint * 0.24;
     }
 
     // El detalle de material solo se calcula cerca. De lejos ocupa menos de un
     // píxel: pagarlo sería tirar relleno para producir ruido.
+    float cavity = 1.0;
     if (vDist < uTextureDistance) {
       float detail = smoothstep(uTextureDistance, uTextureDistance * 0.55, vDist);
-      float pattern = 1.0;
-      if (vShade > 5.5) pattern = chainPattern(vUv);
-      else if (vShade > 4.5) {
+      if (vShade > 4.5 && vShade < 5.5) {
         base = heraldry(vUv, base, mix(uTeamColorLight, vec3(0.92, 0.88, 0.8), step(2.0, floor(vRandom * 4.0))));
-        pattern = clothPattern(vUv);
       }
-      else if (vShade > 3.5) pattern = mix(leatherPattern(vUv), woodPattern(vUv), step(0.5, fract(vRandom * 7.0)));
-      else if (vShade > 1.5) pattern = platePattern(vUv);
-      else if (vShade < 0.5) pattern = 0.96 + fbm2(vUv * 60.0, 2) * 0.08;
-      else pattern = clothPattern(vUv);
-      base *= mix(1.0, pattern, detail);
+      // La cota de malla tiene la celda más fina de todos los materiales: mucho
+      // antes de llegar al límite general de textura ya cae por debajo del píxel
+      // y se convierte en sal y pimienta. Se apaga en su propia distancia.
+      float fade = detail;
+      if (vShade > 5.5 && vShade < 6.5) {
+        fade *= smoothstep(uTextureDistance * 0.34, uTextureDistance * 0.14, vDist);
+      }
+      float pattern = materialPattern(vUv, vShade, vRandom);
+      base *= mix(1.0, pattern, fade);
+
+      // Relieve: se estima la pendiente del campo de altura en UV y se dobla la
+      // normal. No hay tangentes en la malla, así que se improvisa una base
+      // ortogonal a partir de la propia normal; para un relieve fino sobra.
+      float relief = reliefStrength(vShade) * fade;
+      if (relief > 0.01) {
+        const float E = 0.004;
+        float h = materialHeight(vUv, vShade);
+        float du = materialHeight(vUv + vec2(E, 0.0), vShade) - h;
+        float dv = materialHeight(vUv + vec2(0.0, E), vShade) - h;
+        vec3 tangent = normalize(cross(n, vec3(0.0, 1.0, 0.0)) + vec3(0.001, 0.0, 0.001));
+        vec3 bitangent = cross(n, tangent);
+        n = normalize(n - (tangent * du + bitangent * dv) * relief * 2.6);
+        // Los valles reciben menos luz rebotada: es lo que hace que un pliegue se
+        // vea hundido en vez de pintado encima.
+        cavity = mix(1.0, clamp(0.62 + h * 0.62, 0.4, 1.15), relief);
+      }
 
       // Suciedad: se acumula de las rodillas hacia abajo, más en las botas.
       float mud = smoothstep(0.45, 0.0, vUv.y) * (0.25 + fbm2(vUv * 6.0, 2) * 0.4);
@@ -381,14 +477,24 @@ ${NOISE_2D}
     vec3 lightDir = normalize(uLightDir);
     vec3 viewDir = normalize(vViewDir);
     float ndl = dot(n, lightDir);
-    float diffuse = pow(ndl * 0.5 + 0.5, 1.6);
+    // Terminador con algo de nervio: un half-Lambert plano reparte la luz por
+    // igual y aplana el volumen. Aquí la transición de luz a sombra es más corta
+    // y el lado en sombra se sostiene con el rebote del cielo, no con luz falsa.
+    float diffuse = pow(clamp(ndl * 0.62 + 0.38, 0.0, 1.0), 1.35);
     float hemi = n.y * 0.5 + 0.5;
     vec3 ambient = mix(uGroundColor, uSkyColor, hemi);
     // El ambiente del cielo es muy azul y apagaba al equipo rojo hasta dejarlo
     // marrón. Se desatura hacia el gris antes de multiplicar.
     float lum = dot(ambient, vec3(0.299, 0.587, 0.114));
     ambient = mix(ambient, vec3(lum), 0.7);
-    vec3 lit = base * (ambient * 0.75 + uSunColor * diffuse * 0.7);
+    vec3 lit = base * (ambient * 0.55 * cavity + uSunColor * diffuse * 0.95 * cavity);
+
+    // Piel: en el borde del terminador la luz atraviesa la carne y se vuelve
+    // rojiza. Sin esto una cara es una máscara de plástico.
+    if (vShade < 0.5) {
+      float sss = pow(clamp(1.0 - abs(ndl), 0.0, 1.0), 3.0);
+      lit += base * vec3(0.5, 0.15, 0.1) * sss * 0.3;
+    }
 
     // Reflejo especular proporcional al acabado: el metal destella al girar la
     // cámara, el cuero apenas y la tela nada.
@@ -396,6 +502,11 @@ ${NOISE_2D}
       vec3 halfway = normalize(lightDir + viewDir);
       float spec = pow(max(dot(n, halfway), 0.0), mix(18.0, 58.0, gloss));
       lit += uSunColor * spec * gloss * 0.85 * (1.0 - vDeath) * vOcc;
+    } else {
+      // Brillo de tela: la ropa no destella, pero al sesgo la fibra sí devuelve
+      // un halo suave. Es barato y quita mucho del aspecto de plástico mate.
+      float sheen = pow(1.0 - max(dot(n, viewDir), 0.0), 2.5) * max(ndl, 0.0);
+      lit += uSunColor * sheen * 0.16 * vOcc;
     }
 
     // Nieve posada: solo en las superficies que miran al cielo.
@@ -409,8 +520,11 @@ ${NOISE_2D}
     lit += uSkyColor * rim * 0.2 * vOcc;
 
     // Suelo de color propio: a 60 metros de cámara, lo único que importa es
-    // distinguir de un vistazo quién es rojo y quién es azul.
-    vec3 color = mix(lit, base * 0.5, 0.24);
+    // distinguir de un vistazo quién es rojo y quién es azul. Pero cuanto más
+    // cerca está la unidad, menos hace falta esa muleta y más estorba —aplana
+    // todo el modelado—, así que se desvanece con la distancia.
+    float flatten = 0.26 * smoothstep(uTextureDistance * 0.45, uTextureDistance * 1.6, vDist);
+    vec3 color = mix(lit, base * 0.5, flatten);
     color = mix(color, uFogColor, clamp(fogFactor, 0.0, 1.0));
 
     gl_FragColor = vec4(color, 1.0);
@@ -588,8 +702,8 @@ export class UnitsRenderer {
         uTeamColor: { value: teamColor.color.clone() },
         uTeamColorDark: { value: teamColor.dark.clone() },
         uTeamColorLight: { value: teamColor.color.clone().lerp(new THREE.Color('#ffffff'), 0.55) },
-        uSkinColor: { value: new THREE.Color('#c58f6a') },
-        uMetalColor: { value: new THREE.Color('#aeb7c4') },
+        uSkinColor: { value: new THREE.Color('#b0846a') },
+        uMetalColor: { value: new THREE.Color('#a4acb8') },
         uLeatherColor: { value: new THREE.Color('#6b4a2c') },
         uGlowColor: { value: teamColor.color.clone().lerp(new THREE.Color('#ffffff'), 0.45) },
         uGlowStrength: { value: 1.9 },

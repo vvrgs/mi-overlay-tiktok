@@ -45,9 +45,12 @@ async function boot(): Promise<void> {
     lodDistance: 1000,
     textureDistance: 1000,
   });
+  // La misma luz que el campo de batalla al mediodía, pero con el ambiente algo
+  // más bajo: con un cielo demasiado brillante todo salía lavado y era imposible
+  // juzgar el volumen, que es justo para lo que sirve esta pantalla.
   units.setLighting(
-    new THREE.Color('#9dc0ea'),
-    new THREE.Color('#3a3630'),
+    new THREE.Color('#6f8db4'),
+    new THREE.Color('#312c24'),
     new THREE.Color('#fff2d8'),
     new THREE.Vector3(0.5, 0.75, 0.42),
   );
@@ -107,7 +110,15 @@ async function boot(): Promise<void> {
   // --- Controles de órbita mínimos ---
   let yaw = 0;
   let pitch = 0.22;
-  let distance = totalWidth * 0.8 + 8;
+  // Encuadre de la fila entera. El campo de visión HORIZONTAL es el que manda
+  // aquí (la fila es ancha y baja), y con 0.8·ancho se salían la mitad de las
+  // unidades por los lados.
+  const overviewDistance = (): number => {
+    const halfH = Math.tan((camera.fov * Math.PI) / 360);
+    const halfW = halfH * Math.max(0.6, camera.aspect);
+    return (totalWidth * 0.5 + 2) / halfW + 3;
+  };
+  let distance = overviewDistance();
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
@@ -152,10 +163,28 @@ async function boot(): Promise<void> {
     // 0 = vista general de toda la fila.
     if (ev.key === '0') {
       focusIndex = -1;
-      distance = totalWidth * 0.8 + 8;
+      distance = overviewDistance();
     }
   });
-  focusOn(0);
+  // Encuadre inicial por URL: ?unit=archer&yaw=0.8&pitch=0.2&dist=6 deja la vista
+  // exactamente donde se quiera, sin depender de arrastrar el ratón.
+  const params = new URLSearchParams(location.search);
+  const wanted = params.get('unit');
+  const wantedIndex = archetypes.findIndex((a) => a.key === wanted);
+  if (wanted === 'all') {
+    focusIndex = -1;
+    distance = overviewDistance();
+  } else {
+    focusOn(wantedIndex >= 0 ? wantedIndex : 0);
+  }
+  const num = (key: string, fallback: number): number => {
+    const raw = Number(params.get(key));
+    return Number.isFinite(raw) && params.has(key) ? raw : fallback;
+  };
+  yaw = num('yaw', yaw);
+  pitch = num('pitch', pitch);
+  distance = num('dist', distance);
+  if (params.get('anim') === '0') animate = false;
 
   function resize(): void {
     const width = canvas.clientWidth || window.innerWidth;

@@ -37,6 +37,26 @@ export const LIMB = {
   FORE_L: 10,
   FORE_R: 11,
   PELVIS: 12,
+  /**
+   * Brazo del arco: se mantiene extendido al frente en vez de plegarse como un
+   * brazo de escudo. Reutilizar FORE_L aquí hacía que el arco —que mide metro y
+   * pico— barriera un arco enorme al doblarse el codo y acabara tumbado detrás
+   * de la espalda, como si se hubiera desprendido.
+   */
+  BOW_ARM: 13,
+  /** Brazo que tensa la cuerda: tira hacia la mejilla y suelta en el disparo. */
+  DRAW_ARM: 14,
+  /** Antebrazo del brazo que tensa: se pliega hacia la mejilla. */
+  DRAW_FORE: 15,
+  /**
+   * El arco. NO rota con el brazo: se mantiene vertical y solo se traslada a
+   * donde acaba la mano. Si rotara, un arco de metro y pico acabaría apuntando
+   * al frente y visto de cara sería una raya invisible.
+   *
+   * Para esta pieza `pivot` es el hombro y `pivot2` la posición en reposo de la
+   * mano, no la articulación del padre.
+   */
+  BOW: 16,
 } as const;
 
 /** Material de cada pieza. El shader lo traduce a color y reflejo. */
@@ -52,6 +72,17 @@ export const SHADE = {
   HERALDRY: 5,
   /** Cota de malla: se textura con anillos en vez de tejido. */
   CHAINMAIL: 6,
+  /**
+   * Prenda de faena: calzas, gambesón, cinchas. Es el color del equipo pero muy
+   * apagado y oscurecido.
+   *
+   * Existe porque un soldado vestido de rojo intenso de la cabeza a los pies no
+   * se lee como un soldado: se lee como un muñeco de plástico. Un ejército real
+   * es en su mayoría cuero, acero y tela sucia, con el color del bando
+   * concentrado en la sobrevesta y el escudo —que además es donde el espectador
+   * lo busca—.
+   */
+  GARMENT: 7,
 } as const;
 
 export type Detail = 'high' | 'low' | 'simple';
@@ -273,8 +304,11 @@ class Builder {
   }
 
   /** Cúpula: media elipsoide en anillos. Cascos, hombreras, cráneos. */
-  dome(bone: Bone, opts: { x?: number; y: number; z?: number; radius: Radius; height: number; sides?: number; rings?: number; occ?: number }): void {
-    const { x = 0, y, z = 0, radius, height, sides = 8, rings = 3, occ = 1 } = opts;
+  dome(
+    bone: Bone,
+    opts: { x?: number; y: number; z?: number; radius: Radius; height: number; sides?: number; rings?: number; occ?: number; capBottom?: boolean },
+  ): void {
+    const { x = 0, y, z = 0, radius, height, sides = 8, rings = 3, occ = 1, capBottom = true } = opts;
     for (let r = 0; r < rings; r++) {
       const t0 = r / rings;
       const t1 = (r + 1) / rings;
@@ -291,7 +325,7 @@ class Builder {
         sides,
         occBottom: occ,
         occTop: occ,
-        capBottom: r === 0,
+        capBottom: capBottom && r === 0,
         capTop: r === rings - 1,
       });
     }
@@ -405,7 +439,7 @@ function legs(b: Builder, shade: number, boots = SHADE.LEATHER, sides = 8): void
     });
     // Rótula: una esfera en la articulación. Sin ella, al doblar la rodilla se
     // abre un hueco entre muslo y pantorrilla y se ve el interior del prisma.
-    b.dome(shin, { x: side * H.hipX, y: H.knee - 0.052, radius: [0.086, 0.092], height: 0.105, sides, rings: 2, occ: 0.86 });
+    b.dome(shin, { x: side * H.hipX, y: H.knee - 0.04, radius: [0.077, 0.083], height: 0.092, sides, rings: 2, occ: 0.86, capBottom: false });
     // Pantorrilla: vientre del gemelo y tobillo fino.
     b.prism(shin, {
       x: side * H.hipX,
@@ -470,6 +504,84 @@ function torso(b: Builder, shade: number, sides = 8): void {
     occTop: 0.9,
     capBottom: false,
   });
+
+  // Pectoral: una capa fina por delante del pecho. Sin ella el torso es un tubo
+  // liso y el personaje se lee como un maniquí de sastre.
+  b.slab({ ...body, shade }, {
+    y: H.waist + 0.04,
+    z: 0.098,
+    height: H.chest - H.waist + 0.08,
+    bottom: [0.108, 0.022],
+    top: [0.15, 0.03],
+    occBottom: 0.72,
+    occTop: 0.95,
+  });
+  // Cuello de la prenda: remata el torso contra la piel del cuello.
+  b.prism({ ...body, shade: SHADE.LEATHER }, {
+    y: H.shoulder - 0.03,
+    height: 0.055,
+    bottom: [0.115, 0.085],
+    top: [0.098, 0.072],
+    sides,
+    occBottom: 0.7,
+    occTop: 0.5,
+    capTop: false,
+  });
+}
+
+/**
+ * Rasgos de la cara. Son piezas diminutas —el arco superciliar mide dos
+ * centímetros— pero son exactamente lo que separa una cabeza de una cápsula:
+ * una superficie lisa y simétrica se lee como maniquí a cualquier distancia a la
+ * que se distinga la cabeza. Solo entran en la malla detallada.
+ */
+function face(b: Builder): void {
+  const bone: Bone = { limb: LIMB.HEAD, pivot: [0, H.neck - 0.08, 0], shade: SHADE.SKIN };
+  const eye = H.chin + 0.115;
+
+  // Arco superciliar: una visera de hueso que sombrea la cuenca del ojo. Va
+  // HUNDIDO en el cráneo: si sobresale más que el propio hueso frontal, deja de
+  // leerse como una ceja y pasa a parecer una pieza pegada.
+  b.slab(bone, { y: eye + 0.004, z: 0.04, height: 0.02, bottom: [0.062, 0.05], top: [0.058, 0.045], occBottom: 0.55, occTop: 0.95 });
+  // Nariz: puente y punta.
+  b.slab(bone, { y: eye - 0.052, z: 0.062, height: 0.058, bottom: [0.013, 0.028], top: [0.011, 0.02], occBottom: 0.85, occTop: 1 });
+  b.slab(bone, { y: eye - 0.064, z: 0.07, height: 0.018, bottom: [0.016, 0.02], top: [0.015, 0.026], occBottom: 0.9, occTop: 1 });
+  // Mandíbula: le da peso a la mitad inferior de la cara.
+  b.slab(bone, { y: H.chin + 0.004, z: 0.012, height: 0.048, bottom: [0.056, 0.05], top: [0.07, 0.062], occBottom: 0.55, occTop: 0.9 });
+}
+
+/** Mano: palma y pulgar. Un muñón cilíndrico delata el modelo a la primera. */
+function hand(b: Builder, bone: Bone, side: number, y: number): void {
+  b.slab(bone, { x: side * H.shoulderX, y: y - 0.075, z: 0.01, height: 0.085, bottom: [0.032, 0.05], top: [0.042, 0.055], occBottom: 0.62, occTop: 0.8 });
+  // Pulgar, separado y hacia adelante.
+  b.slab(bone, {
+    x: side * (H.shoulderX - 0.038),
+    y: y - 0.055,
+    z: 0.03,
+    height: 0.048,
+    leanZ: 0.022,
+    bottom: [0.017, 0.017],
+    top: [0.014, 0.014],
+    occBottom: 0.7,
+    occTop: 0.85,
+  });
+}
+
+/** Cinturón con hebilla: corta el torso en dos y da escala al personaje. */
+function belt(b: Builder, sides = 8): void {
+  const bone: Bone = { limb: LIMB.PELVIS, pivot: [0, H.hip, 0], shade: SHADE.LEATHER };
+  b.prism(bone, {
+    y: H.waist - 0.075,
+    height: 0.07,
+    bottom: [0.155, 0.112],
+    top: [0.152, 0.11],
+    sides,
+    occBottom: 0.72,
+    occTop: 0.72,
+    capBottom: false,
+    capTop: false,
+  });
+  b.slab({ ...bone, shade: SHADE.METAL }, { y: H.waist - 0.078, z: 0.108, height: 0.076, bottom: [0.036, 0.02], top: [0.036, 0.02], occBottom: 0.9, occTop: 1 });
 }
 
 function head(b: Builder, sides = 8): void {
@@ -537,7 +649,7 @@ function arm(b: Builder, side: number, shade: number, sides = 8, pauldron = true
     capTop: false,
   });
   // Codo: misma solución que la rodilla.
-  b.dome(fore, { x: side * H.shoulderX, y: H.elbow - 0.045, radius: [0.055, 0.058], height: 0.075, sides: 6, rings: 2, occ: 0.86 });
+  b.dome(fore, { x: side * H.shoulderX, y: H.elbow - 0.036, radius: [0.05, 0.053], height: 0.068, sides: 6, rings: 2, occ: 0.86, capBottom: false });
   b.prism(fore, {
     x: side * H.shoulderX,
     y: H.wrist,
@@ -549,16 +661,18 @@ function arm(b: Builder, side: number, shade: number, sides = 8, pauldron = true
     occTop: 0.8,
     capTop: false,
   });
+  // Guantelete y mano de verdad: el antebrazo no puede acabar en un tapón.
   b.prism(glove, {
     x: side * H.shoulderX,
-    y: H.wrist - 0.1,
-    height: 0.1,
-    bottom: [0.048, 0.05],
+    y: H.wrist - 0.055,
+    height: 0.055,
+    bottom: [0.05, 0.052],
     top: [0.056, 0.058],
     sides: 6,
-    occBottom: 0.6,
+    occBottom: 0.66,
     occTop: 0.72,
   });
+  hand(b, glove, side, H.wrist - 0.055);
 }
 
 /** Casco con nasal y cimera opcional. */
@@ -578,6 +692,22 @@ function helmet(b: Builder, sides = 8, crest = 0): void {
   b.dome(bone, { y: H.chin + 0.15, radius: [0.108, 0.115], height: H.crown - H.chin - 0.13, sides, rings: 2 });
   // Nasal: la pieza que hace que se lea "casco" y no "gorro".
   b.slab(bone, { y: H.chin + 0.02, z: 0.1, height: 0.12, bottom: [0.022, 0.02], top: [0.026, 0.02], occBottom: 0.7, occTop: 0.95 });
+  // Ala del casco: un reborde que sobresale por todo el contorno. Se probaron
+  // carrilleras colgando a los lados de la cara y no funcionaron: a esta escala
+  // la mandíbula es más estrecha que la pieza y quedaban flotando junto a la
+  // cabeza en vez de apoyadas en ella.
+  b.prism(bone, {
+    y: H.chin + 0.05,
+    height: 0.028,
+    bottom: [0.118, 0.126],
+    top: [0.108, 0.115],
+    sides,
+    occBottom: 0.6,
+    occTop: 0.9,
+    capBottom: true,
+  });
+  // Nuquera: protege la nuca y cierra la silueta por detrás.
+  b.slab(bone, { y: H.chin - 0.005, z: -0.088, height: 0.075, bottom: [0.07, 0.024], top: [0.082, 0.03], occBottom: 0.5, occTop: 0.85 });
   if (crest > 0) {
     b.slab({ ...bone, shade: SHADE.GLOW }, {
       y: H.crown - 0.02,
@@ -595,12 +725,16 @@ function helmet(b: Builder, sides = 8, crest = 0): void {
 function soldier(detail: Detail): THREE.BufferGeometry {
   const b = new Builder();
   const sides = detail === 'high' ? 8 : 5;
-  legs(b, SHADE.TEAM, SHADE.LEATHER, sides);
+  // Calzas oscuras y torso con el color del bando: el rojo o el azul se
+  // concentran donde el espectador los busca en vez de bañar toda la figura.
+  legs(b, SHADE.GARMENT, SHADE.LEATHER, sides);
   torso(b, SHADE.TEAM, sides);
   head(b, sides);
 
   if (detail === 'simple') return b.toGeometry();
 
+  belt(b, sides);
+  face(b);
   arm(b, -1, SHADE.CHAINMAIL, sides, detail === 'high');
   arm(b, 1, SHADE.CHAINMAIL, sides, detail === 'high');
   helmet(b, sides);
@@ -638,26 +772,161 @@ function archer(detail: Detail): THREE.BufferGeometry {
   head(b, sides);
   if (detail === 'simple') return b.toGeometry();
 
-  arm(b, -1, SHADE.TEAM, sides, false);
-  arm(b, 1, SHADE.TEAM, sides, false);
+  belt(b, sides);
+  face(b);
 
   // Capucha: cubre la coronilla y cae por la nuca.
   const hood: Bone = { limb: LIMB.HEAD, pivot: [0, H.neck - 0.08, 0], shade: SHADE.TEAM };
   b.dome(hood, { y: H.chin + 0.04, z: -0.012, radius: [0.115, 0.125], height: H.crown - H.chin, sides, rings: 2 });
   b.slab(hood, { y: H.chin - 0.12, z: -0.09, height: 0.2, bottom: [0.1, 0.05], top: [0.115, 0.06], occBottom: 0.5, occTop: 0.8 });
 
-  const left: Bone = {
-    limb: LIMB.FORE_L,
-    pivot: [-H.shoulderX, H.elbow, 0],
-    pivot2: [-H.shoulderX, H.shoulder - 0.04, 0],
+  // --- Brazo del arco: un solo bloque rígido que apunta al frente ---
+  const bowShoulder: Vec3 = [-H.shoulderX, H.shoulder - 0.04, 0];
+  const bowArm: Bone = { limb: LIMB.BOW_ARM, pivot: bowShoulder, shade: SHADE.TEAM };
+  b.dome(bowArm, { x: -(H.shoulderX + 0.012), y: H.shoulder - 0.055, radius: [0.098, 0.1], height: 0.1, sides, rings: 2, occ: 1 });
+  // Brazo entero de hombro a muñeca sin codo intermedio: al estar extendido no
+  // hay flexión que representar y así el arco no puede separarse de la mano.
+  b.prism(bowArm, {
+    x: -H.shoulderX,
+    y: H.wrist - 0.08,
+    height: H.shoulder - 0.04 - (H.wrist - 0.08),
+    bottom: [0.046, 0.05],
+    top: [0.072, 0.075],
+    sides,
+    occBottom: 0.72,
+    occTop: 0.85,
+    capTop: false,
+  });
+  b.prism({ ...bowArm, shade: SHADE.LEATHER }, {
+    x: -H.shoulderX,
+    y: H.wrist - 0.17,
+    height: 0.11,
+    bottom: [0.05, 0.052],
+    top: [0.056, 0.058],
+    sides: 6,
+    occBottom: 0.6,
+    occTop: 0.72,
+  });
+
+  // Arco: cinco tramos que describen la curva, con la empuñadura EN la mano.
+  // Va en su propio hueso, que solo TRASLADA (ver LIMB.BOW): si rotara con el
+  // brazo acabaría apuntando de punta a la cámara y no se vería.
+  const bowGrip = H.wrist - 0.12;
+  const bow: Bone = {
+    limb: LIMB.BOW,
+    pivot: bowShoulder,
+    pivot2: [-H.shoulderX, bowGrip, 0],
     shade: SHADE.LEATHER,
   };
-  // Arco: cuatro tramos inclinados que describen la curva completa.
-  const bowX = -H.shoulderX - 0.09;
-  b.slab(left, { x: bowX, y: H.wrist + 0.02, z: 0.1, height: 0.34, bottom: [0.014, 0.014], top: [0.012, 0.012], tiltZ: -0.22, occBottom: 1, occTop: 1 });
-  b.slab(left, { x: bowX + 0.035, y: H.wrist + 0.34, z: 0.1, height: 0.3, bottom: [0.012, 0.012], top: [0.008, 0.008], tiltZ: -0.55, occBottom: 1, occTop: 1 });
-  b.slab(left, { x: bowX, y: H.wrist - 0.32, z: 0.1, height: 0.34, bottom: [0.012, 0.012], top: [0.014, 0.014], tiltZ: 0.22, occBottom: 1, occTop: 1 });
-  b.slab(left, { x: bowX + 0.035, y: H.wrist - 0.62, z: 0.1, height: 0.3, bottom: [0.008, 0.008], top: [0.012, 0.012], tiltZ: 0.55, occBottom: 1, occTop: 1 });
+  const bowX = -H.shoulderX - 0.075;
+  const grip = bowGrip;
+  // Cada tramo arranca EXACTAMENTE donde acabó el anterior. Al colocarlos por
+  // coordenada fija, la inclinación desplazaba la punta y el arco salía a
+  // trozos, con huecos entre pala y pala.
+  // `slab` inclina cada pieza girándola alrededor de su BASE. Para la pala de
+  // arriba basta encadenar bases; para la de abajo hay que despejar la base a
+  // partir de la punta, que es el extremo que debe quedar pegado al anterior.
+  const SEG = 0.25;
+  const tips: Array<[number, number]> = [];
+  for (const dir of [1, -1]) {
+    let x = bowX;
+    let y = grip;
+    let thickness = 0.019;
+    for (let i = 0; i < 3; i++) {
+      const tilt = -dir * i * 0.32;
+      const next = thickness * 0.74;
+      const baseX = dir > 0 ? x : x + Math.sin(tilt) * SEG;
+      const baseY = dir > 0 ? y : y - Math.cos(tilt) * SEG;
+      const lower = dir > 0 ? thickness : next;
+      const upper = dir > 0 ? next : thickness;
+      b.slab(bow, {
+        x: baseX,
+        y: baseY,
+        z: 0.06,
+        height: SEG,
+        bottom: [lower, lower * 2.1],
+        top: [upper, upper * 2.1],
+        tiltZ: tilt,
+        occBottom: 1,
+        occTop: 1,
+      });
+      x = dir > 0 ? baseX - Math.sin(tilt) * SEG : baseX;
+      y = dir > 0 ? baseY + Math.cos(tilt) * SEG : baseY;
+      thickness = next;
+    }
+    tips.push([x, y]);
+  }
+  // Cuerda: de punta a punta. Sin ella el arco es un palo doblado.
+  const [[topX, topY], [botX, botY]] = tips;
+  b.slab({ ...bow, shade: SHADE.METAL }, {
+    x: (topX + botX) / 2,
+    y: botY,
+    z: 0.06,
+    height: topY - botY,
+    leanX: topX - botX,
+    bottom: [0.006, 0.006],
+    top: [0.006, 0.006],
+    occBottom: 1,
+    occTop: 1,
+  });
+
+  // --- Brazo que tensa: hombro levantado y codo plegado hacia la mejilla ---
+  const drawShoulder: Vec3 = [H.shoulderX, H.shoulder - 0.04, 0];
+  const drawArm: Bone = { limb: LIMB.DRAW_ARM, pivot: drawShoulder, shade: SHADE.TEAM };
+  const drawFore: Bone = {
+    limb: LIMB.DRAW_FORE,
+    pivot: [H.shoulderX, H.elbow, 0],
+    pivot2: drawShoulder,
+    shade: SHADE.TEAM,
+  };
+  b.dome(drawArm, { x: H.shoulderX + 0.012, y: H.shoulder - 0.055, radius: [0.098, 0.1], height: 0.1, sides, rings: 2, occ: 1 });
+  b.prism(drawArm, {
+    x: H.shoulderX,
+    y: H.elbow,
+    height: H.shoulder - 0.04 - H.elbow,
+    bottom: [0.052, 0.055],
+    top: [0.072, 0.075],
+    sides,
+    occBottom: 0.7,
+    occTop: 0.85,
+    capTop: false,
+  });
+  b.dome(drawFore, { x: H.shoulderX, y: H.elbow - 0.036, radius: [0.05, 0.053], height: 0.068, sides: 6, rings: 2, occ: 0.86, capBottom: false });
+  b.prism(drawFore, {
+    x: H.shoulderX,
+    y: H.wrist,
+    height: H.elbow - H.wrist,
+    bottom: [0.045, 0.048],
+    top: [0.056, 0.06],
+    sides,
+    occBottom: 0.72,
+    occTop: 0.8,
+    capTop: false,
+  });
+  b.prism({ ...drawFore, shade: SHADE.LEATHER }, {
+    x: H.shoulderX,
+    y: H.wrist - 0.1,
+    height: 0.1,
+    bottom: [0.048, 0.05],
+    top: [0.056, 0.058],
+    sides: 6,
+    occBottom: 0.6,
+    occTop: 0.72,
+  });
+  // Flecha encajada, casi horizontal: se consigue con un prisma bajísimo muy
+  // cizallado en Z (leanZ desplaza la tapa superior), porque los prismas solo
+  // crecen en Y.
+  b.slab({ ...drawFore, shade: SHADE.LEATHER }, {
+    x: H.shoulderX - 0.055,
+    y: H.wrist - 0.1,
+    z: 0.02,
+    height: 0.1,
+    leanZ: 0.7,
+    bottom: [0.009, 0.009],
+    top: [0.008, 0.008],
+    occBottom: 1,
+    occTop: 1,
+  });
 
   // Carcaj cruzado a la espalda con flechas asomando.
   const back: Bone = { limb: LIMB.BODY, pivot: [0, H.waist, 0], shade: SHADE.LEATHER };
@@ -737,8 +1006,8 @@ function giant(detail: Detail): THREE.BufferGeometry {
   // Mismo esqueleto, proporciones de bruto: tronco enorme y piernas cortas.
   for (const side of [-1, 1]) {
     const isLeft = side < 0;
-    const thigh: Bone = { limb: isLeft ? LIMB.THIGH_L : LIMB.THIGH_R, pivot: [side * 0.17, 0.86, 0], shade: SHADE.TEAM };
-    const shin: Bone = { limb: isLeft ? LIMB.SHIN_L : LIMB.SHIN_R, pivot: [side * 0.17, 0.46, 0], pivot2: [side * 0.17, 0.86, 0], shade: SHADE.TEAM };
+    const thigh: Bone = { limb: isLeft ? LIMB.THIGH_L : LIMB.THIGH_R, pivot: [side * 0.17, 0.86, 0], shade: SHADE.GARMENT };
+    const shin: Bone = { limb: isLeft ? LIMB.SHIN_L : LIMB.SHIN_R, pivot: [side * 0.17, 0.46, 0], pivot2: [side * 0.17, 0.86, 0], shade: SHADE.GARMENT };
     b.prism(thigh, { x: side * 0.17, y: 0.46, height: 0.4, bottom: [0.12, 0.13], top: [0.165, 0.175], sides, occBottom: 0.7, occTop: 0.5, capTop: false });
     b.dome(shin, { x: side * 0.17, y: 0.4, radius: [0.13, 0.14], height: 0.15, sides, rings: 2, occ: 0.86 });
     b.prism(shin, { x: side * 0.17, y: 0.06, height: 0.4, bottom: [0.095, 0.1], top: [0.125, 0.135], sides, occBottom: 0.6, occTop: 0.8, capTop: false });
