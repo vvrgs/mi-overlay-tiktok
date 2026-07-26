@@ -117,9 +117,13 @@ public class TankEntity extends Entity {
         return new Vec3(-Mth.sin(yaw) * Mth.cos(pitch), Mth.sin(pitch), Mth.cos(yaw) * Mth.cos(pitch));
     }
 
-    /** Punto de la boca del cañón en coordenadas de mundo (para FX/disparo). */
+    /**
+     * Punto de la boca del cañón en coordenadas de mundo (para FX/disparo).
+     * Derivado del modelo renderizado: eje del cañón a y=1.72 (pivote torreta
+     * y=7, cañón −3.5, suelo 24) y boca a 2.75 bl (z −44/16 del root).
+     */
     public Vec3 muzzlePoint() {
-        return position().add(0.0D, 1.35D, 0.0D).add(barrelDirection().scale(2.6D));
+        return position().add(0.0D, 1.72D, 0.0D).add(barrelDirection().scale(2.75D));
     }
 
     // ------------------------------------------------------------ tick

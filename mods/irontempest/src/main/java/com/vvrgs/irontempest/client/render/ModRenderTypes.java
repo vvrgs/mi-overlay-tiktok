@@ -51,6 +51,7 @@ public final class ModRenderTypes extends RenderStateShard {
                     .setTransparencyState(LIGHTNING_TRANSPARENCY)
                     .setWriteMaskState(COLOR_WRITE)
                     .setCullState(NO_CULL)
+                    .setOutputState(WEATHER_TARGET) // Fabulous: no quedar detrás del translúcido
                     .createCompositeState(false));
 
     /**
@@ -70,6 +71,7 @@ public final class ModRenderTypes extends RenderStateShard {
                     .setTransparencyState(LIGHTNING_TRANSPARENCY)
                     .setWriteMaskState(COLOR_WRITE)
                     .setCullState(NO_CULL)
+                    .setOutputState(WEATHER_TARGET) // Fabulous: no quedar detrás del translúcido
                     .createCompositeState(false));
 
     /** Capa emisiva fullbright sobre una textura de glow. */

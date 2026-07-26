@@ -30,6 +30,7 @@ public abstract class RenderType extends RenderStateShard {
             public CompositeStateBuilder setTransparencyState(TransparencyStateShard shard) { return this; }
             public CompositeStateBuilder setWriteMaskState(WriteMaskStateShard shard) { return this; }
             public CompositeStateBuilder setCullState(CullStateShard shard) { return this; }
+            public CompositeStateBuilder setOutputState(RenderStateShard.OutputStateShard shard) { return this; }
             public CompositeState createCompositeState(boolean affectsOutline) { throw new UnsupportedOperationException(); }
         }
     }

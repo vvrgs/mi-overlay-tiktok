@@ -75,9 +75,14 @@ public class WarshipEntity extends Entity {
         this.entityData.set(DATA_BEAM_Z, (float) pos.z);
     }
 
-    /** Emisor del cañón ventral en mundo (origen del haz). */
+    /**
+     * Emisor del cañón ventral en mundo (origen del haz). El cañón del modelo
+     * está 0.375 bl hacia la PROA: el offset debe rotar con el yaw de la nave
+     * (forward = (-sin, 0, cos) en convención living).
+     */
     public Vec3 cannonEmitter() {
-        return position().add(0.0D, -0.9D, -0.4D);
+        float yaw = getYRot() * Mth.DEG_TO_RAD;
+        return position().add(-Mth.sin(yaw) * 0.375D, -0.9D, Mth.cos(yaw) * 0.375D);
     }
 
     @Override
@@ -104,7 +109,8 @@ public class WarshipEntity extends Entity {
             float yaw = getYRot() * Mth.DEG_TO_RAD;
             double side = this.random.nextBoolean() ? 1.0D : -1.0D;
             Vec3 right = new Vec3(Mth.cos(yaw), 0.0D, -Mth.sin(yaw)).scale(side * 1.0D);
-            Vec3 back = new Vec3(Mth.sin(yaw), 0.0D, Mth.cos(yaw)).scale(2.4D);
+            // Popa = -forward = (sin(yaw), 0, -cos(yaw)): las góndolas están atrás.
+            Vec3 back = new Vec3(Mth.sin(yaw), 0.0D, -Mth.cos(yaw)).scale(2.4D);
             Vec3 p = position().add(right).add(back).add(0.0D, 0.1D, 0.0D);
             this.level().addParticle(ModParticles.CHARGE_MOTE.get(), p.x, p.y, p.z,
                     -back.x * 0.02D, -0.01D, -back.z * 0.02D);

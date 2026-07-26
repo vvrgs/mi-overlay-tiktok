@@ -13,6 +13,10 @@ public abstract class RenderStateShard {
     protected static final CullStateShard CULL = new CullStateShard(true);
     protected static final CullStateShard NO_CULL = new CullStateShard(false);
     protected static final WriteMaskStateShard COLOR_DEPTH_WRITE = new WriteMaskStateShard(true, true);
+    protected static class OutputStateShard extends RenderStateShard {
+        public OutputStateShard(String name, Runnable setup, Runnable clear) { super(name, setup, clear); }
+    }
+    protected static final OutputStateShard WEATHER_TARGET = new OutputStateShard("weather_target", () -> {}, () -> {});
     protected static final WriteMaskStateShard COLOR_WRITE = new WriteMaskStateShard(true, false);
     protected static final WriteMaskStateShard DEPTH_WRITE = new WriteMaskStateShard(false, true);
 

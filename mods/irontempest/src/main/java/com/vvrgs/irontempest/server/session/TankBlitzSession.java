@@ -219,6 +219,7 @@ public final class TankBlitzSession extends WarSession {
         shell.setPos(muzzle.x, muzzle.y, muzzle.z);
         shell.setSessionId(this.id);
         shell.setDeltaMovement(dir.scale(SHELL_SPEED));
+        shell.alignToVelocity();
         this.level.addFreshEntity(shell);
     }
 

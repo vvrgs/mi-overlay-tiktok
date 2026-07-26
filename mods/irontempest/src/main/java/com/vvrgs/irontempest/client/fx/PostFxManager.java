@@ -122,7 +122,9 @@ public final class PostFxManager {
         }
         float u = clip.x() / clip.w() * 0.5F + 0.5F;
         float v = clip.y() / clip.w() * 0.5F + 0.5F;
-        if (u < -0.4F || u > 1.4F || v < -0.4F || v > 1.4F) {
+        // Margen amplio: el ANILLO (radio hasta ~1.25 UV) sigue en pantalla
+        // aunque el centro esté bastante fuera — evita el pop-off al girar cámara.
+        if (u < -1.6F || u > 2.6F || v < -1.6F || v > 2.6F) {
             return;
         }
 
@@ -171,6 +173,10 @@ public final class PostFxManager {
         main.bindWrite(true);
         RenderSystem.enableCull();
         RenderSystem.enableDepthTest();
+        // effect.apply() dejó el blend del program ("one"/"zero") activado y la
+        // caché BlendMode desincronizada: restaurar SIEMPRE el estado por defecto.
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
     }
 
     private static boolean ensureResources(Minecraft mc) {

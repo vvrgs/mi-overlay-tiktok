@@ -150,8 +150,12 @@ public class TankRenderer extends EntityRenderer<TankEntity> {
                              MultiBufferSource buffer) {
         // El poseStack está en la posición interpolada de la entidad:
         // pasa el muzzle de mundo a espacio local restando esa posición.
-        Vec3 origin = entity.muzzlePoint().subtract(entity.getPosition(partialTick));
-        Vec3 dir = entity.barrelDirection();
+        // Interpolar torreta/cañón con partialTick: el extremo del láser a 40 bl
+        // salta ~1.5 bl por tick si se usan los valores crudos sincronizados.
+        float yaw = Mth.rotLerp(partialTick, entity.turretYawO, entity.getTurretYaw()) * Mth.DEG_TO_RAD;
+        float pitch = Mth.lerp(partialTick, entity.barrelPitchO, entity.getBarrelPitch()) * Mth.DEG_TO_RAD;
+        Vec3 dir = new Vec3(-Mth.sin(yaw) * Mth.cos(pitch), Mth.sin(pitch), Mth.cos(yaw) * Mth.cos(pitch));
+        Vec3 origin = new Vec3(0.0D, 1.72D, 0.0D).add(dir.scale(2.75D));
         Vec3 end = origin.add(dir.scale(LASER_RANGE));
 
         Vec3 upRef = Math.abs(dir.y) > 0.99 ? new Vec3(1.0, 0.0, 0.0) : new Vec3(0.0, 1.0, 0.0);

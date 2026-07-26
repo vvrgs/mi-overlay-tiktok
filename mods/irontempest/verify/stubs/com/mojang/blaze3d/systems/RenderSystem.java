@@ -2,6 +2,7 @@ package com.mojang.blaze3d.systems;
 
 public class RenderSystem {
     public static void enableBlend() {}
+    public static void defaultBlendFunc() {}
     public static void disableBlend() {}
     public static void enableDepthTest() {}
     public static void disableDepthTest() {}

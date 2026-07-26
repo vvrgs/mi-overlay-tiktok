@@ -86,6 +86,17 @@ public abstract class AbstractWarProjectile extends Entity {
         updateRotationFromVelocity();
     }
 
+    /**
+     * Alinear rotación con la velocidad ANTES de addFreshEntity: el paquete de
+     * spawn lleva yaw/pitch, sin esto el cliente ve 1-2 frames el modelo
+     * horizontal mirando al sur antes del primer tick.
+     */
+    public void alignToVelocity() {
+        updateRotationFromVelocity();
+        this.yRotO = getYRot();
+        this.xRotO = getXRot();
+    }
+
     protected void updateRotationFromVelocity() {
         Vec3 vel = getDeltaMovement();
         if (vel.lengthSqr() > 1.0E-6D) {

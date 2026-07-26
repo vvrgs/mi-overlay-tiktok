@@ -70,6 +70,7 @@ public final class CruiseMissileSession extends WarSession {
         }
         m.setPos(this.siloPos.x, this.siloPos.y + 1.0D, this.siloPos.z);
         m.launch(target.getUUID(), this.id);
+        m.alignToVelocity();
         this.level.addFreshEntity(m);
         this.missile = m;
         this.level.playSound(null, this.siloPos.x, this.siloPos.y, this.siloPos.z,
