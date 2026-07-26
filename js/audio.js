@@ -98,5 +98,21 @@ const AudioFX = (() => {
       notes.forEach((f, i) => tone('square', f, f, i * 0.18, 0.16, 0.14));
     },
     alarm() { for (let i = 0; i < 3; i++) tone('square', 660, 440, i * 0.3, 0.25, 0.12, 'exp'); },
+    /* sting corto de peligro antes de un desastre */
+    warn() {
+      tone('square', 880, 880, 0, 0.10, 0.14);
+      tone('square', 880, 880, 0.16, 0.10, 0.14);
+      tone('square', 587, 587, 0.32, 0.22, 0.14);
+    },
+    /* jingle de inicio de partida */
+    jingle() {
+      const notes = [523, 659, 784, 1046];
+      notes.forEach((f, i) => tone('square', f, f, i * 0.09, 0.10, 0.10));
+    },
+    /* fanfarria de récord nuevo */
+    fanfare() {
+      const seq = [[523, 0], [659, 0.12], [784, 0.24], [1046, 0.36], [784, 0.52], [1046, 0.62]];
+      for (const [f, t] of seq) { tone('square', f, f, t, 0.14, 0.13); tone('triangle', f / 2, f / 2, t, 0.16, 0.10); }
+    },
   };
 })();

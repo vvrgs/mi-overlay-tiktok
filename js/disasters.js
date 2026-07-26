@@ -1,11 +1,12 @@
 /* ============================================================
- * DESASTRES Y ACCIONES DE REGALOS
- *  - superTruck : un camión gigante barre la fila del jugador
- *  - volcano    : brota un volcán y llueven bombas de lava
- *  - earthquake : terremoto que te empuja hacia atrás
- *  - tornado    : te atrapa y te arrastra muchas filas atrás
- *  - ufo        : te abduce (reset)
- *  - lightning  : rayo teledirigido
+ * DESASTRES Y ACCIONES DE REGALOS (v2, con más espectáculo)
+ *  - superTruck : camión gigante que barre la fila y manda
+ *                 coches por los aires
+ *  - volcano    : volcán con luz propia y lluvia de lava
+ *  - earthquake : terremoto que ondula el suelo y te empuja
+ *  - tornado    : te atrapa, levanta árboles y te arrastra
+ *  - ufo        : abducción con halo y círculo en el pasto
+ *  - lightning  : tormenta que oscurece el cielo + rayo dirigido
  *  - reset / saveRun / moveLeft / moveRight
  * ============================================================ */
 const Disasters = (() => {
@@ -18,10 +19,11 @@ const Disasters = (() => {
 
   /* ---------- SUPER CAMIÓN ---------- */
   function superTruck(user) {
-    UI.banner('🚛 ¡SUPER CAMIÓN!', user);
-    UI.flashRed();
+    UI.banner('🚛 ¡SUPER CAMIÓN!', user, '#ff5a3c');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.horn();
-    let warned = 1.4, mesh = null, x = 0, dir = 1, row = 0, done = false;
+    let warned = 1.4, mesh = null, x = 0, dir = 1, row = 0, done = false, dustT = 0;
     add({
       update(dt) {
         if (warned > 0) {
@@ -41,12 +43,19 @@ const Disasters = (() => {
         }
         x += 15 * dir * dt;
         mesh.position.x = x;
-        Effects.sustainShake(0.12);
-        // aplasta árboles y rocas a su paso
+        Effects.sustainShake(0.13);
+        // estela de polvo
+        dustT -= dt;
+        if (dustT <= 0) {
+          dustT = 0.05;
+          Effects.dust(new THREE.Vector3(x - dir * 3, 0.1, -row + (Math.random() - 0.5) * 1.2));
+        }
+        // aplasta árboles/rocas y manda coches por los aires
+        const c = Math.round(x);
         for (let dr = -1; dr <= 1; dr++) {
-          const c = Math.round(x);
           for (let dc = -2; dc <= 2; dc++) World.crushObstacle(row + dr, c + dc);
         }
+        World.knockVehicles(row, x + dir * 2.5, 2.2, dir);
         // aplasta al pollo
         if (Player.state === 'alive' &&
             Math.abs(Player.rowF - row) <= 0.9 &&
@@ -66,13 +75,18 @@ const Disasters = (() => {
 
   /* ---------- VOLCÁN ---------- */
   function volcano(user) {
-    UI.banner('🌋 ¡VOLCÁN!', user);
+    UI.banner('🌋 ¡VOLCÁN!', user, '#ff8a3c');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.rumble(7);
     const col = -2 + ((Math.random() * 5) | 0);
     const baseRow = Player.row + 7;
     const mesh = Models.volcano();
     mesh.position.set(col, -3.4, -baseRow);
     scene.add(mesh);
+    const light = new THREE.PointLight(0xff5a1a, 0, 9);
+    light.position.set(col, 4, -baseRow);
+    scene.add(light);
     let phase = 'rise', t = 0, bombT = 0, eruptT = 6, pushed = false;
     const bombs = [];
     add({
@@ -81,6 +95,7 @@ const Disasters = (() => {
         Effects.sustainShake(phase === 'erupt' ? 0.10 : 0.05);
         if (phase === 'rise') {
           mesh.position.y = Math.min(0, -3.4 + t * 3.5);
+          light.intensity = Math.min(1.2, t * 1.2);
           if (mesh.position.y >= 0) {
             phase = 'erupt';
             Effects.shockwave(new THREE.Vector3(col, 0, -baseRow));
@@ -91,6 +106,7 @@ const Disasters = (() => {
         }
         if (phase === 'erupt') {
           eruptT -= dt;
+          light.intensity = 1.0 + Math.sin(performance.now() / 90) * 0.5;
           Effects.smoke(new THREE.Vector3(col, mesh.userData.craterY, -baseRow), 1);
           bombT -= dt;
           if (bombT <= 0) {
@@ -102,18 +118,19 @@ const Disasters = (() => {
             const to = new THREE.Vector3(tc, Math.max(0, World.topY(tr)), -tr);
             b.position.copy(from);
             scene.add(b);
-            bombs.push({ mesh: b, from, to, t: 0, dur: 0.9 });
+            bombs.push({ mesh: b, from, to, t: 0, dur: 0.9, trailT: 0 });
           }
           if (eruptT <= 0) phase = 'sink';
         } else if (phase === 'sink') {
           mesh.position.y -= 2.5 * dt;
+          light.intensity = Math.max(0, light.intensity - 2 * dt);
           if (mesh.position.y < -3.5 && bombs.length === 0) {
-            scene.remove(mesh);
+            scene.remove(mesh); scene.remove(light);
             mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
             return false;
           }
         }
-        // bombas en vuelo
+        // bombas en vuelo con estela de brasas
         for (let i = bombs.length - 1; i >= 0; i--) {
           const b = bombs[i];
           b.t += dt;
@@ -121,6 +138,11 @@ const Disasters = (() => {
           b.mesh.position.lerpVectors(b.from, b.to, k);
           b.mesh.position.y += Math.sin(k * Math.PI) * 4.5;
           b.mesh.rotation.x += 6 * dt; b.mesh.rotation.z += 5 * dt;
+          b.trailT -= dt;
+          if (b.trailT <= 0) {
+            b.trailT = 0.07;
+            Effects.poof(b.mesh.position.clone(), 0xff8a3c);
+          }
           if (k >= 1) {
             const p = b.to.clone();
             Effects.explosion(p, 0.9);
@@ -139,7 +161,7 @@ const Disasters = (() => {
         return true;
       },
       abort() {
-        scene.remove(mesh);
+        scene.remove(mesh); scene.remove(light);
         for (const b of bombs) scene.remove(b.mesh);
       },
     });
@@ -147,13 +169,26 @@ const Disasters = (() => {
 
   /* ---------- TERREMOTO ---------- */
   function earthquake(user) {
-    UI.banner('🫨 ¡TERREMOTO!', user);
+    UI.banner('🫨 ¡TERREMOTO!', user, '#d8b23c');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.rumble(4.5);
-    let t = 4.5, hopT = 0.6, hops = 4;
+    let t = 4.5, hopT = 0.6, hops = 4, dustT = 0;
     add({
       update(dt) {
         t -= dt;
-        Effects.sustainShake(0.22 * Math.min(1, t / 1.5 + 0.3));
+        const k = Math.min(1, t / 1.5 + 0.3);
+        Effects.sustainShake(0.22 * k);
+        World.setQuake(k);
+        dustT -= dt;
+        if (dustT <= 0) {
+          dustT = 0.25;
+          const p = playerPos();
+          p.x += (Math.random() - 0.5) * 6;
+          p.z += (Math.random() - 0.5) * 6;
+          p.y = 0.1;
+          Effects.dust(p);
+        }
         hopT -= dt;
         if (hopT <= 0 && hops > 0 && Player.state === 'alive') {
           Player.tryMove(0, -1, true);
@@ -174,18 +209,20 @@ const Disasters = (() => {
 
   /* ---------- TORNADO ---------- */
   function tornado(user) {
-    UI.banner('🌪️ ¡TORNADO!', user);
+    UI.banner('🌪️ ¡TORNADO!', user, '#9ab8d8');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.wind();
     const mesh = Models.tornado();
     const dir = Math.random() < 0.5 ? 1 : -1;
     let x = -dir * (CONFIG.spawnX - 2);
     let rowF = Player.row;
-    let phase = 'sweep', carryT = 0;
+    let phase = 'sweep', carryT = 0, dustT = 0, windT = 2.2;
     mesh.position.set(x, 0, -rowF);
     scene.add(mesh);
     add({
       update(dt) {
-        // animación del embudo
+        // animación del embudo + escombros
         const layers = mesh.userData.layers;
         for (let i = 0; i < layers.length; i++) {
           layers[i].rotation.y += (i % 2 ? -1 : 1) * (3 + i) * dt;
@@ -196,6 +233,18 @@ const Disasters = (() => {
           d.position.x = Math.cos(d.userData.ang) * d.userData.r;
           d.position.z = Math.sin(d.userData.ang) * d.userData.r;
         }
+        // anillo de polvo en la base
+        dustT -= dt;
+        if (dustT <= 0) {
+          dustT = 0.12;
+          const a = Math.random() * Math.PI * 2;
+          Effects.dust(new THREE.Vector3(mesh.position.x + Math.cos(a) * 0.8, 0.1, mesh.position.z + Math.sin(a) * 0.8));
+        }
+        // sonido de viento continuo
+        windT -= dt;
+        if (windT <= 0) { windT = 2.2; AudioFX.wind(); }
+        // arranca árboles a su paso
+        World.crushObstacle(Math.round(rowF), Math.round(x));
 
         if (phase === 'sweep') {
           x += dir * 3.4 * dt;
@@ -217,11 +266,10 @@ const Disasters = (() => {
           }
         } else if (phase === 'carry') {
           carryT -= dt;
-          rowF -= 3.2 * dt;                       // arrastra hacia atrás
+          rowF -= 3.2 * dt;
           x += Math.sin(performance.now() / 150) * 2 * dt;
           x = Math.max(-CONFIG.cols, Math.min(CONFIG.cols, x));
           mesh.position.set(x, 0, -rowF);
-          // el pollo gira dentro del embudo
           Player.mesh.position.set(x + Math.cos(performance.now() / 120) * 0.5, 1.4 + Math.sin(performance.now() / 200) * 0.5, -rowF + Math.sin(performance.now() / 120) * 0.5);
           Player.mesh.rotation.y += 12 * dt;
           // que la cámara siga el arrastre
@@ -229,7 +277,6 @@ const Disasters = (() => {
           Effects.sustainShake(0.10);
           if (carryT <= 0) {
             phase = 'exit';
-            // suelta al pollo en la fila donde quedó (o la más cercana con pasto)
             let dropRow = Math.max(0, Math.round(rowF));
             let tries = 0;
             while (tries < 6) {
@@ -262,10 +309,12 @@ const Disasters = (() => {
 
   /* ---------- OVNI ---------- */
   function ufo(user) {
-    UI.banner('🛸 ¡OVNI!', user);
+    UI.banner('🛸 ¡OVNI!', user, '#7fe7ff');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.ufo();
     const mesh = Models.ufo();
-    let phase = 'descend', t = 0, liftT = 0;
+    let phase = 'descend', t = 0, liftT = 0, abductPos = null;
     const pp = playerPos();
     mesh.position.set(pp.x + 6, 9, pp.z + 4);
     scene.add(mesh);
@@ -285,12 +334,14 @@ const Disasters = (() => {
             phase = 'beam';
             liftT = 1.6;
             AudioFX.beam();
+            abductPos = target.clone();
             if (Player.state === 'alive') Player.setCarried();
           }
         } else if (phase === 'beam') {
           const beam = mesh.userData.beam;
+          const glow = mesh.userData.glow;
           beam.material.opacity = Math.min(0.45, beam.material.opacity + dt * 1.2);
-          mesh.position.x += (target.x - mesh.position.x) * 0; // se queda fijo
+          glow.material.opacity = Math.min(0.5, glow.material.opacity + dt * 1.2) * (0.7 + Math.sin(performance.now() / 90) * 0.3);
           liftT -= dt;
           if (Player.state === 'carried') {
             Player.mesh.position.x += (mesh.position.x - Player.mesh.position.x) * Math.min(1, 4 * dt);
@@ -302,6 +353,8 @@ const Disasters = (() => {
           if (liftT <= 0) {
             phase = 'leave';
             mesh.userData.beam.material.opacity = 0;
+            mesh.userData.glow.material.opacity = 0;
+            if (abductPos) Effects.scorch(new THREE.Vector3(abductPos.x, 0, abductPos.z), 0.85); // círculo en el pasto
             if (Player.state === 'carried') {
               Player.state = 'dead';
               Game.die('ufo', { alreadyDead: true });
@@ -328,11 +381,14 @@ const Disasters = (() => {
 
   /* ---------- RAYO ---------- */
   function lightning(user) {
-    UI.banner('⚡ ¡RAYO!', user);
+    UI.banner('⚡ ¡RAYO!', user, '#ffe14d');
+    UI.warn();
+    AudioFX.warn();
     AudioFX.alarm();
     const marker = Models.targetMarker();
     scene.add(marker);
-    let phase = 'track', t = 1.2, lock = null, bolt = null, boltT = 0;
+    let phase = 'track', t = 1.2, lock = null, bolt = null, boltT = 0, flashes = 0;
+    Game.setStorm(1);   // el cielo se oscurece
     add({
       update(dt) {
         if (phase === 'track') {
@@ -353,7 +409,8 @@ const Disasters = (() => {
             bolt = Models.lightningBolt();
             bolt.position.copy(lock);
             scene.add(bolt);
-            boltT = 0.18;
+            boltT = 0.22;
+            flashes = 0;
             AudioFX.thunder();
             Effects.explosion(lock, 0.9);
             Effects.scorch(lock, 0.6);
@@ -367,7 +424,11 @@ const Disasters = (() => {
           }
         } else if (phase === 'strike') {
           boltT -= dt;
+          // doble destello
+          if (boltT < 0.12 && flashes === 0) { flashes = 1; bolt.visible = false; }
+          if (boltT < 0.07 && flashes === 1) { flashes = 2; bolt.visible = true; UI.flashWhite(); }
           if (boltT <= 0) {
+            Game.setStorm(0);
             scene.remove(marker); marker.geometry.dispose(); marker.material.dispose();
             scene.remove(bolt);
             bolt.traverse(o => { if (o.geometry) o.geometry.dispose(); });
@@ -376,14 +437,14 @@ const Disasters = (() => {
         }
         return true;
       },
-      abort() { scene.remove(marker); if (bolt) scene.remove(bolt); },
+      abort() { Game.setStorm(0); scene.remove(marker); if (bolt) scene.remove(bolt); },
     });
   }
 
   /* ---------- Acciones simples ---------- */
   function reset(user) {
     if (Game.state !== 'playing') return;
-    UI.banner('💎 RESET', user);
+    UI.banner('💎 RESET', user, '#7fd8ff');
     Game.die('reset', { noShield: true });
   }
 
@@ -391,7 +452,7 @@ const Disasters = (() => {
     if (Player.shield >= CONFIG.maxShields) { UI.toast('Escudo al máximo'); return; }
     Player.shield++;
     AudioFX.shield();
-    UI.banner('🍓 SAVE THE RUN', user);
+    UI.banner('🍓 SAVE THE RUN', user, '#7fffa8');
     UI.toast('🛡️ Escudos: ' + Player.shield);
   }
 
@@ -416,6 +477,7 @@ const Disasters = (() => {
       opts = opts || {};
       AudioFX.unlock();
       UI.bumpCounter(name);
+      Game.wake();
       fn(opts.user, opts.count);
       return true;
     },

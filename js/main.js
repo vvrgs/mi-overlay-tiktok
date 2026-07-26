@@ -1,6 +1,7 @@
 /* ============================================================
  * MAIN — escena, cámara isométrica, luces, bucle del juego,
- * muerte/reinicio, águila por inactividad y teclado.
+ * portada, cámara lenta al morir, tormenta, monedas, récord
+ * con confeti, águila por inactividad y teclado.
  * ============================================================ */
 const Game = (() => {
   let renderer, scene, camera, dirLight, hemiLight;
@@ -8,11 +9,19 @@ const Game = (() => {
   let focusRow = 0, focusX = 0;
   let restartTimer = 0;
   let eagleActive = null;
+  let slowmo = 0;
+  let zoomCur = 1;
+  let stormTarget = 0, stormCur = 0;
+  const SKY = new THREE.Color(0x6fd3f7);
+  const SKY_STORM = new THREE.Color(0x46586e);
+  const skyNow = new THREE.Color(0x6fd3f7);
 
   const G = {
-    state: 'playing',
+    state: 'title',
     score: 0,
     record: 0,
+    coins: 0,
+    timeScale: 1,
 
     init() {
       const canvas = document.getElementById('game');
@@ -22,7 +31,8 @@ const Game = (() => {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x6fd3f7);
+      scene.background = skyNow;
+      scene.fog = new THREE.Fog(skyNow, 24, 46);
 
       camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
       this.resize();
@@ -30,7 +40,7 @@ const Game = (() => {
 
       hemiLight = new THREE.HemisphereLight(0xffffff, 0x8fd444, 0.75);
       scene.add(hemiLight);
-      dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight = new THREE.DirectionalLight(0xfff4e0, 0.85);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.set(2048, 2048);
       const sc = dirLight.shadow.camera;
@@ -47,10 +57,14 @@ const Game = (() => {
       TikTok.init();
 
       this.record = parseInt(localStorage.getItem('crossy_record') || '0', 10);
+      this.coins = parseInt(localStorage.getItem('crossy_coins') || '0', 10);
       UI.setRecord(this.record);
       UI.setScore(0);
+      UI.setCoins(this.coins);
 
       this.bindKeys();
+      UI.showTitle();
+      setTimeout(() => this.wake(), 5000);   // la portada se quita sola
 
       clock = new THREE.Clock();
       renderer.setAnimationLoop(() => this.tick());
@@ -68,10 +82,29 @@ const Game = (() => {
       camera.updateProjectionMatrix();
     },
 
+    /* saca de la portada (primer input o primer regalo) */
+    wake() {
+      if (this.state !== 'title') return;
+      this.state = 'playing';
+      UI.hideTitle();
+      AudioFX.jingle();
+      Player.lastMoveTime = performance.now() / 1000;
+    },
+
+    setStorm(v) { stormTarget = v; },
+
+    addCoin() {
+      this.coins++;
+      UI.setCoins(this.coins);
+      localStorage.setItem('crossy_coins', String(this.coins));
+    },
+
     bindKeys() {
       window.addEventListener('keydown', (e) => {
         AudioFX.unlock();
         const k = e.key.toLowerCase();
+        const isMove = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k);
+        if (isMove) this.wake();
         if (k === 'arrowup' || k === 'w') { e.preventDefault(); Player.tryMove(0, 1); }
         else if (k === 'arrowdown' || k === 's') { e.preventDefault(); Player.tryMove(0, -1); }
         else if (k === 'arrowleft' || k === 'a') { e.preventDefault(); Player.tryMove(-1, 0); }
@@ -96,7 +129,6 @@ const Game = (() => {
       if (row > this.score) {
         this.score = row;
         UI.setScore(this.score);
-        if (this.score > 0 && this.score % 25 === 0) AudioFX.coin();
       }
     },
 
@@ -112,10 +144,9 @@ const Game = (() => {
       }
 
       this.state = 'dead';
-      if (!opts.alreadyDead) Player.state = 'dead';
-      else Player.state = 'dead';
+      Player.state = 'dead';
       Player.playDeath(cause);
-      AudioFX.gameOver();
+      slowmo = 0.55;                       // momento dramático
 
       let isNew = false;
       if (this.score > this.record) {
@@ -124,6 +155,12 @@ const Game = (() => {
         UI.setRecord(this.record);
         isNew = true;
       }
+      if (isNew && this.score > 3) {
+        AudioFX.fanfare();
+        Effects.confetti(new THREE.Vector3(focusX, 0, -focusRow));
+      } else {
+        AudioFX.gameOver();
+      }
       UI.showGameOver(cause, this.score, this.record, isNew);
       restartTimer = CONFIG.autoRestartSec;
     },
@@ -131,7 +168,7 @@ const Game = (() => {
     /* El escudo te salva: te recoloca en pasto seguro unas filas atrás */
     rescue(cause) {
       AudioFX.shield();
-      UI.banner('🛡️ ¡EL ESCUDO TE SALVÓ!');
+      UI.banner('🛡️ ¡EL ESCUDO TE SALVÓ!', null, '#7fe7ff');
       Effects.shockwave(Player.mesh.position.clone(), 0x7fe7ff);
       let row = Player.row;
       for (let tries = 0; tries < 12; tries++) {
@@ -168,6 +205,9 @@ const Game = (() => {
       Player.reset();
       if (eagleActive) { scene.remove(eagleActive.mesh); eagleActive = null; }
       focusRow = 0; focusX = 0;
+      stormTarget = 0;
+      slowmo = 0;
+      AudioFX.jingle();
     },
 
     /* --- Águila por inactividad --- */
@@ -212,30 +252,33 @@ const Game = (() => {
     },
 
     tick() {
-      const dt = Math.min(clock.getDelta(), 0.05);
+      const rawDt = Math.min(clock.getDelta(), 0.05);
+      let dt = rawDt;
+      if (slowmo > 0) { slowmo -= rawDt; dt = rawDt * 0.3; }
       const now = performance.now() / 1000;
 
       if (this.state === 'playing') {
-        // avance automático de cámara (más rápido con más puntos)
         const creep = Math.min(CONFIG.cameraCreepMax, CONFIG.cameraCreepBase + this.score * 0.006);
-        const started = this.score > 0 || Player.rowF > 0.1 || now - Player.lastMoveTime < 8;
-        if (started && this.score >= 1) focusRow += creep * dt;
+        if (this.score >= 1) focusRow += creep * dt;
         if (Player.rowF > focusRow) focusRow += (Player.rowF - focusRow) * Math.min(1, 6 * dt);
-        // si un desastre te empuja muy atrás, la cámara te sigue (dramático)
         if (Player.rowF < focusRow - 4) focusRow += (Player.rowF + 2 - focusRow) * Math.min(1, 2.2 * dt);
-        // pero si te quedas atrás de verdad, mueres
         if (Player.state === 'alive' && Player.rowF < focusRow - CONFIG.behindDeathRows) {
           this.die('behind');
         }
         this.updateEagle(dt, now);
-      } else {
-        // cuenta atrás de reinicio
+      } else if (this.state === 'dead') {
         if (restartTimer > 0) {
-          restartTimer -= dt;
+          restartTimer -= rawDt;
           UI.setRestartCountdown(Math.ceil(restartTimer));
           if (restartTimer <= 0) this.restart();
         }
       }
+
+      // tormenta: cielo y luces se oscurecen
+      stormCur += (stormTarget - stormCur) * Math.min(1, 3 * rawDt);
+      skyNow.copy(SKY).lerp(SKY_STORM, stormCur);
+      dirLight.intensity = 0.85 * (1 - 0.5 * stormCur);
+      hemiLight.intensity = 0.75 * (1 - 0.4 * stormCur);
 
       World.ensure(Math.ceil(focusRow) + 28);
       World.cull(Math.floor(focusRow) - 16);
@@ -244,8 +287,14 @@ const Game = (() => {
       Disasters.update(dt);
       Effects.update(dt);
 
-      // cámara isométrica siguiendo el foco
+      // cámara isométrica con zoom dramático en la muerte
       focusX += (Math.max(-2.5, Math.min(2.5, Player.mesh.position.x)) - focusX) * Math.min(1, 3 * dt);
+      const zoomTarget = slowmo > 0 ? 1.14 : 1;
+      if (Math.abs(zoomCur - zoomTarget) > 0.001) {
+        zoomCur += (zoomTarget - zoomCur) * Math.min(1, 6 * rawDt);
+        camera.zoom = zoomCur;
+        camera.updateProjectionMatrix();
+      }
       const fz = -focusRow;
       const shake = Effects.getShakeOffset();
       camera.position.set(focusX + 5.2 + shake.x, 11, fz + 7.2 + shake.y);

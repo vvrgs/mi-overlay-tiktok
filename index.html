@@ -9,9 +9,24 @@
 <body>
 <canvas id="game"></canvas>
 
+<!-- Viñeta sutil para dar profundidad -->
+<div id="vignette"></div>
+
+<!-- Portada -->
+<div id="title">
+  <div class="title-chicken">🐔</div>
+  <div class="title-logo">
+    <span class="tl-line1">CRUZA LA</span>
+    <span class="tl-line2">CALLE</span>
+  </div>
+  <div class="title-sub">OVERLAY · TIKTOK LIVE</div>
+  <div class="title-hint">Los regalos controlan el juego…<br>¡y desatan desastres!</div>
+</div>
+
 <!-- Marcador -->
 <div id="score">0</div>
 <div id="record">RECORD: 0</div>
+<div id="coins"><span class="coin-ico">🪙</span><span id="coins-num">0</span></div>
 
 <!-- Panel de regalos (como en el live) -->
 <div id="gift-panel"></div>
@@ -22,6 +37,9 @@
   <div id="banner-sub"></div>
 </div>
 
+<!-- Marco de peligro -->
+<div id="danger"></div>
+
 <!-- Avisos pequeños -->
 <div id="toasts"></div>
 
@@ -30,11 +48,13 @@
 
 <!-- Game over -->
 <div id="gameover">
-  <div id="go-cause">¡GAME OVER!</div>
-  <div class="go-score-label">PUNTOS</div>
-  <div id="go-score">0</div>
-  <div id="go-record">RECORD: 0</div>
-  <div id="go-countdown"></div>
+  <div class="go-card">
+    <div id="go-cause">¡GAME OVER!</div>
+    <div class="go-score-label">PUNTOS</div>
+    <div id="go-score">0</div>
+    <div id="go-record">RECORD: 0</div>
+    <div id="go-countdown"></div>
+  </div>
 </div>
 
 <!-- Estado de conexión -->

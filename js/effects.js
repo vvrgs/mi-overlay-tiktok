@@ -18,6 +18,7 @@ const Effects = (() => {
       life: opts.life || 1.0,
       maxLife: opts.life || 1.0,
       grow: opts.grow || 0,
+      ringTo: opts.ringTo || 0,
     });
   }
 
@@ -29,7 +30,11 @@ const Effects = (() => {
     init(sc) { scene = sc; },
 
     clear() {
-      for (const p of particles) { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }
+      for (const p of particles) {
+        scene.remove(p.mesh);
+        if (p.isGroup) p.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+        else { p.mesh.geometry.dispose(); p.mesh.material.dispose(); }
+      }
       particles.length = 0;
       for (const d of decals) { scene.remove(d.mesh); d.mesh.geometry.dispose(); d.mesh.material.dispose(); }
       decals.length = 0;
@@ -60,7 +65,7 @@ const Effects = (() => {
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(pos.x, World.TOP_Y.water + 0.02, pos.z);
-      spawnParticle(ring, new THREE.Vector3(0, 0, 0), { gravity: 0, life: 0.5, grow: 5, rot: new THREE.Vector3(0, 0, 0) });
+      spawnParticle(ring, new THREE.Vector3(0, 0, 0), { gravity: 0, life: 0.5, ringTo: 3.5, rot: new THREE.Vector3(0, 0, 0) });
     },
 
     explosion(pos, scale) {
@@ -96,6 +101,57 @@ const Effects = (() => {
       }
     },
 
+    /* polvito al aterrizar */
+    dust(pos) {
+      for (let i = 0; i < 5; i++) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), basicMat(0xd8cfa8));
+        m.material.opacity = 0.8;
+        m.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 0.4, 0.06, (Math.random() - 0.5) * 0.4));
+        const vel = new THREE.Vector3((Math.random() - 0.5) * 1.6, 0.7 + Math.random() * 0.8, (Math.random() - 0.5) * 1.6);
+        spawnParticle(m, vel, { gravity: 3, life: 0.4, grow: 1.2 });
+      }
+    },
+
+    /* destello dorado al recoger moneda */
+    sparkle(pos) {
+      for (let i = 0; i < 10; i++) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), basicMat(i % 2 ? 0xffe14d : 0xfff6a8));
+        m.position.copy(pos).add(new THREE.Vector3(0, 0.3, 0));
+        const a = (i / 10) * Math.PI * 2;
+        const vel = new THREE.Vector3(Math.cos(a) * 2.2, 2.5 + Math.random() * 1.5, Math.sin(a) * 2.2);
+        spawnParticle(m, vel, { gravity: 7, life: 0.55 });
+      }
+    },
+
+    /* lluvia de confeti (récord nuevo) */
+    confetti(center) {
+      const colors = [0xe8552d, 0xf0c229, 0x35b34a, 0x3b7bd9, 0xd94f8a, 0x8a5cd9];
+      for (let i = 0; i < 70; i++) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.2), basicMat(colors[i % colors.length]));
+        m.material.side = THREE.DoubleSide;
+        m.position.set(
+          center.x + (Math.random() - 0.5) * 10,
+          6 + Math.random() * 3,
+          center.z + (Math.random() - 0.5) * 10
+        );
+        const vel = new THREE.Vector3((Math.random() - 0.5) * 1.5, -1 - Math.random() * 1.2, (Math.random() - 0.5) * 1.5);
+        spawnParticle(m, vel, { gravity: 0.4, life: 2.5 + Math.random() * 1.5 });
+      }
+    },
+
+    /* un mesh entero (p. ej. un coche golpeado) sale volando dando vueltas */
+    tumble(mesh, vel) {
+      scene.add(mesh);
+      particles.push({
+        mesh, vel,
+        rot: new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12),
+        gravity: 11,
+        life: 1.6, maxLife: 1.6,
+        grow: 0,
+        isGroup: true,
+      });
+    },
+
     scorch(pos, radius) {
       const m = new THREE.Mesh(
         new THREE.CircleGeometry(radius || 0.55, 16),
@@ -118,7 +174,7 @@ const Effects = (() => {
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.set(pos.x, 0.15, pos.z);
-      spawnParticle(ring, new THREE.Vector3(0, 0, 0), { gravity: 0, life: 0.8, grow: 12, rot: new THREE.Vector3(0, 0, 0) });
+      spawnParticle(ring, new THREE.Vector3(0, 0, 0), { gravity: 0, life: 0.7, ringTo: 8, rot: new THREE.Vector3(0, 0, 0) });
     },
 
     shake(mag, dur) {
@@ -144,7 +200,9 @@ const Effects = (() => {
         const p = particles[i];
         p.life -= dt;
         if (p.life <= 0) {
-          scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose();
+          scene.remove(p.mesh);
+          if (p.isGroup) p.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+          else { p.mesh.geometry.dispose(); p.mesh.material.dispose(); }
           particles.splice(i, 1);
           continue;
         }
@@ -153,11 +211,19 @@ const Effects = (() => {
         p.mesh.rotation.x += p.rot.x * dt;
         p.mesh.rotation.y += p.rot.y * dt;
         p.mesh.rotation.z += p.rot.z * dt;
+        if (p.ringTo) {
+          // expansión lineal con desvanecimiento (ondas expansivas)
+          const k = 1 - p.life / p.maxLife;
+          p.mesh.scale.setScalar(1 + (p.ringTo - 1) * k);
+          p.mesh.material.opacity = Math.max(0, (p.life / p.maxLife)) * 0.85;
+          continue;
+        }
         if (p.grow) {
           const s = 1 + p.grow * dt;
           p.mesh.scale.multiplyScalar(s);
         }
-        p.mesh.material.opacity = Math.min(1, p.life / (p.maxLife * 0.5));
+        if (!p.isGroup) p.mesh.material.opacity = Math.min(1, p.life / (p.maxLife * 0.5));
+        else if (p.life < 0.3) p.mesh.scale.multiplyScalar(Math.max(0.01, p.life / 0.3));
       }
       for (let i = decals.length - 1; i >= 0; i--) {
         const d = decals[i];

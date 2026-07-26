@@ -21,6 +21,90 @@ html, body {
 
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
+/* --- Viñeta --- */
+#vignette {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 58%, rgba(10, 20, 40, 0.28) 100%);
+  z-index: 5;
+}
+
+/* --- Sacudida del HUD en eventos gordos --- */
+body.hud-shake #score,
+body.hud-shake #gift-panel,
+body.hud-shake #record { animation: hud-shake 0.4s ease; }
+@keyframes hud-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -2px); }
+  80% { transform: translate(2px, 2px); }
+}
+body.hud-shake #record { transform: translateX(-50%); }
+@keyframes hud-shake-rec {
+  0%, 100% { transform: translateX(-50%); }
+  30% { transform: translateX(calc(-50% - 3px)); }
+  70% { transform: translateX(calc(-50% + 3px)); }
+}
+body.hud-shake #record { animation: hud-shake-rec 0.4s ease; }
+
+/* --- Portada --- */
+#title {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 26px;
+  z-index: 40;
+  background: linear-gradient(180deg, rgba(20, 40, 80, 0.30) 0%, rgba(0, 0, 0, 0.15) 60%, rgba(20, 40, 80, 0.35) 100%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s;
+}
+#title.show { opacity: 1; }
+
+.title-chicken {
+  font-size: 90px;
+  font-family: sans-serif;
+  filter: drop-shadow(6px 8px 0 rgba(0,0,0,0.45));
+  animation: chicken-hop 1.4s ease-in-out infinite;
+}
+@keyframes chicken-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  12% { transform: translateY(0) scale(1.1, 0.9); }
+  38% { transform: translateY(-26px) scale(0.95, 1.08); }
+  70% { transform: translateY(0) scale(1.06, 0.94); }
+}
+
+.title-logo {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px;
+  transform: rotate(-4deg) skewX(-4deg);
+}
+.title-logo span {
+  color: #fff;
+  background: #16161e;
+  padding: 14px 20px 12px;
+  line-height: 1;
+  text-shadow: 0 0 0 #fff;
+  box-shadow: 8px 10px 0 rgba(0, 0, 0, 0.35);
+}
+.tl-line1 { font-size: 42px; letter-spacing: 2px; }
+.tl-line2 { font-size: 58px; letter-spacing: 6px; background: #16161e; }
+
+.title-sub {
+  font-size: 13px; color: #ffd23b;
+  text-shadow: 3px 3px 0 #000;
+  letter-spacing: 2px;
+}
+
+.title-hint {
+  font-size: 10px; color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  text-align: center;
+  line-height: 2;
+  animation: hint-blink 1.6s ease infinite;
+}
+@keyframes hint-blink { 50% { opacity: 0.45; } }
+
 /* --- Marcador --- */
 #score {
   position: fixed; top: 18px; left: 18px;
@@ -28,6 +112,15 @@ html, body {
   text-shadow: 4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
   z-index: 10;
 }
+
+#coins {
+  position: fixed; top: 74px; left: 20px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 15px; color: #ffd23b;
+  text-shadow: 3px 3px 0 #000;
+  z-index: 10;
+}
+.coin-ico { font-family: sans-serif; font-size: 17px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.6)); }
 
 #record {
   position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
@@ -46,13 +139,21 @@ html, body {
 
 .gift-row {
   display: flex; align-items: center; gap: 8px;
-  background: rgba(0, 0, 0, 0.55);
+  background: linear-gradient(90deg, rgba(0,0,0,0.62), rgba(10,10,25,0.55));
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 10px;
   padding: 7px 10px;
-  min-width: 190px;
+  min-width: 196px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
 }
 
-.gift-icon { font-size: 20px; font-family: sans-serif; }
+.gift-icon {
+  font-size: 18px; font-family: sans-serif;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.10);
+  border-radius: 8px;
+}
 
 .gift-label {
   flex: 1;
@@ -106,6 +207,21 @@ html, body {
   text-shadow: 3px 3px 0 #000;
 }
 
+/* --- Marco de peligro (franjas) --- */
+#danger {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 18;
+  opacity: 0;
+  border: 14px solid transparent;
+  border-image: repeating-linear-gradient(45deg, #ffcf3c 0 18px, #16161e 18px 36px) 14;
+}
+#danger.show { animation: danger-blink 1.5s steps(1) forwards; }
+@keyframes danger-blink {
+  0% { opacity: 1; } 15% { opacity: 0; } 30% { opacity: 1; }
+  45% { opacity: 0; } 60% { opacity: 1; } 100% { opacity: 0; }
+}
+
 /* --- Toasts --- */
 #toasts {
   position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
@@ -137,28 +253,42 @@ html, body {
 /* --- Game over --- */
 #gameover {
   position: fixed; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 18px;
-  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
   z-index: 25;
   opacity: 0; pointer-events: none;
   transition: opacity 0.3s;
 }
 #gameover.show { opacity: 1; }
+#gameover.show .go-card { animation: card-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1); }
 
-#go-cause {
-  font-size: 22px; color: #ff5a5a;
-  text-shadow: 4px 4px 0 #000;
-  text-align: center;
-  line-height: 1.6;
-  padding: 0 20px;
+.go-card {
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(180deg, rgba(16,16,30,0.92), rgba(24,20,44,0.92));
+  border: 2px solid rgba(255,255,255,0.14);
+  border-radius: 18px;
+  padding: 34px 42px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  max-width: 86%;
+}
+@keyframes card-in {
+  0% { transform: scale(0.4) rotate(-4deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
 }
 
-.go-score-label { font-size: 12px; color: #ccc; text-shadow: 2px 2px 0 #000; }
+#go-cause {
+  font-size: 20px; color: #ff5a5a;
+  text-shadow: 3px 3px 0 #000;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.go-score-label { font-size: 11px; color: #aaa; text-shadow: 2px 2px 0 #000; letter-spacing: 3px; }
 
 #go-score {
-  font-size: 64px; color: #fff;
+  font-size: 62px; color: #fff;
   text-shadow: 5px 5px 0 #000;
 }
 
@@ -169,7 +299,7 @@ html, body {
 #go-record.new-record { animation: newrec 0.6s ease infinite alternate; }
 @keyframes newrec { from { transform: scale(1); } to { transform: scale(1.2); color: #fff; } }
 
-#go-countdown { font-size: 11px; color: #aaa; text-shadow: 2px 2px 0 #000; }
+#go-countdown { font-size: 10px; color: #999; text-shadow: 2px 2px 0 #000; }
 
 /* --- Conexión --- */
 #conn {

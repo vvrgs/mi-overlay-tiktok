@@ -9,17 +9,26 @@ dependencias externas (Three.js y la fuente pixel van incluidas en `vendor/`).
 
 ## 🎮 El juego
 
-- Pollo voxel con salto, squash & stretch y rotación como el original.
-- Carriles infinitos generados al azar: **pasto** (árboles y rocas que
-  bloquean), **carreteras** (coches y camiones de colores), **ríos**
-  (troncos flotantes para cruzar) y **vías de tren** (señales que parpadean,
-  campana y tren a toda velocidad).
-- Cámara isométrica que avanza sola: si te quedas atrás, pierdes.
-- Águila que te caza si te quedas quieto demasiado tiempo.
-- Muertes animadas: aplastado (plumas), ahogado (splash), fulminado,
-  abducido…
-- Marcador con fuente pixel, récord guardado en `localStorage`, reinicio
-  automático tras cada muerte (ideal para dejarlo corriendo en el live).
+- Portada animada con logo pixel y pollo saltando; empieza sola o con la
+  primera tecla / primer regalo.
+- Pollo voxel con salto, squash & stretch, respiración en reposo y
+  picoteo ocioso como el original.
+- Carriles infinitos casilla a casilla con variación de color: **pasto**
+  (árboles, rocas, flores, matas y monedas giratorias), **carreteras**
+  (coches, taxis, patrullas con torreta parpadeante, autobuses y camiones
+  que echan humo, con arcén y líneas discontinuas), **ríos** (troncos que
+  se mecen, nenúfares, espuma y destellos de corriente) y **vías de tren**
+  (señales que parpadean, barreras que bajan, campana y tren a toda
+  velocidad).
+- Nubes voxel a la deriva que proyectan sombra sobre el mapa.
+- Cámara isométrica que avanza sola (más rápido cuanto más lejos llegas);
+  si te quedas atrás, pierdes. Águila que te caza si te quedas quieto.
+- Muertes con cámara lenta y zoom dramático: aplastado (plumas), ahogado
+  (splash), fulminado, abducido…
+- Marcador pixel, monedas coleccionables, récord persistente con
+  fanfarria + confeti al batirlo, y reinicio automático (ideal para
+  dejarlo corriendo en el live).
+- Viñeta sutil, marco de peligro en los desastres y sacudida del HUD.
 - Sonidos 100% sintetizados con WebAudio (sin archivos de audio).
 
 ## 💥 Desastres y acciones (regalos)
@@ -29,12 +38,12 @@ dependencias externas (Three.js y la fuente pixel van incluidas en `vendor/`).
 | 💎 **RESET** | Mata la run al instante |
 | 🍓 **SAVE THE RUN** | Da un escudo (aguanta una muerte y te recoloca a salvo) |
 | 🪽 **MOVE LEFT** / 💗 **MOVE RIGHT** | Mueven al pollo un paso |
-| 🚛 **SUPER CAMIÓN** | Un camión gigante barre la fila del pollo y aplasta todo |
-| 🌋 **VOLCÁN** | Brota un volcán, la erupción te empuja 3 filas atrás y llueven bombas de lava |
-| 🫨 **TERREMOTO** | Sacude la pantalla y te empuja 4 filas atrás |
-| 🌪️ **TORNADO** | Cruza el mapa; si te atrapa, te arrastra muchas filas atrás |
-| 🛸 **OVNI** | Te abduce con su rayo (adiós run) |
-| ⚡ **RAYO** | Marca tu casilla y cae un rayo teledirigido |
+| 🚛 **SUPER CAMIÓN** | Un camión gigante barre la fila del pollo, aplasta árboles y manda los coches por los aires |
+| 🌋 **VOLCÁN** | Brota un volcán con luz propia, la erupción te empuja 3 filas atrás y llueven bombas de lava con estela de brasas |
+| 🫨 **TERREMOTO** | Los carriles ondulan, la pantalla tiembla y te empuja 4 filas atrás |
+| 🌪️ **TORNADO** | Cruza el mapa levantando polvo y árboles; si te atrapa, te arrastra muchas filas atrás |
+| 🛸 **OVNI** | Te abduce con su rayo y deja un círculo quemado en el pasto |
+| ⚡ **RAYO** | El cielo se oscurece, marca tu casilla y cae un rayo con doble destello |
 
 Cada evento muestra un banner con el nombre del regalo y del espectador, y el
 panel lateral (como el del video) lleva el conteo de cada acción.

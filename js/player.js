@@ -43,6 +43,9 @@ const Player = (() => {
       this.mesh.rotation.set(0, 0, 0);
       this.bubble.visible = false;
       this.forcedPush = null;
+      this.peckT = 2 + Math.random() * 3;
+      this.peckAnim = 0;
+      if (this.mesh.userData.head) this.mesh.userData.head.rotation.set(0, 0, 0);
       this.syncMesh(World.topY(0));
     },
 
@@ -116,6 +119,14 @@ const Player = (() => {
 
       const lane = World.laneAt(this.row);
       if (h.forced) World.crushObstacle(this.row, this.col);
+
+      if (lane && (lane.type === 'grass' || lane.type === 'road')) {
+        Effects.dust(new THREE.Vector3(this.x, World.topY(this.row), -this.row));
+      }
+      if (World.collectCoin(this.row, this.col)) {
+        AudioFX.coin();
+        Game.addCoin();
+      }
 
       if (lane && lane.type === 'water') {
         const log = World.logAt(this.row, this.x);
@@ -227,13 +238,30 @@ const Player = (() => {
           this.col = Math.round(this.x);
           if (Math.abs(this.x) > CONFIG.cols + 2.2) { Game.die('fell'); return; }
         }
-        // squash al aterrizar
+        // squash al aterrizar + respiración en reposo
+        const tnow = performance.now() / 1000;
         if (this.squashT > 0) {
           this.squashT -= dt;
           const k = Math.max(0, this.squashT / 0.12);
           this.mesh.scale.set(1 + 0.18 * k, 1 - 0.25 * k, 1 + 0.18 * k);
         } else {
-          this.mesh.scale.set(1, 1, 1);
+          this.mesh.scale.set(1, 1 + Math.sin(tnow * 3.2) * 0.018, 1);
+        }
+        // picotea de vez en cuando si está quieto
+        const head = this.mesh.userData.head;
+        if (head) {
+          if (this.peckAnim > 0) {
+            this.peckAnim -= dt;
+            const k = Math.max(0, this.peckAnim / 0.35);
+            head.rotation.x = Math.sin((1 - k) * Math.PI) * 0.55;
+            if (this.peckAnim <= 0) head.rotation.x = 0;
+          } else {
+            this.peckT -= dt;
+            if (this.peckT <= 0) {
+              this.peckAnim = 0.35;
+              this.peckT = 2.5 + Math.random() * 4;
+            }
+          }
         }
         this.syncMesh(this.groundY());
       }

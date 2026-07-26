@@ -1,6 +1,6 @@
 /* ============================================================
- * UI — marcador, récord, panel de regalos, banners de eventos,
- * pantalla de muerte y estado de conexión.
+ * UI — portada, marcador, monedas, panel de regalos, banners,
+ * aviso de peligro, pantalla de muerte y estado de conexión.
  * ============================================================ */
 const UI = (() => {
   const $ = (sel) => document.querySelector(sel);
@@ -37,8 +37,12 @@ const UI = (() => {
       }
     },
 
+    showTitle() { $('#title').classList.add('show'); },
+    hideTitle() { $('#title').classList.remove('show'); },
+
     setScore(n) { $('#score').textContent = n; },
     setRecord(n) { $('#record').textContent = 'RECORD: ' + n; },
+    setCoins(n) { $('#coins-num').textContent = n; },
 
     bumpCounter(action) {
       if (counters[action] === undefined) return;
@@ -52,15 +56,32 @@ const UI = (() => {
       }
     },
 
-    banner(text, sub) {
+    banner(text, sub, color) {
       const b = $('#banner');
-      $('#banner-text').textContent = text;
+      const bt = $('#banner-text');
+      bt.textContent = text;
+      bt.style.color = color || '#fff';
       $('#banner-sub').textContent = sub ? 'de ' + sub : '';
       b.classList.remove('show');
       void b.offsetWidth;
       b.classList.add('show');
       clearTimeout(bannerTimer);
       bannerTimer = setTimeout(() => b.classList.remove('show'), 2600);
+      this.shakeHUD();
+    },
+
+    /* marco de franjas de peligro parpadeante */
+    warn() {
+      const d = $('#danger');
+      d.classList.remove('show');
+      void d.offsetWidth;
+      d.classList.add('show');
+    },
+
+    shakeHUD() {
+      document.body.classList.remove('hud-shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('hud-shake');
     },
 
     toast(text) {
