@@ -1,0 +1,732 @@
+{
+  "version": 1,
+  "_comment": "Configuración completa de GUERRA DE NACIONES. Puedes editar este archivo y recargar el overlay (o pulsar 'Recargar config' en el panel de control) sin tocar una línea de código.",
+  "identity": {
+    "title": "GUERRA DE NACIONES",
+    "subtitle": "¿Rojo o Azul? Escribe tu bando en el chat",
+    "callToAction": "Escribe ROJO o AZUL para entrar a la batalla",
+    "watermark": "prizvo.live"
+  },
+  "series": {
+    "target": 10,
+    "autoStart": true,
+    "countdownSeconds": 8,
+    "roundEndSeconds": 10,
+    "maxRoundSeconds": 420,
+    "suddenDeathAtSeconds": 300,
+    "suddenDeathDamageMultiplier": 3,
+    "rotateCountriesOnRoundEnd": true,
+    "resetSeriesOnComplete": true
+  },
+  "teams": {
+    "red": {
+      "name": "Equipo Rojo",
+      "shortName": "ROJO",
+      "color": "#ff2f45",
+      "colorDark": "#7a0d18",
+      "colorLight": "#ff8a96",
+      "country": "MX",
+      "keywords": [
+        "rojo",
+        "red",
+        "roja",
+        "1",
+        "uno",
+        "r"
+      ]
+    },
+    "blue": {
+      "name": "Equipo Azul",
+      "shortName": "AZUL",
+      "color": "#2f7bff",
+      "colorDark": "#0b2f7a",
+      "colorLight": "#8ab6ff",
+      "country": "CR",
+      "keywords": [
+        "azul",
+        "blue",
+        "2",
+        "dos",
+        "a",
+        "b"
+      ]
+    }
+  },
+  "countries": {
+    "MX": {
+      "name": "México",
+      "flag": "🇲🇽",
+      "demonym": "México"
+    },
+    "PE": {
+      "name": "Perú",
+      "flag": "🇵🇪",
+      "demonym": "Perú"
+    },
+    "CR": {
+      "name": "Costa Rica",
+      "flag": "🇨🇷",
+      "demonym": "Costa Rica"
+    },
+    "PA": {
+      "name": "Panamá",
+      "flag": "🇵🇦",
+      "demonym": "Panamá"
+    },
+    "SV": {
+      "name": "El Salvador",
+      "flag": "🇸🇻",
+      "demonym": "El Salvador"
+    },
+    "GT": {
+      "name": "Guatemala",
+      "flag": "🇬🇹",
+      "demonym": "Guatemala"
+    },
+    "HN": {
+      "name": "Honduras",
+      "flag": "🇭🇳",
+      "demonym": "Honduras"
+    },
+    "NI": {
+      "name": "Nicaragua",
+      "flag": "🇳🇮",
+      "demonym": "Nicaragua"
+    },
+    "CO": {
+      "name": "Colombia",
+      "flag": "🇨🇴",
+      "demonym": "Colombia"
+    },
+    "AR": {
+      "name": "Argentina",
+      "flag": "🇦🇷",
+      "demonym": "Argentina"
+    },
+    "CL": {
+      "name": "Chile",
+      "flag": "🇨🇱",
+      "demonym": "Chile"
+    },
+    "EC": {
+      "name": "Ecuador",
+      "flag": "🇪🇨",
+      "demonym": "Ecuador"
+    },
+    "VE": {
+      "name": "Venezuela",
+      "flag": "🇻🇪",
+      "demonym": "Venezuela"
+    },
+    "BO": {
+      "name": "Bolivia",
+      "flag": "🇧🇴",
+      "demonym": "Bolivia"
+    },
+    "PY": {
+      "name": "Paraguay",
+      "flag": "🇵🇾",
+      "demonym": "Paraguay"
+    },
+    "UY": {
+      "name": "Uruguay",
+      "flag": "🇺🇾",
+      "demonym": "Uruguay"
+    },
+    "DO": {
+      "name": "Rep. Dominicana",
+      "flag": "🇩🇴",
+      "demonym": "Dominicana"
+    },
+    "CU": {
+      "name": "Cuba",
+      "flag": "🇨🇺",
+      "demonym": "Cuba"
+    },
+    "PR": {
+      "name": "Puerto Rico",
+      "flag": "🇵🇷",
+      "demonym": "Puerto Rico"
+    },
+    "BR": {
+      "name": "Brasil",
+      "flag": "🇧🇷",
+      "demonym": "Brasil"
+    },
+    "ES": {
+      "name": "España",
+      "flag": "🇪🇸",
+      "demonym": "España"
+    },
+    "US": {
+      "name": "Estados Unidos",
+      "flag": "🇺🇸",
+      "demonym": "USA"
+    }
+  },
+  "countryRotation": {
+    "red": [
+      "MX",
+      "PE",
+      "CO",
+      "AR",
+      "ES"
+    ],
+    "blue": [
+      "CR",
+      "PA",
+      "SV",
+      "GT",
+      "HN"
+    ]
+  },
+  "battle": {
+    "startingTroops": 3000,
+    "maxTroopsPerTeam": 400000,
+    "renderCapPerTeam": 4200,
+    "deployPerSecond": 900,
+    "reinforceFromBehind": true,
+    "difficulty": 1.0,
+    "damageGlobalMultiplier": 1.0,
+    "fieldWidth": 220,
+    "fieldDepth": 200,
+    "riverWidth": 26,
+    "riverSlowFactor": 0.55,
+    "collisionRadius": 0.85,
+    "separationStrength": 5.5,
+    "cohesionStrength": 0.6,
+    "targetRescanTicks": 12,
+    "tickRate": 30,
+    "autoBalance": {
+      "enabled": true,
+      "_comment": "Si un equipo supera al otro por este factor, el equipo perdedor recibe bonus de daño para que la ronda no se vuelva aburrida.",
+      "triggerRatio": 2.5,
+      "maxUnderdogDamageBonus": 0.6
+    }
+  },
+  "units": {
+    "soldier": {
+      "label": "Soldado",
+      "mesh": "humanoid",
+      "hp": 100,
+      "damage": 13,
+      "range": 1.8,
+      "attackCooldown": 0.85,
+      "speed": 4.8,
+      "armor": 0,
+      "scale": 1.0,
+      "splash": 0,
+      "flying": false,
+      "weight": 1,
+      "stackable": true
+    },
+    "archer": {
+      "label": "Arquero",
+      "mesh": "humanoid",
+      "hp": 70,
+      "damage": 18,
+      "range": 24,
+      "attackCooldown": 1.6,
+      "speed": 4.1,
+      "armor": 0,
+      "scale": 0.98,
+      "splash": 0,
+      "projectile": "arrow",
+      "flying": false,
+      "weight": 1,
+      "stackable": true
+    },
+    "mage": {
+      "label": "Mago",
+      "mesh": "humanoid",
+      "hp": 95,
+      "damage": 70,
+      "range": 20,
+      "attackCooldown": 2.4,
+      "speed": 3.9,
+      "armor": 0,
+      "scale": 1.05,
+      "splash": 4.5,
+      "projectile": "orb",
+      "flying": false,
+      "weight": 1,
+      "stackable": true
+    },
+    "cavalry": {
+      "label": "Caballería",
+      "mesh": "beast",
+      "hp": 260,
+      "damage": 30,
+      "range": 2.4,
+      "attackCooldown": 1.0,
+      "speed": 9.0,
+      "armor": 3,
+      "scale": 1.35,
+      "splash": 0,
+      "flying": false,
+      "weight": 4,
+      "stackable": true
+    },
+    "giant": {
+      "label": "Gigante",
+      "mesh": "humanoid",
+      "hp": 4200,
+      "damage": 190,
+      "range": 4.2,
+      "attackCooldown": 1.9,
+      "speed": 3.3,
+      "armor": 12,
+      "scale": 3.4,
+      "splash": 6.5,
+      "flying": false,
+      "weight": 40,
+      "stackable": false
+    },
+    "dragon": {
+      "label": "Dragón",
+      "mesh": "dragon",
+      "hp": 7000,
+      "damage": 260,
+      "range": 16,
+      "attackCooldown": 2.2,
+      "speed": 10.5,
+      "armor": 15,
+      "scale": 3.6,
+      "splash": 9,
+      "projectile": "fire",
+      "flying": true,
+      "flyHeight": 14,
+      "weight": 80,
+      "stackable": false
+    },
+    "champion": {
+      "label": "Campeón",
+      "mesh": "humanoid",
+      "hp": 520,
+      "damage": 45,
+      "range": 2.2,
+      "attackCooldown": 0.9,
+      "speed": 5.6,
+      "armor": 5,
+      "scale": 1.55,
+      "splash": 0,
+      "flying": false,
+      "weight": 6,
+      "nametag": true,
+      "stackable": false
+    }
+  },
+  "gifts": {
+    "_comment": "Resolución de regalos: primero se busca por giftId en 'byId', luego por nombre normalizado en 'byName', y si no existe se usa 'tiers' según el costo en monedas. Así CUALQUIER regalo funciona aunque no esté listado.",
+    "coinsToTroops": 30,
+    "rageFromCoins": 0.25,
+    "comboWindowSeconds": 4,
+    "byId": {},
+    "byName": {
+      "rosa": {
+        "troops": 30,
+        "unit": "soldier",
+        "label": "Rosa"
+      },
+      "rose": {
+        "troops": 30,
+        "unit": "soldier",
+        "label": "Rosa"
+      },
+      "me gusta": {
+        "troops": 30,
+        "unit": "soldier",
+        "label": "Me gusta"
+      },
+      "tiktok": {
+        "troops": 30,
+        "unit": "soldier",
+        "label": "TikTok"
+      },
+      "gg": {
+        "troops": 30,
+        "unit": "soldier",
+        "label": "GG"
+      },
+      "dedo arriba": {
+        "troops": 40,
+        "unit": "soldier",
+        "label": "Dedo arriba"
+      },
+      "corazon": {
+        "troops": 60,
+        "unit": "soldier",
+        "label": "Corazón"
+      },
+      "osito mishka": {
+        "troops": 300,
+        "unit": "archer",
+        "label": "Osito Mishka"
+      },
+      "guantes": {
+        "troops": 300,
+        "unit": "cavalry",
+        "label": "Guantes"
+      },
+      "guantes de boxeo": {
+        "troops": 300,
+        "unit": "cavalry",
+        "label": "Guantes"
+      },
+      "perfume": {
+        "troops": 600,
+        "unit": "archer",
+        "label": "Perfume"
+      },
+      "sombrero y bigote": {
+        "troops": 300,
+        "unit": "soldier",
+        "label": "Sombrero y bigote"
+      },
+      "corona": {
+        "troops": 6000,
+        "unit": "giant",
+        "count": 1,
+        "label": "Corona"
+      },
+      "cohete": {
+        "troops": 30000,
+        "unit": "giant",
+        "count": 3,
+        "label": "Cohete",
+        "ultimate": "meteoros"
+      },
+      "rocket": {
+        "troops": 30000,
+        "unit": "giant",
+        "count": 3,
+        "label": "Cohete",
+        "ultimate": "meteoros"
+      },
+      "leon": {
+        "troops": 90000,
+        "unit": "dragon",
+        "count": 2,
+        "label": "León",
+        "ultimate": "meteoros"
+      },
+      "ballena": {
+        "troops": 60000,
+        "unit": "giant",
+        "count": 6,
+        "label": "Ballena"
+      },
+      "yate": {
+        "troops": 60000,
+        "unit": "giant",
+        "count": 5,
+        "label": "Yate"
+      },
+      "universo": {
+        "troops": 120000,
+        "unit": "dragon",
+        "count": 4,
+        "label": "Universo",
+        "ultimate": "juicio_final"
+      },
+      "tiktok universe": {
+        "troops": 120000,
+        "unit": "dragon",
+        "count": 4,
+        "label": "Universo",
+        "ultimate": "juicio_final"
+      }
+    },
+    "tiers": [
+      {
+        "minCoins": 0,
+        "troopsPerCoin": 30,
+        "unit": "soldier"
+      },
+      {
+        "minCoins": 10,
+        "troopsPerCoin": 30,
+        "unit": "archer"
+      },
+      {
+        "minCoins": 100,
+        "troopsPerCoin": 30,
+        "unit": "cavalry"
+      },
+      {
+        "minCoins": 500,
+        "troopsPerCoin": 30,
+        "unit": "giant",
+        "count": 1
+      },
+      {
+        "minCoins": 1000,
+        "troopsPerCoin": 30,
+        "unit": "giant",
+        "count": 3,
+        "ultimate": "meteoros"
+      },
+      {
+        "minCoins": 5000,
+        "troopsPerCoin": 30,
+        "unit": "dragon",
+        "count": 2,
+        "ultimate": "refuerzos"
+      },
+      {
+        "minCoins": 20000,
+        "troopsPerCoin": 30,
+        "unit": "dragon",
+        "count": 4,
+        "ultimate": "juicio_final"
+      }
+    ]
+  },
+  "likes": {
+    "enabled": true,
+    "ragePerLike": 0.4,
+    "rageMax": 100,
+    "autoCastAtFull": true,
+    "castCooldownSeconds": 20,
+    "decayPerSecond": 0,
+    "troopsPerLike": 2
+  },
+  "ultimates": {
+    "_comment": "Se dispara automáticamente al llenar la barra de furia (o manualmente desde el panel). 'weight' controla la probabilidad relativa.",
+    "pool": [
+      "meteoros",
+      "refuerzos",
+      "furia",
+      "escudo_divino",
+      "nigromante"
+    ],
+    "defs": {
+      "meteoros": {
+        "label": "LLUVIA DE METEOROS",
+        "icon": "☄️",
+        "description": "Meteoros caen sobre el ejército enemigo",
+        "weight": 30,
+        "durationSeconds": 6,
+        "meteors": 34,
+        "damage": 900,
+        "radius": 9,
+        "shake": 1.0
+      },
+      "refuerzos": {
+        "label": "REFUERZOS",
+        "icon": "⚔️",
+        "description": "Llega una oleada masiva de tropas",
+        "weight": 25,
+        "durationSeconds": 4,
+        "troops": 12000,
+        "unit": "soldier"
+      },
+      "furia": {
+        "label": "FURIA DE GUERRA",
+        "icon": "🔥",
+        "description": "+120% de daño durante 15 segundos",
+        "weight": 20,
+        "durationSeconds": 15,
+        "damageMultiplier": 2.2,
+        "speedMultiplier": 1.3
+      },
+      "escudo_divino": {
+        "label": "ESCUDO DIVINO",
+        "icon": "🛡️",
+        "description": "El equipo recibe 60% menos daño por 15 segundos",
+        "weight": 15,
+        "durationSeconds": 15,
+        "damageTakenMultiplier": 0.4
+      },
+      "nigromante": {
+        "label": "NIGROMANTE",
+        "icon": "💀",
+        "description": "Revive a los caídos del campo de batalla",
+        "weight": 10,
+        "durationSeconds": 5,
+        "revivePercent": 0.35,
+        "maxRevive": 9000
+      },
+      "juicio_final": {
+        "label": "JUICIO FINAL",
+        "icon": "🌋",
+        "description": "Devastación total sobre el enemigo",
+        "weight": 0,
+        "durationSeconds": 9,
+        "meteors": 90,
+        "damage": 2600,
+        "radius": 14,
+        "shake": 1.8
+      }
+    }
+  },
+  "chat": {
+    "joinEnabled": true,
+    "autoAssignUnknown": true,
+    "_comment": "autoAssignUnknown: si alguien comenta algo que no es rojo/azul, igual entra al equipo con menos gente. Ponlo en false para exigir la palabra exacta.",
+    "championCooldownSeconds": 45,
+    "maxChampionsPerTeam": 80,
+    "showNametags": true,
+    "maxNametags": 36,
+    "nametagMaxDistance": 90,
+    "announceJoins": true,
+    "bannedUsers": [],
+    "bannedWords": []
+  },
+  "camera": {
+    "mode": "cinematic",
+    "_comment": "modes: cinematic | orbit | fixed | follow",
+    "minCutSeconds": 6,
+    "maxCutSeconds": 13,
+    "heightRange": [
+      18,
+      62
+    ],
+    "distanceRange": [
+      55,
+      130
+    ],
+    "fov": 52,
+    "focusHottestZone": true,
+    "championCloseupChance": 0.22,
+    "ultimateZoom": true,
+    "shakeEnabled": true
+  },
+  "graphics": {
+    "quality": "high",
+    "_comment": "quality: low | medium | high | ultra. Baja a 'medium' si el stream pierde FPS.",
+    "pixelRatioCap": 1.75,
+    "shadows": true,
+    "gore": true,
+    "bloodDecals": true,
+    "bloodTextureSize": 512,
+    "corpseLimit": 6000,
+    "particleLimit": 4000,
+    "fogDensity": 0.0022,
+    "timeOfDay": "day",
+    "targetFps": 60
+  },
+  "hud": {
+    "showScoreboard": true,
+    "showSoldierCounters": true,
+    "showRageBars": true,
+    "showKillfeed": true,
+    "showTopDonors": true,
+    "showCallToAction": true,
+    "showRoundTimer": true,
+    "safeAreaTop": 0,
+    "safeAreaBottom": 0,
+    "counterFormat": "es-MX",
+    "scale": 1.0
+  },
+  "events": {
+    "_comment": "Conexión con tu plataforma (prizvo.live). El overlay acepta eventos por WebSocket, postMessage, HTTP POST al servidor incluido, o llamando window.GuerraDeNaciones.emit(evento).",
+    "websocketUrl": "auto",
+    "websocketReconnectMs": 2000,
+    "acceptPostMessage": true,
+    "acceptGlobalApi": true,
+    "dedupeWindowMs": 1500,
+    "mapping": {
+      "_comment": "Mapea los campos de TU payload a los campos canónicos. Acepta rutas con puntos y varias alternativas separadas por '|'. Solo cámbialo si tu app manda nombres distintos.",
+      "type": "type|event|eventType|name",
+      "userId": "user.userId|user.id|userId|uniqueId|user.uniqueId",
+      "uniqueId": "user.uniqueId|uniqueId|user.username|username|user.handle",
+      "nickname": "user.nickname|nickname|user.displayName|displayName|user.name|nickname",
+      "avatarUrl": "user.avatarUrl|user.profilePictureUrl|profilePictureUrl|user.avatar|avatarUrl|user.picture",
+      "comment": "comment|message|text|content",
+      "giftId": "giftId|gift.id|gift.giftId|id",
+      "giftName": "giftName|gift.name|gift.giftName|name",
+      "repeatCount": "repeatCount|gift.repeatCount|count|amount|comboCount",
+      "repeatEnd": "repeatEnd|gift.repeatEnd|isFinal|comboEnd",
+      "diamondCount": "diamondCount|gift.diamondCount|coins|gift.coins|cost|gift.diamond_count",
+      "likeCount": "likeCount|likes|count|amount",
+      "teamHint": "team|side|color"
+    },
+    "typeAliases": {
+      "gift": [
+        "gift",
+        "gifts",
+        "onGift",
+        "sendGift",
+        "regalo"
+      ],
+      "chat": [
+        "chat",
+        "comment",
+        "message",
+        "onChat",
+        "comentario"
+      ],
+      "like": [
+        "like",
+        "likes",
+        "onLike",
+        "megusta"
+      ],
+      "follow": [
+        "follow",
+        "onFollow",
+        "seguir"
+      ],
+      "share": [
+        "share",
+        "onShare",
+        "compartir"
+      ],
+      "join": [
+        "join",
+        "member",
+        "onMember",
+        "enter",
+        "unido"
+      ],
+      "subscribe": [
+        "subscribe",
+        "sub",
+        "onSubscribe",
+        "suscripcion"
+      ]
+    },
+    "rewards": {
+      "follow": {
+        "troops": 200,
+        "rage": 2
+      },
+      "share": {
+        "troops": 300,
+        "rage": 3
+      },
+      "join": {
+        "troops": 0,
+        "rage": 0
+      },
+      "subscribe": {
+        "troops": 3000,
+        "rage": 15,
+        "unit": "cavalry"
+      }
+    }
+  },
+  "simulator": {
+    "enabled": false,
+    "_comment": "Generador de eventos falsos para desarrollar y grabar sin estar en vivo. Actívalo aquí, con ?sim=1 en la URL, o desde el panel de control.",
+    "chatsPerMinute": 90,
+    "giftsPerMinute": 45,
+    "likesPerMinute": 700,
+    "followsPerMinute": 8,
+    "bigGiftChance": 0.06,
+    "seed": 1337
+  },
+  "persistence": {
+    "enabled": true,
+    "apiBase": "auto",
+    "localFallback": true,
+    "topDonorsShown": 5,
+    "trackSurvivalRanking": true
+  },
+  "audio": {
+    "enabled": false,
+    "_comment": "El overlay va silenciado por defecto: en TikTok Live el audio lo pones tú. Actívalo si quieres los SFX del navegador.",
+    "masterVolume": 0.5
+  }
+}

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Guerra de Naciones — Overlay</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+
+      <!-- Etiquetas de campeones, proyectadas sobre el canvas -->
+      <div id="nametags" class="layer"></div>
+
+      <div id="hud" class="layer hud">
+        <!-- Marcador superior: banderas, victorias y ronda -->
+        <header class="scoreboard" data-hud="scoreboard">
+          <div class="scoreboard__side scoreboard__side--red">
+            <span class="scoreboard__flag" data-hud="redFlag">🇲🇽</span>
+            <div class="scoreboard__meta">
+              <span class="scoreboard__country" data-hud="redCountry">México</span>
+              <span class="scoreboard__wins" data-hud="redWins">WIN 0 / 10</span>
+            </div>
+          </div>
+
+          <div class="scoreboard__center">
+            <div class="scoreboard__score">
+              <span class="scoreboard__number scoreboard__number--red" data-hud="redScore">0</span>
+              <span class="scoreboard__vs">VS</span>
+              <span class="scoreboard__number scoreboard__number--blue" data-hud="blueScore">0</span>
+            </div>
+            <span class="scoreboard__round" data-hud="roundLabel">RONDA 1</span>
+          </div>
+
+          <div class="scoreboard__side scoreboard__side--blue">
+            <div class="scoreboard__meta scoreboard__meta--right">
+              <span class="scoreboard__country" data-hud="blueCountry">Costa Rica</span>
+              <span class="scoreboard__wins" data-hud="blueWins">WIN 0 / 10</span>
+            </div>
+            <span class="scoreboard__flag" data-hud="blueFlag">🇨🇷</span>
+          </div>
+        </header>
+
+        <!-- Banderines laterales con la barra de furia -->
+        <div class="team-banner team-banner--red" data-hud="redBanner">
+          <span class="team-banner__name" data-hud="redName">Red team</span>
+          <div class="rage" data-hud="redRageWrap">
+            <div class="rage__track"><div class="rage__fill" data-hud="redRage"></div></div>
+            <span class="rage__label">FURIA</span>
+          </div>
+        </div>
+
+        <div class="team-banner team-banner--blue" data-hud="blueBanner">
+          <span class="team-banner__name" data-hud="blueName">Blue team</span>
+          <div class="rage" data-hud="blueRageWrap">
+            <div class="rage__track"><div class="rage__fill" data-hud="blueRage"></div></div>
+            <span class="rage__label">FURIA</span>
+          </div>
+        </div>
+
+        <!-- Contadores de soldados: el dato estrella del stream -->
+        <div class="counters" data-hud="counters">
+          <div class="counter counter--red">
+            <span class="counter__label" data-hud="redCounterLabel">TEAM 1</span>
+            <span class="counter__value" data-hud="redSoldiers">0</span>
+          </div>
+          <div class="counter counter--blue">
+            <span class="counter__label" data-hud="blueCounterLabel">TEAM 2</span>
+            <span class="counter__value" data-hud="blueSoldiers">0</span>
+          </div>
+        </div>
+
+        <!-- Feed de regalos y bajas -->
+        <aside class="feed" data-hud="feed"></aside>
+
+        <!-- Top donadores del directo -->
+        <section class="donors" data-hud="donorsWrap">
+          <h2 class="donors__title">TOP GENERALES</h2>
+          <ol class="donors__list" data-hud="donors"></ol>
+        </section>
+
+        <!-- Reloj de ronda -->
+        <div class="round-timer" data-hud="timer">0:00</div>
+
+        <!-- Llamado a la acción -->
+        <div class="cta" data-hud="cta">
+          <span class="cta__text">Escribe ROJO o AZUL para entrar a la batalla</span>
+        </div>
+
+        <!-- Capa central: cuenta atrás, ultimates y celebración -->
+        <div class="stage" data-hud="stage"></div>
+
+        <!-- Diagnóstico discreto -->
+        <div class="status" data-hud="status">
+          <span class="status__dot" data-hud="statusDot"></span>
+          <span class="status__text" data-hud="statusText">sin conexión</span>
+          <span class="status__watermark" data-hud="watermark"></span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/overlay/main.ts"></script>
+  </body>
+</html>

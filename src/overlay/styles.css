@@ -1,0 +1,724 @@
+/*
+ * Estilos del overlay.
+ *
+ * Pensados para verse sobre un directo de TikTok: contrastes altos, contornos
+ * gruesos y tamaños que sobreviven a la compresión de vídeo y a que la gente
+ * mire el stream en un teléfono. Todo escala con --hud-scale y respeta las
+ * áreas seguras configurables (por si tapas parte con la cámara).
+ */
+
+:root {
+  --red: #ff2f45;
+  --red-dark: #7a0d18;
+  --blue: #2f7bff;
+  --blue-dark: #0b2f7a;
+  --hud-scale: 1;
+  --safe-top: 0px;
+  --safe-bottom: 0px;
+  --ink: #ffffff;
+  --stroke: rgba(0, 0, 0, 0.85);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05070c;
+  font-family: 'Archivo Black', 'Arial Black', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud {
+  font-size: calc(16px * var(--hud-scale));
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Contorno grueso: el texto sobrevive a cualquier fondo. */
+.outlined {
+  text-shadow:
+    -2px -2px 0 var(--stroke),
+    2px -2px 0 var(--stroke),
+    -2px 2px 0 var(--stroke),
+    2px 2px 0 var(--stroke),
+    0 3px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------------------------------------------------------------- marcador */
+
+.scoreboard {
+  position: absolute;
+  top: calc(var(--safe-top) + 0.9em);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  padding: 0.55em 1.1em;
+  border-radius: 0.9em;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.86), rgba(6, 10, 20, 0.62));
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.scoreboard__side {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+}
+
+.scoreboard__flag {
+  font-size: 2.35em;
+  line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.6));
+}
+
+.scoreboard__meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.scoreboard__meta--right {
+  align-items: flex-end;
+}
+
+.scoreboard__country {
+  font-size: 0.92em;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+.scoreboard__wins {
+  font-size: 0.72em;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.scoreboard__side--red .scoreboard__country {
+  color: #ffb3bb;
+}
+
+.scoreboard__side--blue .scoreboard__country {
+  color: #b3ccff;
+}
+
+.scoreboard__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0 0.35em;
+}
+
+.scoreboard__score {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.scoreboard__number {
+  font-size: 2.5em;
+  line-height: 1;
+  min-width: 1.3em;
+  text-align: center;
+  border-radius: 0.18em;
+  padding: 0.02em 0.14em;
+}
+
+.scoreboard__number--red {
+  color: #fff;
+  background: linear-gradient(180deg, var(--red), var(--red-dark));
+  box-shadow: 0 0 18px rgba(255, 47, 69, 0.55);
+}
+
+.scoreboard__number--blue {
+  color: #fff;
+  background: linear-gradient(180deg, var(--blue), var(--blue-dark));
+  box-shadow: 0 0 18px rgba(47, 123, 255, 0.55);
+}
+
+.scoreboard__vs {
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.1em;
+}
+
+.scoreboard__round {
+  font-size: 0.68em;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* --------------------------------------------------------- banderines laterales */
+
+.team-banner {
+  position: absolute;
+  top: calc(var(--safe-top) + 6.2em);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  min-width: 9em;
+}
+
+.team-banner--red {
+  left: 1.1em;
+  align-items: flex-start;
+}
+
+.team-banner--blue {
+  right: 1.1em;
+  align-items: flex-end;
+}
+
+.team-banner__name {
+  font-size: 1.5em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow:
+    -2px -2px 0 var(--stroke),
+    2px -2px 0 var(--stroke),
+    -2px 2px 0 var(--stroke),
+    2px 2px 0 var(--stroke),
+    0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+.team-banner--red .team-banner__name {
+  color: var(--red);
+}
+
+.team-banner--blue .team-banner__name {
+  color: var(--blue);
+}
+
+.rage {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  width: 9.5em;
+}
+
+.team-banner--blue .rage {
+  flex-direction: row-reverse;
+}
+
+.rage__track {
+  position: relative;
+  flex: 1;
+  height: 0.62em;
+  border-radius: 0.4em;
+  background: rgba(0, 0, 0, 0.65);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.rage__fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  border-radius: 0.3em;
+  transition: width 0.25s ease-out;
+}
+
+.team-banner--red .rage__fill {
+  background: linear-gradient(90deg, #ff8a3d, var(--red));
+  box-shadow: 0 0 12px rgba(255, 90, 60, 0.8);
+}
+
+.team-banner--blue .rage__fill {
+  background: linear-gradient(90deg, #3de0ff, var(--blue));
+  box-shadow: 0 0 12px rgba(60, 160, 255, 0.8);
+}
+
+.rage__label {
+  font-size: 0.58em;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.rage.is-full .rage__track {
+  border-color: #ffd76a;
+  animation: ragePulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes ragePulse {
+  from {
+    box-shadow: 0 0 6px rgba(255, 215, 106, 0.5);
+  }
+  to {
+    box-shadow: 0 0 22px rgba(255, 215, 106, 0.95);
+  }
+}
+
+/* ------------------------------------------------------------- contadores */
+
+.counters {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  align-items: flex-start;
+  white-space: nowrap;
+}
+
+.counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+  font-size: 1.75em;
+  letter-spacing: 0.01em;
+  text-shadow:
+    -2px -2px 0 var(--stroke),
+    2px -2px 0 var(--stroke),
+    -2px 2px 0 var(--stroke),
+    2px 2px 0 var(--stroke),
+    0 4px 10px rgba(0, 0, 0, 0.8);
+}
+
+.counter--red {
+  color: var(--red);
+}
+
+.counter--blue {
+  color: var(--blue);
+}
+
+.counter__label::after {
+  content: ' -  SOLDADOS:';
+  opacity: 0.85;
+}
+
+.counter__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.counter.is-hit .counter__value {
+  animation: counterHit 0.32s ease-out;
+}
+
+@keyframes counterHit {
+  0% {
+    transform: scale(1.16);
+    filter: brightness(1.8);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* -------------------------------------------------------------- feed lateral */
+
+.feed {
+  position: absolute;
+  left: 1.1em;
+  bottom: calc(var(--safe-bottom) + 8.5em);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.32em;
+  max-height: 40vh;
+  width: 20em;
+  overflow: hidden;
+}
+
+.feed__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.32em 0.6em;
+  border-radius: 0.55em;
+  background: rgba(6, 10, 20, 0.72);
+  border-left: 4px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.82em;
+  color: #fff;
+  animation: feedIn 0.28s ease-out;
+}
+
+.feed__item[data-team='red'] {
+  border-left-color: var(--red);
+}
+
+.feed__item[data-team='blue'] {
+  border-left-color: var(--blue);
+}
+
+.feed__item--big {
+  background: linear-gradient(90deg, rgba(255, 196, 60, 0.28), rgba(6, 10, 20, 0.78));
+  border-left-color: #ffc43c;
+  font-size: 0.94em;
+}
+
+.feed__user {
+  font-weight: 700;
+  color: #ffe9a8;
+  max-width: 8.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed__text {
+  opacity: 0.92;
+}
+
+.feed__amount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #9dff9d;
+}
+
+@keyframes feedIn {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ---------------------------------------------------------------- donadores */
+
+.donors {
+  position: absolute;
+  right: 1.1em;
+  bottom: calc(var(--safe-bottom) + 8.5em);
+  width: 13.5em;
+  padding: 0.5em 0.7em;
+  border-radius: 0.7em;
+  background: rgba(6, 10, 20, 0.68);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.donors__title {
+  margin: 0 0 0.35em;
+  font-size: 0.7em;
+  letter-spacing: 0.18em;
+  color: #ffd76a;
+}
+
+.donors__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18em;
+}
+
+.donors__item {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.78em;
+  color: #fff;
+}
+
+.donors__rank {
+  color: #ffd76a;
+  width: 1.2em;
+}
+
+.donors__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donors__coins {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #9dd9ff;
+}
+
+/* ------------------------------------------------------------------ reloj */
+
+.round-timer {
+  position: absolute;
+  top: calc(var(--safe-top) + 0.95em);
+  right: 1.2em;
+  font-size: 1.1em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.round-timer.is-sudden {
+  color: #ff6a6a;
+  animation: ragePulse 0.5s ease-in-out infinite alternate;
+}
+
+/* -------------------------------------------------------------------- CTA */
+
+.cta {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 2.2em);
+  transform: translateX(-50%);
+  padding: 0.42em 1.1em;
+  border-radius: 999px;
+  background: rgba(6, 10, 20, 0.78);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.95em;
+  letter-spacing: 0.04em;
+  color: #fff;
+  animation: ctaPulse 2.4s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+@keyframes ctaPulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.045);
+    border-color: rgba(255, 215, 106, 0.75);
+  }
+}
+
+/* ------------------------------------------------------------ capa central */
+
+.stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.stage__countdown {
+  font-size: 9em;
+  color: #fff;
+  text-shadow:
+    -4px -4px 0 var(--stroke),
+    4px -4px 0 var(--stroke),
+    -4px 4px 0 var(--stroke),
+    4px 4px 0 var(--stroke),
+    0 0 46px rgba(255, 220, 120, 0.85);
+  animation: countdownPop 1s ease-out;
+}
+
+@keyframes countdownPop {
+  from {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.stage__banner {
+  padding: 0.4em 1.4em;
+  border-radius: 0.5em;
+  font-size: 2.6em;
+  color: #fff;
+  text-align: center;
+  animation: bannerIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage__banner--red {
+  background: linear-gradient(90deg, rgba(122, 13, 24, 0.15), var(--red), rgba(122, 13, 24, 0.15));
+  box-shadow: 0 0 60px rgba(255, 47, 69, 0.6);
+}
+
+.stage__banner--blue {
+  background: linear-gradient(90deg, rgba(11, 47, 122, 0.15), var(--blue), rgba(11, 47, 122, 0.15));
+  box-shadow: 0 0 60px rgba(47, 123, 255, 0.6);
+}
+
+.stage__banner--gold {
+  background: linear-gradient(90deg, rgba(120, 80, 0, 0.15), #ffc43c, rgba(120, 80, 0, 0.15));
+  color: #1a1200;
+  box-shadow: 0 0 70px rgba(255, 196, 60, 0.7);
+}
+
+.stage__sub {
+  font-size: 1.1em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.9);
+}
+
+@keyframes bannerIn {
+  from {
+    transform: scale(0.7) translateY(28px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.stage__ultimate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+  animation: bannerIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stage__ultimate-icon {
+  font-size: 3.4em;
+  filter: drop-shadow(0 0 22px rgba(255, 180, 60, 0.9));
+}
+
+.stage__ultimate-name {
+  font-size: 2.1em;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow:
+    -3px -3px 0 var(--stroke),
+    3px -3px 0 var(--stroke),
+    -3px 3px 0 var(--stroke),
+    3px 3px 0 var(--stroke);
+}
+
+.stage__ultimate-desc {
+  font-size: 0.95em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ------------------------------------------------------------- nametags */
+
+.nametag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(4, 8, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.nametag[data-team='red'] {
+  border-color: rgba(255, 47, 69, 0.85);
+}
+
+.nametag[data-team='blue'] {
+  border-color: rgba(47, 123, 255, 0.85);
+}
+
+.nametag__name {
+  color: #fff;
+  max-width: 10em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nametag__kills {
+  color: #ffd76a;
+  font-size: 9px;
+}
+
+.nametag__kills:empty {
+  display: none;
+}
+
+.nametag__bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.nametag__fill {
+  height: 100%;
+  width: 100%;
+  background: #6dff8a;
+}
+
+.nametag[data-team='red'] .nametag__fill {
+  background: #ff7a88;
+}
+
+.nametag[data-team='blue'] .nametag__fill {
+  background: #7ab0ff;
+}
+
+/* --------------------------------------------------------------- estado */
+
+.status {
+  position: absolute;
+  left: 0.7em;
+  top: calc(var(--safe-top) + 0.6em);
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.62em;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.08em;
+}
+
+.status__dot {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: #ff5a5a;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.status__dot.is-online {
+  background: #52ff8f;
+}
+
+.status__dot.is-sim {
+  background: #ffc43c;
+}
+
+.status__watermark {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Oculta bloques desactivados desde la config sin romper el layout. */
+[hidden] {
+  display: none !important;
+}

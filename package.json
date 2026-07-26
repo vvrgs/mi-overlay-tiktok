@@ -1,0 +1,27 @@
+{
+  "name": "guerra-de-naciones",
+  "version": "1.0.0",
+  "description": "Juego 3D interactivo para TikTok Live: batalla masiva de naciones controlada por regalos, likes y comentarios.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5174",
+    "server": "node server/index.mjs",
+    "start": "npm run build && node server/index.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.185.1",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.1.5"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

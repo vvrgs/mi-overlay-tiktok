@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guerra de Naciones — Panel de control</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Guerra de Naciones <small>panel de control</small></h1>
+      <div class="conn">
+        <span class="conn__dot" data-el="connDot"></span>
+        <span data-el="connText">buscando overlay…</span>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- Estado en vivo -->
+      <section class="card card--wide">
+        <h2>Estado</h2>
+        <div class="stats">
+          <div class="stat"><span class="stat__label">Fase</span><span class="stat__value" data-el="phase">—</span></div>
+          <div class="stat"><span class="stat__label">Ronda</span><span class="stat__value" data-el="round">—</span></div>
+          <div class="stat"><span class="stat__label">Marcador</span><span class="stat__value" data-el="score">—</span></div>
+          <div class="stat"><span class="stat__label">Tiempo</span><span class="stat__value" data-el="elapsed">—</span></div>
+          <div class="stat"><span class="stat__label">FPS</span><span class="stat__value" data-el="fps">—</span></div>
+          <div class="stat"><span class="stat__label">Entidades</span><span class="stat__value" data-el="entities">—</span></div>
+        </div>
+        <div class="armies">
+          <div class="army army--red">
+            <span class="army__name" data-el="redLabel">ROJO</span>
+            <span class="army__count" data-el="redSoldiers">0</span>
+            <div class="bar"><div class="bar__fill bar__fill--red" data-el="redBar"></div></div>
+            <span class="army__rage">Furia <b data-el="redRage">0</b>%</span>
+          </div>
+          <div class="army army--blue">
+            <span class="army__name" data-el="blueLabel">AZUL</span>
+            <span class="army__count" data-el="blueSoldiers">0</span>
+            <div class="bar"><div class="bar__fill bar__fill--blue" data-el="blueBar"></div></div>
+            <span class="army__rage">Furia <b data-el="blueRage">0</b>%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Control de partida -->
+      <section class="card">
+        <h2>Partida</h2>
+        <div class="row">
+          <button data-action="start">▶ Iniciar serie</button>
+          <button data-action="pause">⏸ Pausar</button>
+          <button data-action="resume">⏵ Reanudar</button>
+        </div>
+        <div class="row">
+          <button data-action="reset">↻ Reiniciar ronda</button>
+          <button data-action="skipRound">⏭ Terminar ronda</button>
+          <button data-action="resetSeries" class="danger">⟲ Reiniciar serie</button>
+        </div>
+        <label class="field">
+          Dificultad (multiplicador de daño)
+          <input type="range" min="0.3" max="3" step="0.05" value="1" data-el="difficulty" />
+          <output data-el="difficultyOut">1.00×</output>
+        </label>
+      </section>
+
+      <!-- Países -->
+      <section class="card">
+        <h2>Países</h2>
+        <label class="field">
+          Equipo rojo
+          <select data-el="redCountry"></select>
+        </label>
+        <label class="field">
+          Equipo azul
+          <select data-el="blueCountry"></select>
+        </label>
+        <p class="hint">Los países rotan solos al terminar cada ronda si <code>series.rotateCountriesOnRoundEnd</code> está activo.</p>
+      </section>
+
+      <!-- Tropas manuales -->
+      <section class="card">
+        <h2>Enviar tropas</h2>
+        <div class="row">
+          <select data-el="troopTeam">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+          </select>
+          <select data-el="troopUnit"></select>
+          <input type="number" value="5000" min="1" step="500" data-el="troopAmount" />
+        </div>
+        <div class="row">
+          <button data-action="addTroops">➕ Enviar</button>
+          <button data-action="addTroops" data-amount="1000">+1.000</button>
+          <button data-action="addTroops" data-amount="10000">+10.000</button>
+          <button data-action="addTroops" data-amount="50000">+50.000</button>
+        </div>
+      </section>
+
+      <!-- Ultimates -->
+      <section class="card">
+        <h2>Ultimates</h2>
+        <div class="row">
+          <select data-el="ultTeam">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+          </select>
+          <select data-el="ultKey"></select>
+          <button data-action="castUltimate">💥 Lanzar</button>
+        </div>
+        <div class="row">
+          <button data-action="fillRage" data-team="red">Llenar furia roja</button>
+          <button data-action="fillRage" data-team="blue">Llenar furia azul</button>
+        </div>
+      </section>
+
+      <!-- Simulador -->
+      <section class="card">
+        <h2>Simulador y pruebas</h2>
+        <label class="check">
+          <input type="checkbox" data-el="simToggle" />
+          Generar eventos falsos (chats, regalos, likes)
+        </label>
+        <div class="row">
+          <input type="text" placeholder="usuario" value="tester" data-el="testUser" />
+          <input type="text" placeholder="regalo" value="Rosa" data-el="testGift" />
+        </div>
+        <div class="row">
+          <input type="number" placeholder="monedas" value="1" min="0" data-el="testCoins" />
+          <input type="number" placeholder="cantidad" value="1" min="1" data-el="testCount" />
+          <button data-action="testGift">🎁 Probar regalo</button>
+        </div>
+        <div class="row">
+          <input type="text" placeholder="comentario" value="rojo" data-el="testChat" />
+          <button data-action="testChat">💬 Probar chat</button>
+          <button data-action="testLike">❤ Probar likes</button>
+        </div>
+      </section>
+
+      <!-- Moderación -->
+      <section class="card">
+        <h2>Moderación</h2>
+        <div class="row">
+          <input type="text" placeholder="@usuario" data-el="banUser" />
+          <button data-action="ban" class="danger">🚫 Banear</button>
+          <button data-action="unban">✓ Quitar ban</button>
+        </div>
+        <ul class="banlist" data-el="banList"></ul>
+      </section>
+
+      <!-- Presentación -->
+      <section class="card">
+        <h2>Presentación</h2>
+        <label class="field">
+          Cámara
+          <select data-el="camera">
+            <option value="cinematic">Cinematográfica</option>
+            <option value="orbit">Órbita</option>
+            <option value="follow">Seguimiento</option>
+            <option value="fixed">Fija</option>
+          </select>
+        </label>
+        <label class="field">
+          Calidad gráfica
+          <select data-el="quality">
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+            <option value="ultra">Ultra</option>
+          </select>
+        </label>
+        <div class="row">
+          <button data-action="reloadConfig">🔄 Recargar config del overlay</button>
+        </div>
+        <p class="hint">Abre el overlay en OBS con la URL <code data-el="overlayUrl">index.html</code></p>
+      </section>
+
+      <!-- Rankings -->
+      <section class="card card--wide">
+        <h2>Rankings</h2>
+        <div class="boards">
+          <div>
+            <h3>Top generales (monedas)</h3>
+            <ol data-el="boardDonors" class="board"></ol>
+          </div>
+          <div>
+            <h3>Guerreros más resistentes</h3>
+            <ol data-el="boardWarriors" class="board"></ol>
+          </div>
+          <div>
+            <h3>Países</h3>
+            <ol data-el="boardCountries" class="board"></ol>
+          </div>
+          <div>
+            <h3>Últimas rondas</h3>
+            <ol data-el="boardMatches" class="board"></ol>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/control/main.ts"></script>
+  </body>
+</html>
