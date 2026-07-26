@@ -13,8 +13,9 @@ import type { ChatEvent, ControlCommand, GiftEvent, LikeEvent, LiveEvent, LiveUs
 import type { GameRenderer } from '../render/renderer';
 import type { GameConfig, TeamId, UltimateDef } from '../shared/config';
 import { clamp, createRng, normalizeText, type Rng } from '../shared/math';
-import type { MainToWorker, Snapshot, UnitArchetypeWire } from '../sim/protocol';
+import type { MainToWorker, Snapshot } from '../sim/protocol';
 import type { Hud } from '../ui/hud';
+import { buildArchetypes } from './archetypes';
 import { GiftResolver } from './gifts';
 import type { RankingStore } from './ranking';
 
@@ -25,28 +26,6 @@ interface ChampionRecord {
   nickname: string;
   team: TeamId;
   joinedAt: number;
-}
-
-const PROJECTILE_KIND: Record<string, number> = { arrow: 1, orb: 2, fire: 3 };
-
-/** Traduce las unidades de la config al formato plano que entiende el worker. */
-export function buildArchetypes(config: GameConfig): UnitArchetypeWire[] {
-  return Object.entries(config.units).map(([key, unit]) => ({
-    key,
-    mesh: unit.mesh,
-    hp: unit.hp,
-    damage: unit.damage,
-    range: unit.range,
-    attackCooldown: unit.attackCooldown,
-    speed: unit.speed,
-    armor: unit.armor,
-    scale: unit.scale,
-    splash: unit.splash,
-    flying: Boolean(unit.flying),
-    flyHeight: unit.flyHeight ?? 0,
-    projectile: unit.projectile ? PROJECTILE_KIND[unit.projectile] ?? 0 : 0,
-    stackable: unit.stackable !== false,
-  }));
 }
 
 export interface GameDeps {
@@ -395,6 +374,8 @@ export class Game {
 
     this.hud.showUltimate(team, def);
     this.renderer.director.shake(def.shake ?? 0.5);
+    // Destello de pantalla del color del equipo: marca el momento sin taparlo.
+    this.renderer.flash(0.18 + (def.shake ?? 0.5) * 0.12, this.config.teams[team].colorLight);
     const point = this.renderer.dramaticPointFor(team);
     this.renderer.director.cutToDramatic(point.x, point.z);
   }

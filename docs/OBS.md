@@ -64,9 +64,15 @@ va justo, en este orden:
 1. `graphics.quality` → `"medium"`
 2. `battle.renderCapPerTeam` → `3000` (los contadores siguen mostrando cientos de miles;
    solo se dibujan menos figuras)
-3. `graphics.shadows` → `false`
-4. `graphics.particleLimit` → `2000`
-5. `graphics.bloodTextureSize` → `256`
+3. `graphics.postProcessing` → `false` (quita bloom, viñeta y grading; ahorra varias
+   pasadas a pantalla completa)
+4. `graphics.propDensity` → `0` y `graphics.clouds` → `0`
+5. `graphics.shadows` → `false`
+6. `graphics.particleLimit` → `2000`
+7. `graphics.bloodTextureSize` → `256`
+
+Poner `graphics.quality` en `"low"` hace varios de estos pasos de golpe: apaga el
+post-procesado, el decorado, las sombras y la sangre, y usa siluetas simplificadas.
 
 Todo se puede probar sin editar el archivo, pasándolo por la URL:
 

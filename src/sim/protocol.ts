@@ -15,16 +15,19 @@ export const UNIT_STRIDE = 8;
 /** Floats por proyectil: x, y, z, kind, life. */
 export const PROJECTILE_STRIDE = 5;
 
-export type GroupKey = `${MeshKind}_${TeamId}`;
-
-export const GROUP_KEYS: GroupKey[] = [
-  'humanoid_red',
-  'humanoid_blue',
-  'beast_red',
-  'beast_blue',
-  'dragon_red',
-  'dragon_blue',
-];
+/**
+ * Cada grupo de render es una combinación (arquetipo × equipo). Se agrupa por
+ * arquetipo y no por tipo de malla porque cada unidad tiene ya su propia
+ * silueta: el soldado con escudo, el arquero con arco, el mago con báculo.
+ */
+export interface UnitGroup {
+  /** Índice dentro de `SimSettings.archetypes`. */
+  archetype: number;
+  team: 0 | 1;
+  /** Instancia inicial dentro del buffer de unidades. */
+  start: number;
+  count: number;
+}
 
 export interface UnitArchetypeWire {
   key: string;
@@ -135,7 +138,7 @@ export interface Snapshot {
   time: number;
   units: ArrayBuffer;
   unitCount: number;
-  groups: Array<{ key: GroupKey; start: number; count: number }>;
+  groups: UnitGroup[];
   projectiles: ArrayBuffer;
   projectileCount: number;
   deaths: DeathReport[];

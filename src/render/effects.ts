@@ -1,14 +1,20 @@
 /**
- * Efectos: sangre, cadáveres, proyectiles, meteoros y explosiones.
+ * Efectos: sangre, cadáveres, proyectiles, meteoros, explosiones, ondas de
+ * choque, humo y chispas.
  *
  * Todos son sistemas instanciados con la animación resuelta en el shader a
  * partir del tiempo de nacimiento de cada partícula. La CPU solo escribe una
  * vez, al momento de crear el efecto; después no vuelve a tocarlo. Eso permite
  * miles de partículas simultáneas sin coste por frame.
+ *
+ * Los colores salen en espacio LINEAL: el paso a sRGB lo hace el post-procesado.
+ * Lo que debe brillar (fuego, chispas, meteoros) emite muy por encima de 1.0
+ * para que el bloom lo recoja; el humo se queda por debajo para que no brille.
  */
 
 import * as THREE from 'three';
 import { createRng, type Rng } from '../shared/math';
+import { SRGB_TO_LINEAR } from './shader-chunks';
 
 /** Quad centrado, base de todos los billboards. */
 function quadGeometry(): THREE.BufferGeometry {
@@ -19,9 +25,17 @@ function quadGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
+/** Anillo plano tumbado en el suelo, para las ondas de choque. */
+function ringGeometry(): THREE.BufferGeometry {
+  // Anillo fino: uno grueso se lee como un disco y tapa el suelo.
+  const geometry = new THREE.RingGeometry(0.88, 1.0, 44, 1);
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
 function instanced(base: THREE.BufferGeometry): THREE.InstancedBufferGeometry {
   const geometry = new THREE.InstancedBufferGeometry();
-  geometry.index = base.index;
+  if (base.index) geometry.setIndex(base.index);
   geometry.setAttribute('position', base.getAttribute('position'));
   if (base.getAttribute('uv')) geometry.setAttribute('uv', base.getAttribute('uv'));
   geometry.instanceCount = 0;
@@ -46,8 +60,7 @@ class RingAttribute {
   }
 
   write(slot: number, values: number[]): void {
-    const array = this.attribute.array as Float32Array;
-    array.set(values, slot * this.itemSize);
+    (this.attribute.array as Float32Array).set(values, slot * this.itemSize);
     this.attribute.needsUpdate = true;
   }
 
@@ -55,6 +68,57 @@ class RingAttribute {
     (this.attribute.array as Float32Array).fill(0);
     this.attribute.needsUpdate = true;
     this.cursor = 0;
+  }
+}
+
+/**
+ * Conjunto de atributos que avanzan con un cursor común.
+ *
+ * El cursor compartido es lo importante: si cada atributo avanzase por su
+ * cuenta, una partícula podría acabar mezclando la posición de un evento con la
+ * velocidad de otro.
+ */
+class ParticleSystem {
+  readonly geometry: THREE.InstancedBufferGeometry;
+  readonly mesh: THREE.Mesh;
+  private attributes: RingAttribute[] = [];
+  private cursor = 0;
+
+  constructor(
+    base: THREE.BufferGeometry,
+    readonly capacity: number,
+    layout: Array<{ name: string; size: number }>,
+    material: THREE.ShaderMaterial,
+    renderOrder: number,
+  ) {
+    this.geometry = instanced(base);
+    for (const { name, size } of layout) {
+      const attribute = new RingAttribute(capacity, size);
+      this.attributes.push(attribute);
+      this.geometry.setAttribute(name, attribute.attribute);
+    }
+    this.geometry.instanceCount = capacity;
+    this.mesh = new THREE.Mesh(this.geometry, material);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = renderOrder;
+  }
+
+  /** Escribe una partícula: un array de valores por atributo, en el mismo orden. */
+  emit(values: number[][]): void {
+    const slot = this.cursor;
+    this.cursor = (this.cursor + 1) % this.capacity;
+    for (let i = 0; i < this.attributes.length; i++) {
+      this.attributes[i].write(slot, values[i]);
+    }
+  }
+
+  clear(): void {
+    for (const attribute of this.attributes) attribute.clear();
+    this.cursor = 0;
+  }
+
+  dispose(): void {
+    this.geometry.dispose();
   }
 }
 
@@ -86,6 +150,7 @@ const BLOOD_VERTEX = /* glsl */ `
 
 const BLOOD_FRAGMENT = /* glsl */ `
   precision mediump float;
+${SRGB_TO_LINEAR}
   varying float vLife;
   varying vec2 vLocal;
   void main() {
@@ -94,7 +159,7 @@ const BLOOD_FRAGMENT = /* glsl */ `
     float d = length(vLocal) * 2.0;
     if (d > 1.0) discard;
     float alpha = (1.0 - vLife) * 0.9 * smoothstep(1.0, 0.25, d);
-    gl_FragColor = vec4(0.42, 0.03, 0.03, alpha);
+    gl_FragColor = vec4(srgbToLinear(vec3(0.52, 0.05, 0.04)), alpha);
   }
 `;
 
@@ -142,7 +207,7 @@ const PROJECTILE_VERTEX = /* glsl */ `
   void main() {
     vKind = aData.w;
     vLocal = position.xy;
-    float size = aData.w > 1.5 ? 1.1 : aData.w > 0.5 ? 0.55 : 0.3;
+    float size = aData.w > 2.5 ? 1.4 : aData.w > 1.5 ? 0.7 : 0.34;
     vec4 mv = modelViewMatrix * vec4(aData.xyz, 1.0);
     mv.xy += position.xy * size;
     gl_Position = projectionMatrix * mv;
@@ -151,14 +216,16 @@ const PROJECTILE_VERTEX = /* glsl */ `
 
 const PROJECTILE_FRAGMENT = /* glsl */ `
   precision mediump float;
+${SRGB_TO_LINEAR}
   varying float vKind;
   varying vec2 vLocal;
   void main() {
     float d = length(vLocal) * 2.0;
     if (d > 1.0) discard;
-    vec3 color = vKind > 2.5 ? vec3(1.0, 0.45, 0.12)
-               : vKind > 1.5 ? vec3(0.55, 0.75, 1.0)
-               : vec3(0.9, 0.85, 0.7);
+    // Intensidad > 1: es lo que hace que el proyectil "queme" en el bloom.
+    vec3 color = vKind > 2.5 ? srgbToLinear(vec3(1.0, 0.55, 0.18)) * 7.0
+               : vKind > 1.5 ? srgbToLinear(vec3(0.62, 0.82, 1.0)) * 4.5
+               : srgbToLinear(vec3(0.95, 0.9, 0.76)) * 1.4;
     gl_FragColor = vec4(color, 0.95 * smoothstep(1.0, 0.4, d));
   }
 `;
@@ -167,36 +234,45 @@ const PROJECTILE_FRAGMENT = /* glsl */ `
 
 const METEOR_VERTEX = /* glsl */ `
   attribute vec4 aTarget;  // xyz = punto de impacto, w = nacimiento
-  attribute vec2 aMeta;    // x = retardo, y = radio
+  attribute vec3 aMeta;    // x = retardo, y = radio, z = retraso de la estela
   uniform float uTime;
   varying float vGlow;
   varying vec2 vLocal;
+  varying float vTrail;
 
   void main() {
-    vLocal = position.xy;
-    float age = uTime - aTarget.w;
+    // aMeta.z > 0 marca los fragmentos de la estela: van rezagados y más pequeños.
+    float age = uTime - aTarget.w - aMeta.z;
     float t = clamp(age / max(aMeta.x, 0.05), 0.0, 1.0);
     vGlow = (t < 1.0 && age >= 0.0) ? 1.0 : 0.0;
+    vTrail = aMeta.z;
+    vLocal = position.xy;
     // Cae desde el cielo describiendo una diagonal.
     vec3 from = aTarget.xyz + vec3(38.0, 190.0, -26.0);
     vec3 world = mix(from, aTarget.xyz, t * t);
     vec4 mv = modelViewMatrix * vec4(world, 1.0);
-    mv.xy += position.xy * aMeta.y * 0.55;
+    float size = aMeta.y * 0.55 * (1.0 - aMeta.z * 4.5);
+    mv.xy += position.xy * max(size, 0.08);
     gl_Position = projectionMatrix * mv;
   }
 `;
 
 const METEOR_FRAGMENT = /* glsl */ `
   precision mediump float;
+${SRGB_TO_LINEAR}
   varying float vGlow;
   varying vec2 vLocal;
+  varying float vTrail;
   void main() {
     if (vGlow <= 0.0) discard;
     float d = length(vLocal) * 2.0;
     if (d > 1.0) discard;
-    // Núcleo blanco incandescente que se degrada a naranja.
-    vec3 color = mix(vec3(1.0, 0.95, 0.75), vec3(1.0, 0.4, 0.05), smoothstep(0.0, 0.7, d));
-    gl_FragColor = vec4(color, 0.95 * smoothstep(1.0, 0.15, d));
+    // La cabeza va blanca incandescente; la estela se apaga hacia el rojo.
+    float heat = 1.0 - clamp(vTrail * 5.0, 0.0, 0.82);
+    vec3 color = mix(srgbToLinear(vec3(1.0, 0.97, 0.85)) * 14.0,
+                     srgbToLinear(vec3(1.0, 0.42, 0.06)) * 5.0,
+                     smoothstep(0.0, 0.7, d));
+    gl_FragColor = vec4(color * heat, 0.95 * smoothstep(1.0, 0.12, d) * heat);
   }
 `;
 
@@ -223,6 +299,7 @@ const EXPLOSION_VERTEX = /* glsl */ `
 
 const EXPLOSION_FRAGMENT = /* glsl */ `
   precision mediump float;
+${SRGB_TO_LINEAR}
   varying float vLife;
   varying float vKind;
   varying vec2 vLocal;
@@ -233,10 +310,124 @@ const EXPLOSION_FRAGMENT = /* glsl */ `
     if (d > 1.0) discard;
     float core = smoothstep(1.0, 0.0, d);
     float alpha = (1.0 - vLife) * 0.85 * core * core;
-    vec3 hot = mix(vec3(1.0, 0.95, 0.7), vec3(1.0, 0.35, 0.05), vLife);
-    vec3 color = vKind > 1.5 ? hot : mix(vec3(1.0, 0.8, 0.4), vec3(0.6, 0.15, 0.05), vLife);
-    color = mix(color * 0.55, color, core);
+    // El núcleo arranca muy por encima del blanco y se apaga: así el destello
+    // inicial rebosa en el bloom y el rescoldo final ya no.
+    float emissive = mix(6.0, 0.7, vLife);
+    vec3 hot = mix(srgbToLinear(vec3(1.0, 0.96, 0.78)), srgbToLinear(vec3(1.0, 0.36, 0.06)), vLife);
+    vec3 warm = mix(srgbToLinear(vec3(1.0, 0.82, 0.45)), srgbToLinear(vec3(0.62, 0.16, 0.05)), vLife);
+    vec3 color = (vKind > 1.5 ? hot : warm) * emissive;
+    color = mix(color * 0.45, color, core);
     gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+// --------------------------------------------------------- onda de choque
+
+const SHOCKWAVE_VERTEX = /* glsl */ `
+  attribute vec4 aBurst;  // xyz = centro, w = nacimiento
+  attribute vec2 aMeta;   // x = radio final, y = duración
+  uniform float uTime;
+  varying float vLife;
+
+  void main() {
+    float age = uTime - aBurst.w;
+    float life = clamp(age / max(aMeta.y, 0.05), 0.0, 1.0);
+    vLife = life;
+    // Se expande deprisa al principio y frena: eso es lo que la lee como onda
+    // y no como un círculo que crece a velocidad constante.
+    float radius = aMeta.x * (0.2 + 1.5 * sqrt(life));
+    vec3 world = aBurst.xyz + position * radius;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(world, 1.0);
+  }
+`;
+
+const SHOCKWAVE_FRAGMENT = /* glsl */ `
+  precision mediump float;
+${SRGB_TO_LINEAR}
+  varying float vLife;
+  void main() {
+    if (vLife >= 1.0) discard;
+    gl_FragColor = vec4(srgbToLinear(vec3(1.0, 0.88, 0.66)) * 1.5, (1.0 - vLife) * 0.36);
+  }
+`;
+
+// --------------------------------------------------------------- humo
+
+const SMOKE_VERTEX = /* glsl */ `
+  attribute vec4 aOrigin;  // xyz = origen, w = nacimiento
+  attribute vec4 aMeta;    // x = tamaño, y = duración, z = deriva X, w = deriva Z
+  uniform float uTime;
+  varying float vLife;
+  varying vec2 vLocal;
+  varying float vSeed;
+
+  void main() {
+    float age = uTime - aOrigin.w;
+    float life = clamp(age / max(aMeta.y, 0.1), 0.0, 1.0);
+    vLife = life;
+    vLocal = position.xy;
+    vSeed = fract(aOrigin.w * 7.13);
+
+    // Asciende frenándose y se deja llevar por el viento.
+    vec3 world = aOrigin.xyz + vec3(aMeta.z * age, 3.2 * age - 0.35 * age * age, aMeta.w * age);
+    vec4 mv = modelViewMatrix * vec4(world, 1.0);
+    // Crece al disiparse, como el humo de verdad.
+    mv.xy += position.xy * aMeta.x * (0.6 + life * 1.9);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const SMOKE_FRAGMENT = /* glsl */ `
+  precision mediump float;
+${SRGB_TO_LINEAR}
+  varying float vLife;
+  varying vec2 vLocal;
+  varying float vSeed;
+  void main() {
+    if (vLife >= 1.0 || vLife <= 0.0) discard;
+    float d = length(vLocal) * 2.0;
+    if (d > 1.0) discard;
+    float alpha = smoothstep(0.0, 0.12, vLife) * (1.0 - vLife) * 0.34 * smoothstep(1.0, 0.1, d);
+    // Empieza oscuro (hollín) y aclara al enfriarse. Siempre por debajo de 1.0:
+    // el humo no debe entrar nunca en el bloom.
+    vec3 color = mix(srgbToLinear(vec3(0.18, 0.16, 0.15)), srgbToLinear(vec3(0.55, 0.53, 0.52)), vLife * 0.8 + vSeed * 0.2);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+// ------------------------------------------------------------- chispas
+
+const SPARK_VERTEX = /* glsl */ `
+  attribute vec4 aOrigin;  // xyz = origen, w = nacimiento
+  attribute vec4 aVel;     // xyz = velocidad, w = duración
+  uniform float uTime;
+  varying float vLife;
+  varying vec2 vLocal;
+
+  void main() {
+    float age = uTime - aOrigin.w;
+    float life = clamp(age / max(aVel.w, 0.05), 0.0, 1.0);
+    vLife = life;
+    vLocal = position.xy;
+    vec3 world = aOrigin.xyz + aVel.xyz * age + vec3(0.0, -14.0 * 0.5 * age * age, 0.0);
+    vec4 mv = modelViewMatrix * vec4(world, 1.0);
+    mv.xy += position.xy * 0.32 * (1.0 - life * 0.6);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const SPARK_FRAGMENT = /* glsl */ `
+  precision mediump float;
+${SRGB_TO_LINEAR}
+  varying float vLife;
+  varying vec2 vLocal;
+  void main() {
+    if (vLife >= 1.0) discard;
+    float d = length(vLocal) * 2.0;
+    if (d > 1.0) discard;
+    // Muy por encima del blanco y de vida corta: puntos de luz que saltan.
+    vec3 color = mix(srgbToLinear(vec3(1.0, 0.95, 0.7)), srgbToLinear(vec3(1.0, 0.4, 0.08)), vLife) * 12.0;
+    gl_FragColor = vec4(color, (1.0 - vLife) * smoothstep(1.0, 0.2, d));
   }
 `;
 
@@ -252,186 +443,206 @@ export class Effects {
   private time = 0;
   private rng: Rng = createRng(99);
 
-  private blood: { geometry: THREE.InstancedBufferGeometry; origin: RingAttribute; vel: RingAttribute; meta: RingAttribute; material: THREE.ShaderMaterial };
-  private corpses: Array<{ geometry: THREE.InstancedBufferGeometry; pose: RingAttribute; meta: RingAttribute; material: THREE.ShaderMaterial }> = [];
-  private projectiles: { geometry: THREE.InstancedBufferGeometry; data: THREE.InstancedBufferAttribute; material: THREE.ShaderMaterial };
-  private meteors: { geometry: THREE.InstancedBufferGeometry; target: RingAttribute; meta: RingAttribute; material: THREE.ShaderMaterial };
-  private explosions: { geometry: THREE.InstancedBufferGeometry; burst: RingAttribute; meta: RingAttribute; material: THREE.ShaderMaterial };
+  private blood: ParticleSystem;
+  private corpses: Array<{ system: ParticleSystem; material: THREE.ShaderMaterial }> = [];
+  private smoke: ParticleSystem;
+  private sparks: ParticleSystem;
+  private meteors: ParticleSystem;
+  private explosions: ParticleSystem;
+  private shockwaves: ParticleSystem;
+
+  private projectileGeometry: THREE.InstancedBufferGeometry;
+  private projectileData: THREE.InstancedBufferAttribute;
+
   private materials: THREE.ShaderMaterial[] = [];
+  private disposables: THREE.BufferGeometry[] = [];
 
   constructor(private options: EffectsOptions) {
-    const base = quadGeometry();
+    const quad = quadGeometry();
+    const ring = ringGeometry();
+    this.disposables.push(quad, ring);
 
-    // --- Sangre ---
-    {
-      const capacity = Math.max(256, options.particleLimit);
-      const geometry = instanced(base);
-      const origin = new RingAttribute(capacity, 3);
-      const vel = new RingAttribute(capacity, 3);
-      const meta = new RingAttribute(capacity, 2);
-      geometry.setAttribute('aOrigin', origin.attribute);
-      geometry.setAttribute('aVel', vel.attribute);
-      geometry.setAttribute('aMeta', meta.attribute);
-      geometry.instanceCount = capacity;
-      const material = new THREE.ShaderMaterial({
-        vertexShader: BLOOD_VERTEX,
-        fragmentShader: BLOOD_FRAGMENT,
-        uniforms: { uTime: { value: 0 } },
+    const material = (
+      vertexShader: string,
+      fragmentShader: string,
+      extra: Partial<THREE.ShaderMaterialParameters> = {},
+      uniforms: Record<string, THREE.IUniform> = {},
+    ) => {
+      const created = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        uniforms: { uTime: { value: 0 }, ...uniforms },
         transparent: true,
         depthWrite: false,
+        ...extra,
       });
-      this.materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 5;
-      this.root.add(mesh);
-      this.blood = { geometry, origin, vel, meta, material };
-    }
+      this.materials.push(created);
+      return created;
+    };
 
-    // --- Cadáveres (uno por equipo, para conservar su color) ---
+    const particleCap = Math.max(256, options.particleLimit);
+
+    this.blood = new ParticleSystem(
+      quad,
+      particleCap,
+      [{ name: 'aOrigin', size: 3 }, { name: 'aVel', size: 3 }, { name: 'aMeta', size: 2 }],
+      material(BLOOD_VERTEX, BLOOD_FRAGMENT),
+      5,
+    );
+    this.root.add(this.blood.mesh);
+
     for (const team of ['red', 'blue'] as const) {
-      const capacity = Math.max(128, Math.floor(options.corpseLimit / 2));
-      const geometry = instanced(base);
-      const pose = new RingAttribute(capacity, 4);
-      const meta = new RingAttribute(capacity, 2);
-      geometry.setAttribute('aPose', pose.attribute);
-      geometry.setAttribute('aMeta', meta.attribute);
-      geometry.instanceCount = capacity;
-      const material = new THREE.ShaderMaterial({
-        vertexShader: CORPSE_VERTEX,
-        fragmentShader: CORPSE_FRAGMENT,
-        uniforms: {
-          uTime: { value: 0 },
-          uColor: { value: options.teamColors[team].clone().multiplyScalar(0.35) },
-        },
-        transparent: true,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      });
-      this.materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 3;
-      this.root.add(mesh);
-      this.corpses.push({ geometry, pose, meta, material });
+      const corpseMaterial = material(
+        CORPSE_VERTEX,
+        CORPSE_FRAGMENT,
+        { polygonOffset: true, polygonOffsetFactor: -1 },
+        { uColor: { value: options.teamColors[team].clone().multiplyScalar(0.35) } },
+      );
+      const system = new ParticleSystem(
+        quad,
+        Math.max(128, Math.floor(options.corpseLimit / 2)),
+        [{ name: 'aPose', size: 4 }, { name: 'aMeta', size: 2 }],
+        corpseMaterial,
+        3,
+      );
+      this.root.add(system.mesh);
+      this.corpses.push({ system, material: corpseMaterial });
     }
 
-    // --- Proyectiles (se reescriben enteros cada snapshot) ---
+    this.smoke = new ParticleSystem(
+      quad,
+      Math.max(256, Math.floor(particleCap * 0.7)),
+      [{ name: 'aOrigin', size: 4 }, { name: 'aMeta', size: 4 }],
+      material(SMOKE_VERTEX, SMOKE_FRAGMENT),
+      4,
+    );
+    this.root.add(this.smoke.mesh);
+
+    this.sparks = new ParticleSystem(
+      quad,
+      Math.max(256, particleCap),
+      [{ name: 'aOrigin', size: 4 }, { name: 'aVel', size: 4 }],
+      material(SPARK_VERTEX, SPARK_FRAGMENT, { blending: THREE.AdditiveBlending }),
+      7,
+    );
+    this.root.add(this.sparks.mesh);
+
+    this.shockwaves = new ParticleSystem(
+      ring,
+      256,
+      [{ name: 'aBurst', size: 4 }, { name: 'aMeta', size: 2 }],
+      material(SHOCKWAVE_VERTEX, SHOCKWAVE_FRAGMENT, { blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+      6,
+    );
+    this.root.add(this.shockwaves.mesh);
+
+    // Cada meteoro escribe una cabeza más varios fragmentos de estela.
+    this.meteors = new ParticleSystem(
+      quad,
+      2048,
+      [{ name: 'aTarget', size: 4 }, { name: 'aMeta', size: 3 }],
+      material(METEOR_VERTEX, METEOR_FRAGMENT, { blending: THREE.AdditiveBlending }),
+      8,
+    );
+    this.root.add(this.meteors.mesh);
+
+    this.explosions = new ParticleSystem(
+      quad,
+      512,
+      [{ name: 'aBurst', size: 4 }, { name: 'aMeta', size: 2 }],
+      material(EXPLOSION_VERTEX, EXPLOSION_FRAGMENT, { blending: THREE.AdditiveBlending }),
+      9,
+    );
+    this.root.add(this.explosions.mesh);
+
+    // Los proyectiles se reescriben enteros cada snapshot, no van en anillo.
     {
       const capacity = 3000;
-      const geometry = instanced(base);
-      const data = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-      data.setUsage(THREE.DynamicDrawUsage);
-      geometry.setAttribute('aData', data);
-      geometry.instanceCount = 0;
-      const material = new THREE.ShaderMaterial({
-        vertexShader: PROJECTILE_VERTEX,
-        fragmentShader: PROJECTILE_FRAGMENT,
-        transparent: true,
-        depthWrite: false,
-      });
-      this.materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
+      this.projectileGeometry = instanced(quad);
+      this.projectileData = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+      this.projectileData.setUsage(THREE.DynamicDrawUsage);
+      this.projectileGeometry.setAttribute('aData', this.projectileData);
+      this.projectileGeometry.instanceCount = 0;
+      const mesh = new THREE.Mesh(this.projectileGeometry, material(PROJECTILE_VERTEX, PROJECTILE_FRAGMENT));
       mesh.frustumCulled = false;
       mesh.renderOrder = 6;
       this.root.add(mesh);
-      this.projectiles = { geometry, data, material };
     }
-
-    // --- Meteoros ---
-    {
-      const capacity = 256;
-      const geometry = instanced(base);
-      const target = new RingAttribute(capacity, 4);
-      const meta = new RingAttribute(capacity, 2);
-      geometry.setAttribute('aTarget', target.attribute);
-      geometry.setAttribute('aMeta', meta.attribute);
-      geometry.instanceCount = capacity;
-      const material = new THREE.ShaderMaterial({
-        vertexShader: METEOR_VERTEX,
-        fragmentShader: METEOR_FRAGMENT,
-        uniforms: { uTime: { value: 0 } },
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      });
-      this.materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 7;
-      this.root.add(mesh);
-      this.meteors = { geometry, target, meta, material };
-    }
-
-    // --- Explosiones ---
-    {
-      const capacity = 512;
-      const geometry = instanced(base);
-      const burst = new RingAttribute(capacity, 4);
-      const meta = new RingAttribute(capacity, 2);
-      geometry.setAttribute('aBurst', burst.attribute);
-      geometry.setAttribute('aMeta', meta.attribute);
-      geometry.instanceCount = capacity;
-      const material = new THREE.ShaderMaterial({
-        vertexShader: EXPLOSION_VERTEX,
-        fragmentShader: EXPLOSION_FRAGMENT,
-        uniforms: { uTime: { value: 0 } },
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      });
-      this.materials.push(material);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 8;
-      this.root.add(mesh);
-      this.explosions = { geometry, burst, meta, material };
-    }
-
-    base.dispose();
   }
+
+  // ------------------------------------------------------------- emisores
 
   spawnBlood(x: number, y: number, z: number, soldiers: number): void {
     if (!this.options.gore) return;
     const count = Math.min(10, 2 + Math.floor(Math.log10(1 + soldiers) * 3));
     const size = 0.25 + Math.min(1.6, Math.log10(1 + soldiers) * 0.5);
     for (let i = 0; i < count; i++) {
-      const slot = this.blood.origin.slot();
-      this.blood.vel.slot();
-      this.blood.meta.slot();
-      this.blood.origin.write(slot, [x, y + 0.9, z]);
-      this.blood.vel.write(slot, [this.rng.range(-2.4, 2.4), this.rng.range(1.6, 4.6), this.rng.range(-2.4, 2.4)]);
-      this.blood.meta.write(slot, [this.time, size * this.rng.range(0.7, 1.35)]);
+      this.blood.emit([
+        [x, y + 0.9, z],
+        [this.rng.range(-2.4, 2.4), this.rng.range(1.6, 4.6), this.rng.range(-2.4, 2.4)],
+        [this.time, size * this.rng.range(0.7, 1.35)],
+      ]);
     }
   }
 
   spawnCorpse(x: number, y: number, z: number, rot: number, team: 0 | 1, scale: number): void {
     if (!this.options.gore) return;
-    const target = this.corpses[team];
-    const slot = target.pose.slot();
-    target.meta.slot();
-    target.pose.write(slot, [x, y, z, rot]);
-    target.meta.write(slot, [this.time, scale]);
+    this.corpses[team].system.emit([[x, y, z, rot], [this.time, scale]]);
   }
 
+  /**
+   * Una explosión no es un solo destello: es bola de fuego, onda de choque en el
+   * suelo, chispas que saltan y humo que sube. Cada capa entra en un momento
+   * distinto, y eso es lo que la hace leerse como explosión y no como fogonazo.
+   */
   spawnExplosion(x: number, y: number, z: number, radius: number, kind: number): void {
-    const slot = this.explosions.burst.slot();
-    this.explosions.meta.slot();
-    this.explosions.burst.write(slot, [x, y + 1, z, this.time]);
-    this.explosions.meta.write(slot, [Math.max(1.2, radius), kind]);
+    const power = Math.max(1.2, radius);
+    const big = kind > 1.5;
+    this.explosions.emit([[x, y + 1, z, this.time], [power, kind]]);
+
+    // Onda de choque y humo solo en detonaciones de verdad. Los golpes de área
+    // del combate cuerpo a cuerpo son constantes: si cada uno soltara humo, el
+    // campo quedaría cubierto por una neblina permanente que tapa la batalla.
+    const heavy = big || power >= 6;
+    if (heavy) {
+      this.shockwaves.emit([[x, y + 0.25, z, this.time], [power * 1.3, big ? 0.9 : 0.6]]);
+    }
+
+    const sparkCount = Math.min(22, Math.round(power * (big ? 2.4 : 0.8)));
+    for (let i = 0; i < sparkCount; i++) {
+      const angle = this.rng.range(0, Math.PI * 2);
+      const speed = this.rng.range(4, 12) * (big ? 1.5 : 1);
+      this.sparks.emit([
+        [x, y + 0.8, z, this.time],
+        [Math.cos(angle) * speed, this.rng.range(4, 13), Math.sin(angle) * speed, this.rng.range(0.5, 1.1)],
+      ]);
+    }
+
+    const smokeCount = heavy ? Math.min(8, Math.round(power * (big ? 0.9 : 0.4))) : 0;
+    for (let i = 0; i < smokeCount; i++) {
+      this.smoke.emit([
+        [
+          x + this.rng.range(-power * 0.4, power * 0.4),
+          y + 1.2,
+          z + this.rng.range(-power * 0.4, power * 0.4),
+          this.time + this.rng.range(0, 0.25),
+        ],
+        [power * this.rng.range(0.35, 0.75), this.rng.range(1.8, 3.4), this.rng.range(-1.2, 1.2), this.rng.range(-1.2, 1.2)],
+      ]);
+    }
   }
 
+  /** Meteoro con estela: una cabeza brillante y varios fragmentos rezagados. */
   spawnMeteor(x: number, y: number, z: number, delay: number, radius: number): void {
-    const slot = this.meteors.target.slot();
-    this.meteors.meta.slot();
-    this.meteors.target.write(slot, [x, y, z, this.time]);
-    this.meteors.meta.write(slot, [Math.max(0.1, delay), Math.max(2, radius)]);
+    const trail = 8;
+    for (let i = 0; i < trail; i++) {
+      this.meteors.emit([[x, y, z, this.time], [Math.max(0.1, delay), Math.max(2, radius), i * 0.016]]);
+    }
   }
 
   /** Sube las posiciones de proyectiles del snapshot actual. */
   updateProjectiles(source: Float32Array, count: number, stride: number): void {
-    const array = this.projectiles.data.array as Float32Array;
+    const array = this.projectileData.array as Float32Array;
     const capacity = array.length / 4;
     const n = Math.min(count, capacity);
     for (let i = 0; i < n; i++) {
@@ -441,8 +652,8 @@ export class Effects {
       array[i * 4 + 2] = source[o + 2];
       array[i * 4 + 3] = source[o + 3];
     }
-    this.projectiles.data.needsUpdate = true;
-    this.projectiles.geometry.instanceCount = n;
+    this.projectileData.needsUpdate = true;
+    this.projectileGeometry.instanceCount = n;
   }
 
   update(dt: number): void {
@@ -454,18 +665,11 @@ export class Effects {
 
   /** Limpia todo lo visible: se llama al empezar una ronda nueva. */
   reset(): void {
-    this.blood.origin.clear();
-    this.blood.vel.clear();
-    this.blood.meta.clear();
-    for (const corpse of this.corpses) {
-      corpse.pose.clear();
-      corpse.meta.clear();
+    for (const system of [this.blood, this.smoke, this.sparks, this.shockwaves, this.meteors, this.explosions]) {
+      system.clear();
     }
-    this.meteors.target.clear();
-    this.meteors.meta.clear();
-    this.explosions.burst.clear();
-    this.explosions.meta.clear();
-    this.projectiles.geometry.instanceCount = 0;
+    for (const corpse of this.corpses) corpse.system.clear();
+    this.projectileGeometry.instanceCount = 0;
   }
 
   setTeamColor(team: 0 | 1, color: THREE.Color): void {
@@ -478,10 +682,11 @@ export class Effects {
 
   dispose(): void {
     for (const material of this.materials) material.dispose();
-    this.blood.geometry.dispose();
-    for (const corpse of this.corpses) corpse.geometry.dispose();
-    this.projectiles.geometry.dispose();
-    this.meteors.geometry.dispose();
-    this.explosions.geometry.dispose();
+    for (const system of [this.blood, this.smoke, this.sparks, this.shockwaves, this.meteors, this.explosions]) {
+      system.dispose();
+    }
+    for (const corpse of this.corpses) corpse.system.dispose();
+    this.projectileGeometry.dispose();
+    for (const geometry of this.disposables) geometry.dispose();
   }
 }

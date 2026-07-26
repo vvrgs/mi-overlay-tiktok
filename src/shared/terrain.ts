@@ -33,6 +33,9 @@ export interface Terrain extends TerrainParams {
   waterLevel: number;
   halfWidth: number;
   halfDepth: number;
+  /** Amplitud y frecuencia del serpenteo, para que el shader del agua lo replique. */
+  meanderAmp: number;
+  meanderFreq: number;
 }
 
 const RIVER_DEPTH = 4.2;
@@ -94,5 +97,7 @@ export function createTerrain(params: TerrainParams): Terrain {
     waterLevel: -RIVER_DEPTH * 0.55,
     halfWidth,
     halfDepth,
+    meanderAmp,
+    meanderFreq,
   };
 }

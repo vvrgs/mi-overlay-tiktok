@@ -13,17 +13,16 @@ import { clamp, createRng, type Rng } from '../shared/math';
 import { createTerrain, type Terrain } from '../shared/terrain';
 import { SpatialGrid } from './grid';
 import {
-  GROUP_KEYS,
   PROJECTILE_STRIDE,
   UNIT_STRIDE,
   type DeathReport,
-  type GroupKey,
   type ImpactReport,
   type MeteorReport,
   type SimSettings,
   type TeamStats,
   type UltimatePayload,
   type UnitArchetypeWire,
+  type UnitGroup,
 } from './protocol';
 
 const ALIVE_FREE = 0;
@@ -33,7 +32,6 @@ const ALIVE_DYING = 2;
 const DEATH_DURATION = 0.9;
 const MAX_PROJECTILES = 3000;
 const MAX_METEORS = 256;
-const MESH_INDEX: Record<string, number> = { humanoid: 0, beast: 1, dragon: 2 };
 
 interface TeamRuntime {
   /** Tropas encoladas por tipo de unidad: un regalo de arqueros despliega arqueros. */
@@ -350,7 +348,7 @@ export class World {
       soldiers,
       championId: this.championId[idx],
       killerChampionId: killerChampion,
-      mesh: MESH_INDEX[arch.mesh] ?? 0,
+      mesh: this.type[idx],
       scale: arch.scale,
     });
 
@@ -897,14 +895,16 @@ export class World {
    * (malla, equipo) para que el renderer suba un rango contiguo por
    * InstancedMesh sin reordenar nada.
    */
-  writeUnits(out: Float32Array): { groups: Array<{ key: GroupKey; start: number; count: number }>; total: number } {
-    const groupCount = GROUP_KEYS.length;
+  writeUnits(out: Float32Array): { groups: UnitGroup[]; total: number } {
+    // Un grupo por (arquetipo × equipo). Se cuentan primero y se reparte después,
+    // igual que un counting sort: deja cada grupo en un rango contiguo del buffer
+    // y el renderer puede subirlo de una sola vez.
+    const groupCount = this.archetypes.length * 2;
     const counts = new Int32Array(groupCount);
 
     for (let i = 0; i < this.liveCount; i++) {
       const idx = this.liveIndices[i];
-      const arch = this.archetypes[this.type[idx]];
-      counts[(MESH_INDEX[arch.mesh] ?? 0) * 2 + this.team[idx]]++;
+      counts[this.type[idx] * 2 + this.team[idx]]++;
     }
 
     const starts = new Int32Array(groupCount);
@@ -919,7 +919,7 @@ export class World {
     for (let i = 0; i < this.liveCount; i++) {
       const idx = this.liveIndices[i];
       const arch = this.archetypes[this.type[idx]];
-      const g = (MESH_INDEX[arch.mesh] ?? 0) * 2 + this.team[idx];
+      const g = this.type[idx] * 2 + this.team[idx];
       const o = cursors[g]++ * UNIT_STRIDE;
 
       // Codificación de estado: 0..1 marcha, 1..2 ataque, 2..3 muerte.
@@ -943,7 +943,11 @@ export class World {
       out[o + 7] = clamp(this.hp[idx] / (this.maxHp[idx] || 1), 0, 1);
     }
 
-    const groups = GROUP_KEYS.map((key, g) => ({ key, start: starts[g], count: counts[g] }));
+    const groups: UnitGroup[] = [];
+    for (let g = 0; g < groupCount; g++) {
+      if (counts[g] === 0) continue;
+      groups.push({ archetype: g >> 1, team: (g & 1) as 0 | 1, start: starts[g], count: counts[g] });
+    }
     return { groups, total: running };
   }
 

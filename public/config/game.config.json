@@ -22,8 +22,8 @@
     "red": {
       "name": "Equipo Rojo",
       "shortName": "ROJO",
-      "color": "#ff2f45",
-      "colorDark": "#7a0d18",
+      "color": "#e6202f",
+      "colorDark": "#5e0a12",
       "colorLight": "#ff8a96",
       "country": "MX",
       "keywords": [
@@ -594,7 +594,7 @@
   },
   "graphics": {
     "quality": "high",
-    "_comment": "quality: low | medium | high | ultra. Baja a 'medium' si el stream pierde FPS.",
+    "_comment": "quality: low | medium | high | ultra. Baja a 'medium' si el stream pierde FPS. El post-procesado se apaga solo en 'low'.",
     "pixelRatioCap": 1.75,
     "shadows": true,
     "gore": true,
@@ -604,7 +604,17 @@
     "particleLimit": 4000,
     "fogDensity": 0.0022,
     "timeOfDay": "day",
-    "targetFps": 60
+    "targetFps": 60,
+    "postProcessing": true,
+    "bloomThreshold": 1.15,
+    "bloomIntensity": 0.6,
+    "vignette": 0.5,
+    "saturation": 1.14,
+    "contrast": 1.05,
+    "exposure": 1.05,
+    "sharpen": 0.22,
+    "clouds": 0.85,
+    "propDensity": 1.0
   },
   "hud": {
     "showScoreboard": true,

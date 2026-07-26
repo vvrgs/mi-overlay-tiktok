@@ -168,6 +168,18 @@ export interface GameConfig {
     fogDensity: number;
     timeOfDay: 'day' | 'sunset' | 'night';
     targetFps: number;
+    postProcessing: boolean;
+    bloomThreshold: number;
+    bloomIntensity: number;
+    vignette: number;
+    saturation: number;
+    contrast: number;
+    exposure: number;
+    sharpen: number;
+    /** 0 = cielo despejado, 1 = muy nublado. */
+    clouds: number;
+    /** Densidad de rocas y árboles; 0 los desactiva. */
+    propDensity: number;
   };
   hud: {
     showScoreboard: boolean;
@@ -293,6 +305,16 @@ const EMERGENCY_CONFIG = {
     fogDensity: 0.0022,
     timeOfDay: 'day',
     targetFps: 60,
+    postProcessing: true,
+    bloomThreshold: 1.15,
+    bloomIntensity: 0.6,
+    vignette: 0.5,
+    saturation: 1.14,
+    contrast: 1.05,
+    exposure: 1.05,
+    sharpen: 0.22,
+    clouds: 0.85,
+    propDensity: 1,
   },
   hud: {
     showScoreboard: true,

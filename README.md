@@ -26,7 +26,8 @@ npm start
 | 💬 **Comentarios → campeones** | Escribir `rojo` o `azul` mete al viewer a la batalla como un campeón con su nombre flotando, vida propia y contador de bajas. Cuando cae, sale en el killfeed y entra al ranking de supervivencia. |
 | ❤️ **Likes → furia → ultimates** | Los likes llenan la barra del equipo. Al llenarse cae una ultimate: lluvia de meteoros, refuerzos masivos, furia de guerra, escudo divino o nigromante. |
 | 🏳️ **Países y serie de rondas** | Cada equipo representa un país con su bandera. Marcador al mejor de N, rotación automática de países, celebración del campeón e histórico por país. |
-| 🩸 **Batalla que se ve** | El campo y el río se van tiñendo de rojo con las bajas reales. Cadáveres, sangre, flechas, explosiones y meteoros. |
+| 🩸 **Batalla que se ve** | El campo y el río se van tiñendo de rojo con las bajas reales. Cadáveres, sangre, flechas, explosiones con onda de choque, chispas, humo y meteoros con estela. |
+| ✨ **Presentación HDR** | Render en espacio lineal con bloom real, tonemapping ACES, viñeta y grading. El fuego rebosa luz; el resto no. |
 | 🎥 **Cámara automática** | Se dirige sola: encuadra donde más gente está muriendo, corta con planos variados y se sacude con las ultimates. Nadie tiene que pilotarla en un directo de 8 horas. |
 | 🎛️ **Panel de control** | Pantalla aparte para iniciar/pausar, cambiar países, mandar tropas, lanzar ultimates, banear, probar regalos y ver rankings. |
 | 🧪 **Simulador** | Genera chats, regalos, likes y follows falsos para desarrollar, grabar clips y probar el balance sin estar en vivo. |
@@ -50,12 +51,39 @@ tick manda un snapshot con los buffers como *transferables*, y el hilo principal
 devuelve para reciclarlos: cero basura por frame.
 
 **3. Toda la animación ocurre en el vertex shader.** Los soldados se construyen por
-código con atributos de miembro y pivote; caminar, golpear y caer son rotaciones
-calculadas en la GPU a partir de la fase y el estado de cada instancia. Dibujar 9.000
-guerreros animados cuesta **6 draw calls** y ni un ciclo de CPU.
+código con atributos de miembro y pivote; caminar, golpear, caer y ondear la capa son
+rotaciones calculadas en la GPU a partir de la fase y el estado de cada instancia.
+Miles de guerreros animados caben en un puñado de draw calls y ni un ciclo de CPU.
 
 Además el overlay vigila sus propios FPS y baja la resolución interna antes de que el
 directo empiece a tironear.
+
+---
+
+## Cómo se ve
+
+**Unidades con silueta propia.** No son cápsulas de colores: el soldado lleva casco,
+espada y escudo; el arquero, capucha, arco y carcaj; el mago, túnica, sombrero y un
+báculo con orbe encendido; la caballería, gualdrapa y lanza calada; el gigante,
+hombreras y maza; el campeón del chat, penacho y capa que ondea al correr. A la
+distancia de cámara de un directo, la silueta es lo único que distingue una unidad de
+otra —el color ya lo ocupa el equipo—. Cada instancia además varía de estatura y tono,
+para que el ejército no parezca una figura clonada mil veces.
+
+**Render HDR.** La escena se dibuja en coma flotante y en espacio lineal, sin recortar
+a blanco. Eso permite que explosiones, meteoros, orbes y el sol emitan por encima de
+1.0, que es de donde sale un bloom creíble: luz que rebosa solo de lo que de verdad
+brilla, no un desenfoque genérico. Al final se aplica tonemapping ACES —que conserva
+el color en las altas luces en vez de quemarlas—, viñeta, saturación y contraste.
+
+**Explosiones por capas.** Bola de fuego, onda de choque expandiéndose por el suelo,
+chispas con trayectoria balística y humo que asciende y se disipa. Cada capa entra en
+un momento distinto: eso es lo que la hace leerse como una explosión y no como un
+fogonazo plano. Los meteoros caen con estela de fuego y sacuden la cámara.
+
+**Escenario.** Cielo con nubes procedurales en dos capas y disco solar, río que
+serpentea con espuma en la orilla y corriente, bosque y rocas en las laderas para dar
+escala, y suelo mezclado en tres escalas de ruido con barro en la ribera.
 
 ---
 
@@ -102,6 +130,9 @@ index.html?battle.difficulty=1.5&graphics.timeOfDay=sunset&camera.mode=orbit
 | `battle.startingTroops` | Con cuántos soldados arranca cada bando |
 | `gifts.coinsToTroops` | Tropas por moneda: el mando principal de la economía |
 | `battle.renderCapPerTeam` | Figuras dibujadas por equipo. Baja esto si te faltan FPS |
+| `graphics.bloomIntensity` | Cuánta luz rebosa del fuego. `graphics.bloomThreshold` sube el listón de qué brilla |
+| `graphics.timeOfDay` | `day`, `sunset` o `night`: cambia toda la paleta de golpe |
+| `graphics.clouds` / `propDensity` | Nubes y densidad de bosque |
 | `hud.safeAreaTop` | Hueco arriba para tu cámara |
 | `battle.autoBalance` | Da ventaja al bando que va perdiendo para que la ronda no se muera |
 

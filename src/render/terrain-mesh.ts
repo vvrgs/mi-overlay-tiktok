@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { clamp } from '../shared/math';
 import type { Terrain } from '../shared/terrain';
-import { SRGB_ENCODE } from './shader-chunks';
+import { NOISE_2D } from './shader-chunks';
 
 export interface TerrainPalette {
   grass: THREE.Color;
@@ -93,7 +93,7 @@ const TERRAIN_VERTEX_SHADER = /* glsl */ `
 
 const TERRAIN_FRAGMENT_SHADER = /* glsl */ `
   precision highp float;
-${SRGB_ENCODE}
+${NOISE_2D}
 
   uniform vec3 uGrass;
   uniform vec3 uGrassDry;
@@ -114,50 +114,48 @@ ${SRGB_ENCODE}
   varying vec3 vNormal;
   varying float vFogDepth;
 
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-  }
-
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-  }
-
   void main() {
     vec3 n = normalize(vNormal);
     float slope = 1.0 - clamp(n.y, 0.0, 1.0);
 
-    // Mezcla de suelos: hierba con manchas, tierra en las pendientes, roca en
-    // las cuestas fuertes y arena en la ribera del río.
-    float blotch = noise(vWorld.xz * 0.08);
-    vec3 color = mix(uGrass, uGrassDry, blotch);
+    // Mezcla de suelos en tres escalas: manchas grandes de pradera, praderas
+    // secas y calvas de tierra. Con una sola escala el campo se ve de plástico.
+    float macro = fbm2(vWorld.xz * 0.014, 3);
+    float blotch = noise2(vWorld.xz * 0.08);
+    // OJO: mix() no recorta. Con un factor > 1 extrapola más allá del color de
+    // destino y el campo salía amarillo fluorescente. El clamp es obligatorio.
+    vec3 color = mix(uGrass, uGrassDry, clamp(blotch * 0.55 + macro * 0.5, 0.0, 1.0));
+    color = mix(color, uDirt, smoothstep(0.52, 0.88, macro) * 0.5);
     color = mix(color, uDirt, smoothstep(0.16, 0.42, slope));
     color = mix(color, uRock, smoothstep(0.45, 0.72, slope));
     float shore = 1.0 - smoothstep(uWaterLevel, uWaterLevel + 2.6, vWorld.y);
     color = mix(color, uSand, shore * 0.85);
+    // Barro húmedo justo en la ribera.
+    color *= mix(1.0, 0.72, smoothstep(uWaterLevel + 1.6, uWaterLevel, vWorld.y));
 
-    // Ruido fino para romper el aspecto plástico.
-    color *= 0.88 + noise(vWorld.xz * 0.9) * 0.24;
+    // Hebras de hierba: ruido muy fino y anisótropo que insinúa textura vegetal.
+    float blades = noise2(vWorld.xz * vec2(2.6, 9.0));
+    color *= 0.82 + noise2(vWorld.xz * 0.9) * 0.16 + blades * 0.1;
 
     // Sangre acumulada: se lee del mapa que se pinta con cada muerte.
     vec2 bloodUv = vWorld.xz / (uFieldHalf * 2.0) + 0.5;
     float blood = texture2D(uBlood, clamp(bloodUv, 0.0, 1.0)).r;
     blood *= step(0.0, bloodUv.x) * step(bloodUv.x, 1.0) * step(0.0, bloodUv.y) * step(bloodUv.y, 1.0);
-    vec3 bloodColor = mix(vec3(0.35, 0.03, 0.03), vec3(0.62, 0.06, 0.05), noise(vWorld.xz * 0.5));
+    vec3 bloodColor = mix(vec3(0.28, 0.02, 0.02), vec3(0.55, 0.05, 0.04), noise2(vWorld.xz * 0.5));
     color = mix(color, bloodColor, clamp(blood, 0.0, 1.0) * 0.92);
 
     float diffuse = max(dot(n, normalize(uLightDir)), 0.0);
     float hemi = n.y * 0.5 + 0.5;
     vec3 ambient = mix(uGroundColor, uSkyColor, hemi);
-    color = color * (ambient * 0.6 + uSunColor * diffuse * 0.8);
+    // Se apunta a que una superficie bien iluminada quede sobre 0.5 en lineal,
+    // no cerca de 1.0: así queda margen para que el tonemapping module las altas
+    // luces y solo el fuego real llegue al bloom.
+    color = color * (ambient * 0.45 + uSunColor * diffuse * 0.6);
 
     float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
     color = mix(color, uFogColor, clamp(fogFactor, 0.0, 1.0));
 
-    gl_FragColor = vec4(linearToSRGB(color), 1.0);
+    gl_FragColor = vec4(color, 1.0);
   }
 `;
 
@@ -174,7 +172,7 @@ const WATER_VERTEX_SHADER = /* glsl */ `
 
 const WATER_FRAGMENT_SHADER = /* glsl */ `
   precision highp float;
-${SRGB_ENCODE}
+${NOISE_2D}
 
   uniform vec3 uWater;
   uniform vec3 uWaterDeep;
@@ -184,36 +182,45 @@ ${SRGB_ENCODE}
   uniform float uTime;
   uniform vec2 uFieldHalf;
   uniform sampler2D uBlood;
+  uniform float uMeanderAmp;
+  uniform float uMeanderFreq;
+  uniform float uRiverHalf;
 
   varying vec3 vWorld;
   varying float vFogDepth;
 
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-  }
-
   void main() {
-    // Oleaje: dos capas de ruido desplazándose a distinta velocidad.
-    float ripple = noise(vWorld.xz * 0.35 + vec2(uTime * 0.35, uTime * 0.2))
-                 + noise(vWorld.xz * 0.9 - vec2(uTime * 0.2, uTime * 0.45)) * 0.5;
+    // La corriente baja siguiendo el cauce: el ruido se desplaza en +Z.
+    float flow = uTime * 0.9;
+    float ripple = noise2(vWorld.xz * 0.35 + vec2(uTime * 0.25, flow * 0.5))
+                 + noise2(vWorld.xz * 0.9 - vec2(uTime * 0.15, flow)) * 0.5;
     ripple /= 1.5;
 
     vec3 color = mix(uWaterDeep, uWater, ripple);
-    // Brillo especular sencillo sobre las crestas.
-    color += uSunColor * pow(ripple, 6.0) * 0.5;
+    // Destello solo en las crestas más marcadas. Con un exponente bajo brillaba
+    // media superficie y el río parecía rápidos de agua blanca.
+    color += uSunColor * pow(ripple, 16.0) * 1.1;
+
+    // Distancia normalizada al centro del cauce: 0 en el eje, 1 en la orilla.
+    float center = sin(vWorld.z * uMeanderFreq) * uMeanderAmp
+                 + sin(vWorld.z * uMeanderFreq * 2.7) * (uMeanderAmp * 0.3);
+    float bank = clamp(abs(vWorld.x - center) / max(uRiverHalf, 0.001), 0.0, 1.0);
+
+    // Espuma en la orilla: es lo que hace que el agua "toque" la tierra en vez
+    // de terminar en un borde recortado.
+    float foamNoise = noise2(vWorld.xz * 1.6 + vec2(0.0, flow * 1.6));
+    float foam = smoothstep(0.84, 1.0, bank) * (0.3 + foamNoise * 0.5);
+    color = mix(color, vec3(0.7, 0.78, 0.82), clamp(foam, 0.0, 0.65));
 
     // La sangre corriente abajo: el río se tiñe igual que en los streams reales.
     vec2 bloodUv = vWorld.xz / (uFieldHalf * 2.0) + 0.5;
     float blood = texture2D(uBlood, clamp(bloodUv, 0.0, 1.0)).r;
-    color = mix(color, vec3(0.45, 0.04, 0.04), clamp(blood * 1.15, 0.0, 0.9));
+    color = mix(color, vec3(0.38, 0.03, 0.03), clamp(blood * 1.15, 0.0, 0.9));
 
     float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
     color = mix(color, uFogColor, clamp(fogFactor, 0.0, 1.0));
 
-    gl_FragColor = vec4(linearToSRGB(color), 0.9);
+    gl_FragColor = vec4(color, 0.92);
   }
 `;
 
@@ -338,6 +345,9 @@ export class TerrainRenderer {
         uTime: { value: 0 },
         uFieldHalf: { value: this.halfExtent.clone() },
         uBlood: { value: this.bloodTexture },
+        uMeanderAmp: { value: terrain.meanderAmp },
+        uMeanderFreq: { value: terrain.meanderFreq },
+        uRiverHalf: { value: terrain.riverWidth * 0.62 },
       },
       transparent: true,
       depthWrite: false,

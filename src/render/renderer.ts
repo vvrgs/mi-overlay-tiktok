@@ -15,7 +15,10 @@ import { PROJECTILE_STRIDE, type Snapshot } from '../sim/protocol';
 import { CameraDirector } from './camera-director';
 import { Effects } from './effects';
 import { Nametags, type ChampionInfo } from './nametags';
-import { SRGB_ENCODE } from './shader-chunks';
+import { PostProcessing } from './post';
+import { Props } from './props';
+import { NOISE_2D } from './shader-chunks';
+import { buildArchetypes } from '../game/archetypes';
 import { PALETTES, TerrainRenderer, type TerrainPalette } from './terrain-mesh';
 import { UnitsRenderer } from './units-renderer';
 
@@ -28,23 +31,52 @@ const SKY_VERTEX = /* glsl */ `
 `;
 
 const SKY_FRAGMENT = /* glsl */ `
-  precision mediump float;
-${SRGB_ENCODE}
+  precision highp float;
+${NOISE_2D}
   uniform vec3 uSky;
   uniform vec3 uHorizon;
   uniform vec3 uSun;
   uniform vec3 uSunDir;
+  uniform float uTime;
+  uniform float uCloudAmount;
   varying vec3 vDirection;
 
   void main() {
     vec3 dir = normalize(vDirection);
     float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
     vec3 color = mix(uHorizon, uSky, pow(h, 0.75));
-    // Halo del sol.
-    float sun = pow(max(dot(dir, normalize(uSunDir)), 0.0), 220.0);
-    float glow = pow(max(dot(dir, normalize(uSunDir)), 0.0), 6.0) * 0.28;
-    color += uSun * (sun + glow);
-    gl_FragColor = vec4(linearToSRGB(color), 1.0);
+
+    float sunDot = max(dot(dir, normalize(uSunDir)), 0.0);
+
+    if (uCloudAmount > 0.0 && dir.y > 0.02) {
+      // Proyección de la dirección sobre un plano a altura fija: es la forma
+      // barata de tener nubes que se abren hacia el horizonte, como de verdad.
+      vec2 plane = dir.xz / dir.y;
+      vec2 uv = plane * 0.05 + vec2(uTime * 0.004, uTime * 0.0022);
+
+      // Dos capas a distinta velocidad dan sensación de profundidad.
+      float low = fbm2(uv, 5);
+      float high = fbm2(uv * 2.3 + vec2(uTime * 0.006, 0.0), 4);
+      float density = smoothstep(0.46, 0.78, low * 0.7 + high * 0.4);
+
+      // Se desvanecen al acercarse al horizonte para que no aparezca el corte.
+      density *= smoothstep(0.02, 0.32, dir.y) * uCloudAmount;
+
+      // Borde iluminado por el sol: sin esto las nubes parecen manchas planas.
+      float rim = smoothstep(0.4, 0.85, low) * pow(sunDot * 0.5 + 0.5, 3.0);
+      vec3 cloud = mix(vec3(0.62, 0.66, 0.72), vec3(1.0, 0.98, 0.94), rim);
+      cloud += uSun * rim * 0.5;
+
+      color = mix(color, cloud, clamp(density, 0.0, 0.95));
+    }
+
+    // Disco solar y halo. El disco emite muy por encima del blanco: es la
+    // fuente principal de bloom del cielo.
+    float disc = pow(sunDot, 900.0) * 14.0;
+    float glow = pow(sunDot, 6.0) * 0.28;
+    color += uSun * (disc + glow);
+
+    gl_FragColor = vec4(color, 1.0);
   }
 `;
 
@@ -60,6 +92,8 @@ export class GameRenderer {
   private effects: Effects;
   private sky: THREE.Mesh;
   private skyMaterial: THREE.ShaderMaterial;
+  private post: PostProcessing;
+  private props: Props;
   private terrain: Terrain;
   private palette: TerrainPalette;
   private elapsed = 0;
@@ -106,6 +140,8 @@ export class GameRenderer {
         uHorizon: { value: this.palette.horizon.clone() },
         uSun: { value: this.palette.sun.clone() },
         uSunDir: { value: this.palette.lightDir.clone().normalize() },
+        uTime: { value: 0 },
+        uCloudAmount: { value: config.graphics.clouds ?? 0.85 },
       },
       side: THREE.BackSide,
       depthWrite: false,
@@ -123,6 +159,18 @@ export class GameRenderer {
     });
     this.scene.add(this.terrainRenderer.root);
 
+    // --- Decorado: rocas y arboleda que dan escala al campo ---
+    this.props = new Props(this.terrain, {
+      density: config.graphics.quality === 'low' ? 0 : (config.graphics.propDensity ?? 1),
+      fogColor: this.palette.fog,
+      fogDensity: config.graphics.fogDensity,
+    });
+    this.props.setLighting(
+      this.palette.sky, this.palette.ground, this.palette.sun,
+      this.palette.lightDir, this.palette.fog, config.graphics.fogDensity,
+    );
+    this.scene.add(this.props.root);
+
     // --- Unidades ---
     const teamColors = {
       red: { color: new THREE.Color(config.teams.red.color), dark: new THREE.Color(config.teams.red.colorDark) },
@@ -131,9 +179,12 @@ export class GameRenderer {
     this.unitsRenderer = new UnitsRenderer({
       // Margen sobre el tope por equipo: élites y campeones viven fuera de la cuota.
       capacityPerGroup: config.battle.renderCapPerTeam + 512,
-      // Solo la calidad más baja recorta brazos y arma: sin ellos el soldado se
+      // Solo la calidad más baja recorta brazos y equipo: sin ellos el soldado se
       // lee como un bloque y se pierde la animación de golpe.
       detail: config.graphics.quality === 'low' ? 'simple' : 'full',
+      // Una silueta propia por arquetipo; el orden debe coincidir con el que
+      // recibe el worker, porque el snapshot agrupa por índice de arquetipo.
+      archetypes: buildArchetypes(config).map((a) => ({ key: a.key, mesh: a.mesh })),
       teamColors,
       shadows: config.graphics.shadows,
       fogColor: this.palette.fog,
@@ -150,6 +201,18 @@ export class GameRenderer {
       teamColors: { red: teamColors.red.color, blue: teamColors.blue.color },
     });
     this.scene.add(this.effects.root);
+
+    // --- Post-procesado ---
+    this.post = new PostProcessing({
+      enabled: config.graphics.postProcessing !== false && config.graphics.quality !== 'low',
+      bloomThreshold: config.graphics.bloomThreshold,
+      bloomIntensity: config.graphics.bloomIntensity,
+      vignette: config.graphics.vignette,
+      saturation: config.graphics.saturation,
+      contrast: config.graphics.contrast,
+      exposure: config.graphics.exposure,
+      sharpen: config.graphics.sharpen,
+    });
 
     this.director = new CameraDirector(this.camera, this.terrain, config);
     this.nametags = new Nametags(nametagContainer, config.chat.showNametags ? config.chat.maxNametags : 0);
@@ -205,7 +268,9 @@ export class GameRenderer {
     this.effects.update(dt);
     // El cielo viaja con la cámara para que nunca se alcance su borde.
     this.sky.position.copy(this.camera.position);
-    this.renderer.render(this.scene, this.camera);
+    this.skyMaterial.uniforms.uTime.value = this.elapsed;
+    this.post.update();
+    this.post.render(this.renderer, this.scene, this.camera);
     this.trackPerformance(dt);
   }
 
@@ -226,19 +291,27 @@ export class GameRenderer {
     const target = this.config.graphics.targetFps;
     if (this.fps < target * 0.72 && this.currentPixelRatio > 0.65) {
       this.currentPixelRatio = Math.max(0.65, this.currentPixelRatio - 0.2);
-      this.renderer.setPixelRatio(this.currentPixelRatio);
+      this.applyPixelRatio();
     } else if (this.fps > target * 0.97 && this.currentPixelRatio < this.basePixelRatio) {
       this.currentPixelRatio = Math.min(this.basePixelRatio, this.currentPixelRatio + 0.1);
-      this.renderer.setPixelRatio(this.currentPixelRatio);
+      this.applyPixelRatio();
     }
   }
 
   // ----------------------------------------------------------------- ajustes
 
+  /** Los render targets del post deben seguir al pixel ratio del renderer. */
+  private applyPixelRatio(): void {
+    this.renderer.setPixelRatio(this.currentPixelRatio);
+    const size = this.renderer.getSize(new THREE.Vector2());
+    this.post.setSize(size.x, size.y, this.currentPixelRatio);
+  }
+
   resize(): void {
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
     this.renderer.setSize(width, height, false);
+    this.post.setSize(width, height, this.currentPixelRatio);
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
@@ -266,6 +339,10 @@ export class GameRenderer {
     this.skyMaterial.uniforms.uHorizon.value.copy(this.palette.horizon);
     this.skyMaterial.uniforms.uSun.value.copy(this.palette.sun);
     this.skyMaterial.uniforms.uSunDir.value.copy(this.palette.lightDir).normalize();
+    this.props.setLighting(
+      this.palette.sky, this.palette.ground, this.palette.sun,
+      this.palette.lightDir, this.palette.fog, this.config.graphics.fogDensity,
+    );
     this.renderer.setClearColor(this.palette.fog, 1);
   }
 
@@ -274,9 +351,10 @@ export class GameRenderer {
     const ratioCap = { low: 0.85, medium: 1.1, high: 1.5, ultra: 2 }[quality];
     this.basePixelRatio = Math.min(window.devicePixelRatio || 1, ratioCap, this.config.graphics.pixelRatioCap);
     this.currentPixelRatio = this.basePixelRatio;
-    this.renderer.setPixelRatio(this.currentPixelRatio);
+    this.applyPixelRatio();
     this.unitsRenderer.setShadowsEnabled(quality !== 'low' && this.config.graphics.shadows);
     this.effects.setGore(quality !== 'low' && this.config.graphics.gore);
+    this.post.setOptions({ enabled: this.config.graphics.postProcessing !== false && quality !== 'low' });
   }
 
   updateConfig(config: GameConfig): void {
@@ -300,7 +378,14 @@ export class GameRenderer {
     return { x: clamp(focus.x + sign * 18, -this.terrain.halfWidth * 0.8, this.terrain.halfWidth * 0.8), z: focus.z };
   }
 
+  /** Destello de pantalla: lo llama el juego al lanzar una ultimate. */
+  flash(amount: number, color?: string): void {
+    this.post.addFlash(amount, color ? new THREE.Color(color) : undefined);
+  }
+
   dispose(): void {
+    this.post.dispose();
+    this.props.dispose();
     this.unitsRenderer.dispose();
     this.terrainRenderer.dispose();
     this.effects.dispose();
