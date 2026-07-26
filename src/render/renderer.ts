@@ -44,10 +44,15 @@ ${NOISE_2D}
 
   void main() {
     vec3 dir = normalize(vDirection);
-    float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 color = mix(uHorizon, uSky, pow(h, 0.75));
-
     float sunDot = max(dot(dir, normalize(uSunDir)), 0.0);
+
+    // Tres paradas: bruma en el horizonte, azul medio, cénit más profundo y
+    // frío. Con dos paradas el cielo era una lámina plana.
+    float h = clamp(dir.y, 0.0, 1.0);
+    vec3 color = mix(uHorizon, uSky, pow(h, 0.55));
+    color = mix(color, uSky * vec3(0.62, 0.72, 0.95), pow(h, 2.2) * 0.55);
+    // Calor direccional hacia el sol, pegado al horizonte.
+    color += uSun * pow(sunDot, 3.0) * 0.10 * (1.0 - h);
 
     if (uCloudAmount > 0.0 && dir.y > 0.02) {
       // Proyección de la dirección sobre un plano a altura fija: es la forma
@@ -63,9 +68,12 @@ ${NOISE_2D}
       // Se desvanecen al acercarse al horizonte para que no aparezca el corte.
       density *= smoothstep(0.02, 0.32, dir.y) * uCloudAmount;
 
+      // Bases sombreadas según densidad: una nube gorda es oscura por abajo.
+      float baseShade = smoothstep(0.55, 0.9, low);
+      vec3 cloud = mix(vec3(0.68, 0.71, 0.77), vec3(0.52, 0.55, 0.62), baseShade);
       // Borde iluminado por el sol: sin esto las nubes parecen manchas planas.
       float rim = smoothstep(0.4, 0.85, low) * pow(sunDot * 0.5 + 0.5, 3.0);
-      vec3 cloud = mix(vec3(0.62, 0.66, 0.72), vec3(1.0, 0.98, 0.94), rim);
+      cloud = mix(cloud, vec3(1.0, 0.98, 0.94), rim);
       cloud += uSun * rim * 0.5;
 
       color = mix(color, cloud, clamp(density, 0.0, 0.95));
@@ -76,6 +84,10 @@ ${NOISE_2D}
     float disc = pow(sunDot, 900.0) * 14.0;
     float glow = pow(sunDot, 6.0) * 0.28;
     color += uSun * (disc + glow);
+
+    // Dither de un LSB: mata el banding del degradado, que la compresión de
+    // TikTok convierte en franjas muy visibles.
+    color += (noise2(gl_FragCoord.xy * 0.7) - 0.5) * (2.0 / 255.0);
 
     gl_FragColor = vec4(color, 1.0);
   }

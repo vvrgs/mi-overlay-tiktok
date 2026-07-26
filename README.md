@@ -29,6 +29,7 @@ npm start
 | 🌦️ **Estaciones y clima** | Primavera, verano, otoño e invierno cambian la paleta del campo, el follaje y el agua; encima llueve, nieva, cae niebla o revienta una tormenta con relámpagos y viento. Rota solo cada ronda, o lo fijas desde el panel. |
 | 🩸 **Batalla que se ve** | El campo y el río se van tiñendo de rojo con las bajas reales. Cadáveres, sangre, flechas, explosiones con onda de choque, chispas, humo y meteoros con estela. |
 | ✨ **Presentación HDR** | Render en espacio lineal con bloom real, tonemapping ACES, viñeta y grading. El fuego rebosa luz; el resto no. |
+| 🖋️ **HUD de esports** | Tipografía propia autoalojada (Bebas Neue para números y titulares, Archivo para el resto), barra de fuerzas rojo-contra-azul en vez de texto flotante, cinta de victoria inclinada con la bandera, cuenta atrás con anillo de choque y todo animado con muelles por transform/opacity. |
 | 🎥 **Cámara automática, pero tuya** | Se dirige sola —encuadra donde más gente muere, corta con planos variados, se sacude con las ultimates— y aun así distancia, altura, campo de visión, ritmo de corte, órbita y sacudida se mueven en vivo con deslizadores, más cuatro encuadres listos: épica, al ras, táctica y por defecto. |
 | 🎛️ **Panel de control** | Pantalla aparte, en seis pestañas, pensada para usarse con el pulgar desde el móvil mientras hablas. Partida, cámara, aspecto, mundo, pruebas y rankings, y todo se aplica al instante sin recargar. |
 | 🧪 **Simulador** | Genera chats, regalos, likes y follows falsos para desarrollar, grabar clips y probar el balance sin estar en vivo. |
@@ -161,6 +162,18 @@ curso y no altera la secuencia de planos.
 **Escenario.** Cielo con nubes procedurales en dos capas y disco solar, río que
 serpentea con espuma en la orilla y corriente, bosque y rocas en las laderas para dar
 escala, y suelo mezclado en tres escalas de ruido con barro en la ribera.
+
+**El HUD también es parte del juego.** Los números y titulares van en Bebas Neue y
+el texto de interfaz en Archivo, ambas autoalojadas en `public/fonts/` (el overlay
+arranca sin internet). El dato estrella —cuántos soldados quedan— es una **barra de
+fuerzas** rojo contra azul con el punto de choque brillante, no dos renglones de
+texto tapando la batalla. Los momentos tienen ceremonia: la cuenta atrás cae con
+rebote y lanza un anillo dorado por segundo, la ultimate presenta su placa con icono
+flotante, la victoria entra en una cinta inclinada con la bandera y el subtítulo
+retardado, y la muerte súbita salta como alarma. Dos reglas de oro en todo ello:
+solo se anima transform y opacity (nada que fuerce layout sobre el WebGL), y las
+entradas de los anuncios críticos animan únicamente transform — si el equipo va a
+tirones, el banner se ve igual en vez de quedarse atascado en un fundido invisible.
 
 **Estaciones y clima.** Son dos sistemas que se multiplican entre sí. La **estación**
 define el aspecto del terreno: el ocre de otoño no se consigue multiplicando el verde

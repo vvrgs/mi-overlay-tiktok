@@ -59,15 +59,25 @@
           </div>
         </div>
 
-        <!-- Contadores de soldados: el dato estrella del stream -->
-        <div class="counters" data-hud="counters">
-          <div class="counter counter--red">
-            <span class="counter__label" data-hud="redCounterLabel">TEAM 1</span>
-            <span class="counter__value" data-hud="redSoldiers">0</span>
+        <!--
+          Barra de fuerzas: el dato estrella del stream. Sustituye a los dos
+          renglones de texto flotando en mitad de la pantalla: una sola barra
+          roja-contra-azul con los totales a los lados se lee en un vistazo y no
+          tapa la batalla.
+        -->
+        <div class="battlebar" data-hud="counters">
+          <div class="battlebar__row">
+            <span class="battlebar__value battlebar__value--red" data-hud="redSoldiers">0</span>
+            <span class="battlebar__title">SOLDADOS</span>
+            <span class="battlebar__value battlebar__value--blue" data-hud="blueSoldiers">0</span>
           </div>
-          <div class="counter counter--blue">
-            <span class="counter__label" data-hud="blueCounterLabel">TEAM 2</span>
-            <span class="counter__value" data-hud="blueSoldiers">0</span>
+          <div class="battlebar__track">
+            <div class="battlebar__fill" data-hud="redShare"></div>
+            <div class="battlebar__spark" data-hud="shareSpark"></div>
+          </div>
+          <div class="battlebar__teams">
+            <span class="battlebar__team battlebar__team--red" data-hud="redCounterLabel">TEAM 1</span>
+            <span class="battlebar__team battlebar__team--blue" data-hud="blueCounterLabel">TEAM 2</span>
           </div>
         </div>
 

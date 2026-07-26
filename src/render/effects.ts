@@ -267,12 +267,13 @@ ${SRGB_TO_LINEAR}
     if (vGlow <= 0.0) discard;
     float d = length(vLocal) * 2.0;
     if (d > 1.0) discard;
-    // La cabeza va blanca incandescente; la estela se apaga hacia el rojo.
+    // La cabeza va blanca incandescente SOLO en el centro: con el blanco a
+    // pantalla completa del billboard, el ACES lo aplastaba a moneda blanca.
     float heat = 1.0 - clamp(vTrail * 5.0, 0.0, 0.82);
-    vec3 color = mix(srgbToLinear(vec3(1.0, 0.97, 0.85)) * 14.0,
-                     srgbToLinear(vec3(1.0, 0.42, 0.06)) * 5.0,
-                     smoothstep(0.0, 0.7, d));
-    gl_FragColor = vec4(color * heat, 0.95 * smoothstep(1.0, 0.12, d) * heat);
+    vec3 color = mix(srgbToLinear(vec3(1.0, 0.97, 0.85)) * 9.0,
+                     srgbToLinear(vec3(1.0, 0.42, 0.06)) * 3.5,
+                     smoothstep(0.08, 0.5, d));
+    gl_FragColor = vec4(color * heat, pow(clamp(1.0 - d, 0.0, 1.0), 2.0) * heat);
   }
 `;
 
@@ -308,15 +309,16 @@ ${SRGB_TO_LINEAR}
     // Bola radial con núcleo caliente; sin esta máscara se ven cuadrados enormes.
     float d = length(vLocal) * 2.0;
     if (d > 1.0) discard;
-    float core = smoothstep(1.0, 0.0, d);
-    float alpha = (1.0 - vLife) * 0.85 * core * core;
-    // El núcleo arranca muy por encima del blanco y se apaga: así el destello
-    // inicial rebosa en el bloom y el rescoldo final ya no.
-    float emissive = mix(6.0, 0.7, vLife);
+    float falloff = clamp(1.0 - d, 0.0, 1.0);
+    float core = pow(falloff, 1.8);
+    float alpha = (1.0 - vLife) * 0.85 * core;
+    // El emisivo lleva SU PROPIO perfil radial: solo el núcleo (d < ~0.35)
+    // supera el umbral del bloom; la falda queda naranja nítida y legible en
+    // vez de fundirse en un pegote blanco.
+    float emissive = mix(4.5, 0.6, vLife) * (0.25 + 0.75 * pow(falloff, 3.0));
     vec3 hot = mix(srgbToLinear(vec3(1.0, 0.96, 0.78)), srgbToLinear(vec3(1.0, 0.36, 0.06)), vLife);
     vec3 warm = mix(srgbToLinear(vec3(1.0, 0.82, 0.45)), srgbToLinear(vec3(0.62, 0.16, 0.05)), vLife);
     vec3 color = (vKind > 1.5 ? hot : warm) * emissive;
-    color = mix(color * 0.45, color, core);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -329,10 +331,15 @@ const SHOCKWAVE_VERTEX = /* glsl */ `
   uniform float uTime;
   varying float vLife;
 
+  varying float vRad;
+
   void main() {
     float age = uTime - aBurst.w;
     float life = clamp(age / max(aMeta.y, 0.05), 0.0, 1.0);
     vLife = life;
+    // Radio ANTES de escalar: el anillo base va de 0.88 a 1.0, y el fragmento
+    // lo usa para suavizar los bordes de la banda.
+    vRad = length(position.xz);
     // Se expande deprisa al principio y frena: eso es lo que la lee como onda
     // y no como un círculo que crece a velocidad constante.
     float radius = aMeta.x * (0.2 + 1.5 * sqrt(life));
@@ -345,9 +352,16 @@ const SHOCKWAVE_FRAGMENT = /* glsl */ `
   precision mediump float;
 ${SRGB_TO_LINEAR}
   varying float vLife;
+  varying float vRad;
   void main() {
     if (vLife >= 1.0) discard;
-    gl_FragColor = vec4(srgbToLinear(vec3(1.0, 0.88, 0.66)) * 1.5, (1.0 - vLife) * 0.36);
+    // Perfil suave dentro de la banda: sin él, el anillo tiene bordes duros y
+    // con varios meteoros a la vez el campo quedaba empapelado de calcomanías
+    // amarillas. El frente (borde exterior) es lo más brillante, como en una
+    // onda expansiva real, y la cola se desvanece.
+    float band = smoothstep(0.88, 0.985, vRad) * smoothstep(1.0, 0.993, vRad);
+    float fade = pow(1.0 - vLife, 1.6);
+    gl_FragColor = vec4(srgbToLinear(vec3(1.0, 0.88, 0.66)) * 1.3, band * fade * 0.22);
   }
 `;
 

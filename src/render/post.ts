@@ -110,7 +110,9 @@ const COMPOSITE_FRAGMENT = /* glsl */ `
       color += (color - blur * 0.25) * uSharpen;
     }
 
-    vec3 bloom = texture2D(uBloomNear, vUv).rgb + texture2D(uBloomWide, vUv).rgb * 0.7;
+    // El nivel ancho al 0.45: al 0.7 recomponía un halo gordo alrededor de
+    // cada fuego y el conjunto se leía como pegotes blancos.
+    vec3 bloom = texture2D(uBloomNear, vUv).rgb + texture2D(uBloomWide, vUv).rgb * 0.45;
     color += bloom * uBloomIntensity;
 
     color *= uExposure;
@@ -205,7 +207,7 @@ export class PostProcessing {
       uniforms: {
         uScene: { value: null },
         uThreshold: { value: this.options.bloomThreshold },
-        uKnee: { value: 0.45 },
+        uKnee: { value: 0.3 },
       },
       depthTest: false,
       depthWrite: false,

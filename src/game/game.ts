@@ -435,7 +435,8 @@ export class Game {
     this.hud.clearFeed();
     this.hud.setRound(this.round);
     this.hud.setCountries(this.countries.red, this.countries.blue);
-    this.hud.snapSoldiers(this.config.battle.startingTroops, this.config.battle.startingTroops);
+    // Los contadores suben desde 0 durante la cuenta atrás: el ejército se forma.
+    this.hud.rollSoldiers(this.config.battle.startingTroops, this.config.battle.startingTroops);
     this.hud.setCta(this.config.identity.callToAction);
   }
 
@@ -555,6 +556,7 @@ export class Game {
         if (!this.suddenDeath && this.roundElapsed >= this.config.series.suddenDeathAtSeconds) {
           this.suddenDeath = true;
           this.send({ t: 'setSuddenDeath', multiplier: this.config.series.suddenDeathDamageMultiplier });
+          this.hud.showSuddenDeath();
           this.hud.pushFeed({ text: '⚡ MUERTE SÚBITA: el daño se dispara', big: true });
         }
 

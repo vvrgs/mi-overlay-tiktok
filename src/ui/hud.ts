@@ -32,6 +32,10 @@ export class Hud {
   private el: HudMap = {};
   private displayed = { red: 0, blue: 0 };
   private targets = { red: 0, blue: 0 };
+  private lastShare = -1;
+  /** Durante la cuenta atrás los contadores suben desde 0: ver formarse al ejército. */
+  private rolling = false;
+  private lastWins = { red: -1, blue: -1 };
   private stageTimer: ReturnType<typeof setTimeout> | null = null;
   private feedItems: HTMLElement[] = [];
 
@@ -95,10 +99,23 @@ export class Hud {
   }
 
   setWins(red: number, blue: number, target: number): void {
+    // El número que anota celebra con un pop; el reflow forzado reinicia la
+    // animación si anotara dos veces seguidas.
+    for (const [team, value] of [['red', red], ['blue', blue]] as Array<[TeamId, number]>) {
+      const node = this.el[team === 'red' ? 'redScore' : 'blueScore'];
+      if (node && this.lastWins[team] >= 0 && value > this.lastWins[team]) {
+        node.classList.remove('is-scored');
+        void node.offsetWidth;
+        node.classList.add('is-scored');
+      }
+      this.lastWins[team] = value;
+    }
     this.text('redScore', String(red));
     this.text('blueScore', String(blue));
-    this.text('redWins', `WIN ${red} / ${target}`);
-    this.text('blueWins', `WIN ${blue} / ${target}`);
+    // Sin espacios alrededor de la barra: "WIN 1 / 10" se partía en dos líneas
+    // cuando el nombre del país era corto y la caja estrechaba.
+    this.text('redWins', `VICTORIAS ${red}/${target}`);
+    this.text('blueWins', `VICTORIAS ${blue}/${target}`);
   }
 
   setRound(round: number): void {
@@ -121,7 +138,7 @@ export class Hud {
   }
 
   private pulse(team: TeamId): void {
-    const node = this.el[team === 'red' ? 'redSoldiers' : 'blueSoldiers']?.parentElement;
+    const node = this.el[team === 'red' ? 'redSoldiers' : 'blueSoldiers'];
     if (!node) return;
     node.classList.remove('is-hit');
     // Forzar reflow reinicia la animación aunque se dispare dos veces seguidas.
@@ -136,7 +153,9 @@ export class Hud {
     ] as Array<[TeamId, number]>) {
       const ratio = Math.max(0, Math.min(1, value / (max || 1)));
       const fill = this.el[team === 'red' ? 'redRage' : 'blueRage'];
-      if (fill) fill.style.width = `${(ratio * 100).toFixed(1)}%`;
+      // scaleX en vez de width: la barra cambia con cada like y animar width
+      // fuerza layout encima del WebGL; el transform va por el compositor.
+      if (fill) fill.style.transform = `scaleX(${ratio.toFixed(3)})`;
       const wrap = this.el[team === 'red' ? 'redRageWrap' : 'blueRageWrap'];
       wrap?.classList.toggle('is-full', ratio >= 0.999);
     }
@@ -147,20 +166,48 @@ export class Hud {
     for (const team of ['red', 'blue'] as TeamId[]) {
       const target = this.targets[team];
       const current = this.displayed[team];
-      const next = Math.abs(target - current) < 1 ? target : damp(current, target, 9, dt);
+      const gap = Math.abs(target - current);
+      // Lambda adaptativa: el roll-up de arranque es pausado (que se vea crecer
+      // al ejército), un regalo gordo alcanza rápido (el "subidón" debe verse
+      // como tal) y el goteo del combate baja suave.
+      const lambda = this.rolling ? 2.6 : gap > Math.max(2000, target * 0.15) ? 16 : 9;
+      const next = gap < 1 ? target : damp(current, target, lambda, dt);
       if (Math.round(next) !== Math.round(current)) {
         this.text(team === 'red' ? 'redSoldiers' : 'blueSoldiers', formatCount(next, this.config.hud.counterFormat));
       }
       this.displayed[team] = next;
     }
+    if (this.rolling && this.displayed.red >= this.targets.red - 1 && this.displayed.blue >= this.targets.blue - 1) {
+      this.rolling = false;
+    }
+
+    // Reparto de la barra de fuerzas. Solo se toca el DOM cuando el porcentaje
+    // se mueve de verdad: escribir estilos a 60 Hz sin necesidad es tirar CPU.
+    const total = this.displayed.red + this.displayed.blue;
+    const share = total > 0 ? (this.displayed.red / total) * 100 : 50;
+    if (Math.abs(share - this.lastShare) > 0.15) {
+      this.lastShare = share;
+      const fill = this.el.redShare;
+      if (fill) fill.style.width = `${share.toFixed(1)}%`;
+      const spark = this.el.shareSpark;
+      if (spark) spark.style.left = `${share.toFixed(1)}%`;
+    }
   }
 
   /** Coloca los contadores en su valor sin animación (inicio de ronda). */
   snapSoldiers(red: number, blue: number): void {
+    this.rolling = false;
     this.targets = { red, blue };
     this.displayed = { red, blue };
     this.text('redSoldiers', formatCount(red, this.config.hud.counterFormat));
     this.text('blueSoldiers', formatCount(blue, this.config.hud.counterFormat));
+  }
+
+  /** Cuenta de 0 al valor inicial durante la cuenta atrás: el ejército se forma. */
+  rollSoldiers(red: number, blue: number): void {
+    this.targets = { red, blue };
+    this.displayed = { red: 0, blue: 0 };
+    this.rolling = true;
   }
 
   // ------------------------------------------------------------------ feed
@@ -194,7 +241,12 @@ export class Hud {
     feed.appendChild(item);
     this.feedItems.push(item);
     while (this.feedItems.length > MAX_FEED_ITEMS) {
-      this.feedItems.shift()?.remove();
+      // El más viejo se despide con un fundido en vez de evaporarse.
+      const oldest = this.feedItems.shift();
+      if (oldest) {
+        oldest.classList.add('feed__item--out');
+        setTimeout(() => oldest.remove(), 220);
+      }
     }
   }
 
@@ -232,74 +284,91 @@ export class Hud {
     const stage = this.el.stage;
     if (!stage) return;
     if (this.stageTimer) clearTimeout(this.stageTimer);
-    stage.textContent = '';
+    // Lo que hubiera se despide con una animación corta en vez de esfumarse.
+    // Se saca del flujo (absolute) para que no empuje al contenido nuevo.
+    for (const child of [...stage.children] as HTMLElement[]) {
+      if (child.classList.contains('stage-leave')) {
+        child.remove();
+        continue;
+      }
+      child.classList.add('stage-leave');
+      setTimeout(() => child.remove(), 240);
+    }
     if (!html) return;
     stage.appendChild(html);
     if (holdMs > 0) {
       this.stageTimer = setTimeout(() => {
-        stage.textContent = '';
+        this.stage(null, 0);
         this.stageTimer = null;
       }, holdMs);
     }
   }
 
-  showCountdown(value: number): void {
+  /** Crea un div con clase y texto: el HUD monta muchos nodos pequeños. */
+  private div(className: string, textContent = ''): HTMLDivElement {
     const node = document.createElement('div');
-    node.className = 'stage__countdown';
-    node.textContent = value > 0 ? String(value) : '¡YA!';
-    this.stage(node, 1000);
+    node.className = className;
+    if (textContent) node.textContent = textContent;
+    return node;
+  }
+
+  showCountdown(value: number): void {
+    // El nodo se recrea en cada dígito a propósito: así todas las animaciones
+    // CSS (pop del número, anillo que se expande) se reinician solas.
+    const wrap = this.div(value > 0 ? 'countdown' : 'countdown countdown--go');
+    wrap.appendChild(this.div('countdown__ring'));
+    wrap.appendChild(this.div('countdown__num', value > 0 ? String(value) : '¡A LA CARGA!'));
+    wrap.appendChild(this.div('countdown__label', value > 0 ? 'LA BATALLA EMPIEZA' : ''));
+    this.stage(wrap, 1000);
+  }
+
+  /** Cinta de resultado: bandera + titular sobre una banda inclinada de color. */
+  private resultBanner(kind: TeamId | 'gold', flag: string, title: string, subtitle: string): HTMLElement {
+    const wrap = this.div('result');
+    const ribbon = this.div(`result__ribbon result__ribbon--${kind}`);
+    if (flag) ribbon.appendChild(this.div('result__flag', flag));
+    ribbon.appendChild(this.div('result__title', title));
+    wrap.appendChild(ribbon);
+    if (subtitle) wrap.appendChild(this.div('result__sub', subtitle));
+    return wrap;
   }
 
   showRoundResult(winner: TeamId | 'draw', subtitle: string): void {
-    const wrap = document.createElement('div');
-    wrap.className = 'stage';
-    const banner = document.createElement('div');
     if (winner === 'draw') {
-      banner.className = 'stage__banner stage__banner--gold';
-      banner.textContent = 'EMPATE';
-    } else {
-      banner.className = `stage__banner stage__banner--${winner}`;
-      const team = this.config.teams[winner];
-      const country = this.config.countries[team.country];
-      banner.textContent = `¡GANA ${country ? country.name.toUpperCase() : team.shortName}! ${country?.flag ?? ''}`;
+      this.stage(this.resultBanner('gold', '⚔️', 'EMPATE', subtitle), 5200);
+      return;
     }
-    const sub = document.createElement('div');
-    sub.className = 'stage__sub';
-    sub.textContent = subtitle;
-    wrap.append(banner, sub);
-    this.stage(wrap, 0);
+    const team = this.config.teams[winner];
+    const country = this.config.countries[team.country];
+    const name = country ? country.name.toUpperCase() : team.shortName;
+    this.stage(this.resultBanner(winner, country?.flag ?? '', `¡GANA ${name}!`, subtitle), 5200);
   }
 
   showSeriesResult(winner: TeamId, wins: number, target: number): void {
-    const wrap = document.createElement('div');
-    wrap.className = 'stage';
-    const banner = document.createElement('div');
-    banner.className = 'stage__banner stage__banner--gold';
     const team = this.config.teams[winner];
     const country = this.config.countries[team.country];
-    banner.textContent = `🏆 ${country ? country.name.toUpperCase() : team.shortName} CAMPEÓN`;
-    const sub = document.createElement('div');
-    sub.className = 'stage__sub';
-    sub.textContent = `Serie ganada ${wins} / ${target}`;
-    wrap.append(banner, sub);
-    this.stage(wrap, 0);
+    const name = country ? country.name.toUpperCase() : team.shortName;
+    const banner = this.resultBanner('gold', '🏆', `${name} CAMPEÓN`, `Serie ganada ${wins} / ${target}`);
+    banner.classList.add('result--series');
+    this.stage(banner, 0);
   }
 
   showUltimate(team: TeamId, def: UltimateDef): void {
-    const wrap = document.createElement('div');
-    wrap.className = 'stage__ultimate';
-    const icon = document.createElement('div');
-    icon.className = 'stage__ultimate-icon';
-    icon.textContent = def.icon;
-    const name = document.createElement('div');
-    name.className = 'stage__ultimate-name';
-    name.textContent = def.label;
-    name.style.color = this.config.teams[team].color;
-    const desc = document.createElement('div');
-    desc.className = 'stage__ultimate-desc';
-    desc.textContent = def.description;
-    wrap.append(icon, name, desc);
+    const wrap = this.div(`ultimate ultimate--${team}`);
+    wrap.appendChild(this.div('ultimate__icon', def.icon));
+    const plate = this.div('ultimate__plate');
+    plate.appendChild(this.div('ultimate__name', def.label));
+    plate.appendChild(this.div('ultimate__desc', def.description));
+    wrap.appendChild(plate);
     this.stage(wrap, 2600);
+  }
+
+  /** Aviso de muerte súbita: banner de alarma breve en el centro. */
+  showSuddenDeath(): void {
+    const wrap = this.div('sudden');
+    wrap.appendChild(this.div('sudden__title', '⚡ MUERTE SÚBITA'));
+    wrap.appendChild(this.div('sudden__sub', 'El daño se dispara'));
+    this.stage(wrap, 2300);
   }
 
   clearStage(): void {
@@ -311,8 +380,23 @@ export class Hud {
   setCta(text: string, visible = true): void {
     const node = this.el.cta;
     if (!node) return;
-    const span = node.querySelector('.cta__text');
-    if (span && span.textContent !== text) span.textContent = text;
+    const span = node.querySelector('.cta__text') as HTMLElement | null;
+    if (span && span.dataset.raw !== text) {
+      span.dataset.raw = text;
+      // Las palabras de equipo se pintan de su color: es la instrucción número
+      // uno del juego y así se lee sin leer.
+      span.textContent = '';
+      for (const part of text.split(/(ROJO|AZUL)/i)) {
+        if (/^rojo$/i.test(part) || /^azul$/i.test(part)) {
+          const word = document.createElement('b');
+          word.className = /^rojo$/i.test(part) ? 'cta__team cta__team--red' : 'cta__team cta__team--blue';
+          word.textContent = part;
+          span.appendChild(word);
+        } else if (part) {
+          span.appendChild(document.createTextNode(part));
+        }
+      }
+    }
     node.hidden = !visible || !this.config.hud.showCallToAction;
   }
 

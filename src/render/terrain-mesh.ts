@@ -37,8 +37,8 @@ export const PALETTES: Record<'day' | 'sunset' | 'night', TerrainPalette> = {
     dirt: new THREE.Color('#6b5637'),
     rock: new THREE.Color('#736f68'),
     sand: new THREE.Color('#a89466'),
-    water: new THREE.Color('#2f6f9e'),
-    waterDeep: new THREE.Color('#123a5c'),
+    water: new THREE.Color('#3a6a82'),
+    waterDeep: new THREE.Color('#122c3e'),
     fog: new THREE.Color('#b9d3e8'),
     sky: new THREE.Color('#7fb4e8'),
     horizon: new THREE.Color('#d6e9f7'),
@@ -234,13 +234,17 @@ ${NOISE_2D}
     // La corriente baja siguiendo el cauce: el ruido se desplaza en +Z.
     float flow = uTime * 0.9;
     float ripple = noise2(vWorld.xz * 0.35 + vec2(uTime * 0.25, flow * 0.5))
-                 + noise2(vWorld.xz * 0.9 - vec2(uTime * 0.15, flow)) * 0.5;
-    ripple /= 1.5;
+                 + noise2(vWorld.xz * 0.9 - vec2(uTime * 0.15, flow)) * 0.5
+                 + noise2(vWorld.xz * 2.6 + vec2(flow * 0.8, -uTime * 0.2)) * 0.25;
+    ripple /= 1.75;
 
-    vec3 color = mix(uWaterDeep, uWater, ripple);
-    // Destello solo en las crestas más marcadas. Con un exponente bajo brillaba
-    // media superficie y el río parecía rápidos de agua blanca.
-    color += uSunColor * pow(ripple, 16.0) * 1.1;
+    // Contraste comprimido: con el vaivén claro/oscuro a rango completo el río
+    // parecía una plancha de plástico con nubarrones blancos.
+    vec3 color = mix(uWaterDeep, uWater, 0.30 + ripple * 0.45);
+    // Micro-destellos en crestas finas en lugar de manchas blancas anchas.
+    float glint = noise2(vWorld.xz * 3.2 + vec2(uTime * 0.5, flow * 2.2));
+    float sparkle = pow(clamp(ripple * 0.55 + glint * 0.55, 0.0, 1.0), 22.0);
+    color += uSunColor * sparkle * 1.4;
 
     // Distancia normalizada al centro del cauce: 0 en el eje, 1 en la orilla.
     float center = sin(vWorld.z * uMeanderFreq) * uMeanderAmp
@@ -253,10 +257,22 @@ ${NOISE_2D}
     float foam = smoothstep(0.84, 1.0, bank) * (0.3 + foamNoise * 0.5);
     color = mix(color, vec3(0.7, 0.78, 0.82), clamp(foam, 0.0, 0.65));
 
-    // La sangre corriente abajo: el río se tiñe igual que en los streams reales.
+    // La sangre corriente abajo. La sangre DILUIDA en agua no es roja de camión
+    // de bomberos: es un carmesí turbio que oscurece. Con el objetivo claro y el
+    // factor saturado a 0.9 salían manchas chillonas de borde duro sobre el río.
     vec2 bloodUv = vWorld.xz / (uFieldHalf * 2.0) + 0.5;
     float blood = texture2D(uBlood, clamp(bloodUv, 0.0, 1.0)).r;
-    color = mix(color, vec3(0.38, 0.03, 0.03), clamp(blood * 1.15, 0.0, 0.9));
+    float tinge = smoothstep(0.06, 0.75, blood);
+    color = mix(color, vec3(0.15, 0.018, 0.024), tinge * 0.55);
+    // Y quita el destello especular donde hay sangre: la película mate encima
+    // del agua es lo que vende que ahí flota algo.
+    color -= uSunColor * sparkle * tinge;
+
+    // Fresnel barato: a cámara rasante el agua recoge el color de la atmósfera
+    // en vez de verse igual de azul desde cualquier ángulo.
+    vec3 viewDir = normalize(cameraPosition - vWorld);
+    float fresnel = pow(1.0 - clamp(viewDir.y, 0.0, 1.0), 2.5);
+    color = mix(color, uFogColor * 0.85, fresnel * 0.45);
 
     color *= uSeasonWater;
 
