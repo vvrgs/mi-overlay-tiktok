@@ -256,7 +256,7 @@ def gen_fireball():
     fld = NoiseField(7)
     F = 16
     amaxs = [1.00, 1.00, 1.00, 0.98, 0.94, 0.90, 0.84, 0.78,
-             0.72, 0.66, 0.60, 0.54, 0.48, 0.43, 0.38, 0.34]
+             0.72, 0.66, 0.62, 0.56, 0.50, 0.46, 0.42, 0.38]
     for t in range(F):
         p = t / (F - 1.0)
         pe = 1.0 - (1.0 - p) ** 2                      # ease-out (expansion)
@@ -284,15 +284,16 @@ def gen_fireball():
             dens = dens * (0.12 + 0.88 * shred)
         # nucleo caliente que se apaga
         core = np.exp(-(R / (0.16 + 0.08 * p)) ** 2) * max(0.0, 1.30 - 2.0 * p)
-        # intensidad -> temperatura (la bola entera se enfria con p)
-        I = dens * (1.05 - 0.45 * p) + core
-        Tamp = 1.25 - 0.85 * p
+        # intensidad -> temperatura (la bola entera se enfria con p, pero los
+        # jirones finales conservan rescoldo naranja legible)
+        I = dens * (1.05 - 0.40 * p) + core
+        Tamp = 1.25 - 0.62 * p
         temp = np.clip(I * Tamp, 0, 1)
         temp = np.clip(temp + 0.35 * np.exp(-(rr / 0.45) ** 2)
                        * (1.0 - p) * dens, 0, 1)
         col = ramp(temp ** 0.88, BLACKBODY)
-        # rim darkening: hollin envolviendo el borde antes de desaparecer
-        soot = smoothstep(0.62, 1.02, rr) * (0.25 + 0.60 * p)
+        # rim darkening: hollin envolviendo SOLO el borde exterior
+        soot = smoothstep(0.75, 1.05, rr) * (0.22 + 0.58 * p)
         col = col * (1.0 - soot)[..., None]
         a = np.clip(dens * (1.0 - 0.15 * p) + core * 0.9, 0, 1) ** 0.85
         # chispas internas: pixeles saturados sueltos dentro del cuerpo (2-6)
