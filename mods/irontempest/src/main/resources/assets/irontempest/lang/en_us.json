@@ -15,6 +15,10 @@
   "subtitles.irontempest.klaxon": "Silo alarm",
   "subtitles.irontempest.ultra_siren": "Total war siren",
   "subtitles.irontempest.debris_clank": "Metal debris",
+  "subtitles.irontempest.turret_servo": "Turret servo",
+  "subtitles.irontempest.tank_tracks": "Tracks advancing",
+  "subtitles.irontempest.shell_casing": "Casing ejected",
+  "subtitles.irontempest.crater_sizzle": "Crater sizzling",
 
   "death.attack.irontempest.tank_shell": "%1$s was blown apart by a tank shell",
   "death.attack.irontempest.tank_shell.player": "%1$s was blown apart by a tank shell whilst fighting %2$s",

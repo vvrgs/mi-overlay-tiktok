@@ -1,7 +1,11 @@
 {
   "explosion_near": {
     "subtitle": "subtitles.irontempest.explosion_near",
-    "sounds": [{"name": "irontempest:explosion_near", "attenuation_distance": 48}]
+    "sounds": [
+      {"name": "irontempest:explosion_near", "attenuation_distance": 48},
+      {"name": "irontempest:explosion_near_1", "attenuation_distance": 48},
+      {"name": "irontempest:explosion_near_2", "attenuation_distance": 48}
+    ]
   },
   "explosion_far": {
     "subtitle": "subtitles.irontempest.explosion_far",
@@ -9,7 +13,10 @@
   },
   "shell_whistle": {
     "subtitle": "subtitles.irontempest.shell_whistle",
-    "sounds": [{"name": "irontempest:shell_whistle", "attenuation_distance": 64}]
+    "sounds": [
+      {"name": "irontempest:shell_whistle", "attenuation_distance": 64},
+      {"name": "irontempest:shell_whistle_1", "attenuation_distance": 64}
+    ]
   },
   "cannon_fire": {
     "subtitle": "subtitles.irontempest.cannon_fire",
@@ -33,7 +40,10 @@
   },
   "mlrs_launch": {
     "subtitle": "subtitles.irontempest.mlrs_launch",
-    "sounds": [{"name": "irontempest:mlrs_launch", "attenuation_distance": 48}]
+    "sounds": [
+      {"name": "irontempest:mlrs_launch", "attenuation_distance": 48},
+      {"name": "irontempest:mlrs_launch_1", "attenuation_distance": 48}
+    ]
   },
   "laser_charge": {
     "subtitle": "subtitles.irontempest.laser_charge",
@@ -66,5 +76,21 @@
       {"name": "irontempest:debris_clank_1", "attenuation_distance": 24},
       {"name": "irontempest:debris_clank_2", "attenuation_distance": 24}
     ]
+  },
+  "turret_servo": {
+    "subtitle": "subtitles.irontempest.turret_servo",
+    "sounds": [{"name": "irontempest:turret_servo", "attenuation_distance": 24}]
+  },
+  "tank_tracks": {
+    "subtitle": "subtitles.irontempest.tank_tracks",
+    "sounds": [{"name": "irontempest:tank_tracks", "attenuation_distance": 32}]
+  },
+  "shell_casing": {
+    "subtitle": "subtitles.irontempest.shell_casing",
+    "sounds": [{"name": "irontempest:shell_casing", "attenuation_distance": 16}]
+  },
+  "crater_sizzle": {
+    "subtitle": "subtitles.irontempest.crater_sizzle",
+    "sounds": [{"name": "irontempest:crater_sizzle", "attenuation_distance": 24}]
   }
 }

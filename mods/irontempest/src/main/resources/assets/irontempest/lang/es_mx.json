@@ -15,6 +15,10 @@
   "subtitles.irontempest.klaxon": "Alarma de silo",
   "subtitles.irontempest.ultra_siren": "Sirena de guerra total",
   "subtitles.irontempest.debris_clank": "Escombros metálicos",
+  "subtitles.irontempest.turret_servo": "Servo de torreta",
+  "subtitles.irontempest.tank_tracks": "Orugas avanzando",
+  "subtitles.irontempest.shell_casing": "Casquillo eyectado",
+  "subtitles.irontempest.crater_sizzle": "Cráter chisporroteando",
 
   "death.attack.irontempest.tank_shell": "%1$s fue volado en pedazos por un obús de tanque",
   "death.attack.irontempest.tank_shell.player": "%1$s fue volado en pedazos por un obús de tanque mientras luchaba contra %2$s",

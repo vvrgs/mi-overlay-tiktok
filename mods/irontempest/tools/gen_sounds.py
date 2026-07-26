@@ -729,8 +729,9 @@ def write_validated(name, x, dur, is_loop):
     n = nsamp(dur)
     assert len(x) == n, f"{name}: {len(x)} != {n}"
     target = 0.89
+    lo = hi = None       # bracket: lo => encoded peak < 0.80, hi => > 0.90
     x = x.astype(np.float64)
-    for attempt in range(12):
+    for attempt in range(20):
         y = x * (target / (np.max(np.abs(x)) + 1e-12))
         y = np.clip(y, -0.985, 0.985)
         sf.write(path, y.astype(np.float32), SR, format="OGG", subtype="VORBIS")
@@ -742,8 +743,18 @@ def write_validated(name, x, dur, is_loop):
             ok_loop = abs(float(d[-1]) - float(d[0])) < 0.01
         if ok_peak and ok_loop:
             return
-        if pk > 0.90 or pk < 0.80:
-            target *= 0.885 / pk
+        if not ok_peak:
+            # Vorbis peak overshoot is not monotonic in level (codec mode
+            # switches); a pure proportional step can ping-pong across the
+            # window forever.  Keep a bracket and bisect once we have one.
+            if pk > 0.90:
+                hi = target
+            else:
+                lo = target
+            if lo is not None and hi is not None:
+                target = 0.5 * (lo + hi)
+            else:
+                target *= 0.885 / pk
         if not ok_loop:
             # converge both file endpoints to their mean over ~1.5 ms and
             # nudge the encode level so quantization luck changes (a pure
