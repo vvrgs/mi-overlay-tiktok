@@ -90,9 +90,10 @@ public abstract class AbstractWarProjectile extends Entity {
         Vec3 vel = getDeltaMovement();
         if (vel.lengthSqr() > 1.0E-6D) {
             double horiz = vel.horizontalDistance();
-            // Convención living (yaw 0 = +Z, dir = (-sin, ·, cos)); los renderers
-            // aplican 180-yaw sobre modelos con el morro a -Z. Pitch positivo = subiendo.
-            float newYaw = (float) (Mth.atan2(-vel.x, vel.z) * Mth.RAD_TO_DEG);
+            // Convención FLECHA (yaw = atan2(vx, vz), como AbstractArrow); los
+            // renderers de proyectiles aplican YP(180+yaw) sobre modelos con el
+            // morro a -Z. Pitch positivo = subiendo. NO cambiar sin tocar renderers.
+            float newYaw = (float) (Mth.atan2(vel.x, vel.z) * Mth.RAD_TO_DEG);
             float newPitch = (float) (Mth.atan2(vel.y, horiz) * Mth.RAD_TO_DEG);
             this.yRotO = getYRot();
             this.xRotO = getXRot();
