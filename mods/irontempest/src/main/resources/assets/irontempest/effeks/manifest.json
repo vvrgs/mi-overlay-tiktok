@@ -1,0 +1,19 @@
+{
+  "_comment": "Puente Effekseer (AAA Particles). Claves = FxType en minúsculas (FxDirector las dispara automáticamente). Valor: ruta COMPLETA relativa a effeks/ SIN extensión, INCLUYENDO el nombre del archivo (ej: 'explosion_large/explosion_large'). Cadena vacía = solo FX nativos del mod. Los .efkefc se crean con el skill effekseer y se sueltan en assets/irontempest/effeks/<carpeta>/<nombre>/<nombre>.efkefc con su Texture/ al lado. No hace falta tocar código.",
+  "events": {
+    "explosion_small": "",
+    "explosion_large": "",
+    "airburst": "",
+    "muzzle_flash": "",
+    "tank_landing": "",
+    "warp_in": "",
+    "warp_out": "",
+    "charge_burst": "",
+    "beam_sweep": "",
+    "overload_pulse": "",
+    "armageddon_opening": "",
+    "scorch": "",
+    "silo_vent": "",
+    "debris_rain": ""
+  }
+}

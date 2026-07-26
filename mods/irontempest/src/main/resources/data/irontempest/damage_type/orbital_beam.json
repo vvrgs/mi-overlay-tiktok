@@ -1,0 +1,6 @@
+{
+  "message_id": "irontempest.orbital_beam",
+  "exhaustion": 0.1,
+  "scaling": "never",
+  "effects": "burning"
+}

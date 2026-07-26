@@ -1,0 +1,237 @@
+package com.vvrgs.irontempest.server.session;
+
+import com.vvrgs.irontempest.entity.TankEntity;
+import com.vvrgs.irontempest.entity.TankShellEntity;
+import com.vvrgs.irontempest.net.FxType;
+import com.vvrgs.irontempest.net.ModNetwork;
+import com.vvrgs.irontempest.registry.ModEntities;
+import com.vvrgs.irontempest.registry.ModSounds;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * Tier C cinemático — patrón GodzillaManager: fases con timeouts duros.
+ * DROP (cae de un drop-pod) → HUNT (torreta con traverse realista de
+ * 2.2°/tick + designador) → FIRE (guion de 5 disparos con predicción de
+ * tiro y compensación balística) → LEAVE (cortina de humo + desguace).
+ */
+public final class TankBlitzSession extends WarSession {
+
+    private enum Phase { DROP, HUNT, FIRE, LEAVE }
+
+    private static final float TRAVERSE_RATE = 2.2F;
+    private static final float SHELL_SPEED = 3.2F;
+    private static final double SHELL_GRAVITY = 0.02D;
+    /** Guion de disparos: ticks relativos al inicio de FIRE (3 + doble de clímax). */
+    private static final int[] SHOT_SCRIPT = {0, 45, 90, 150, 162};
+    private static final int LEAVE_DELAY = 40;
+    private static final int SMOKE_AT = 10;
+
+    private Phase phase = Phase.DROP;
+    private int phaseStart;
+    private TankEntity tank;
+    private float turretYaw;
+    private int alignedTicks;
+    private int shotsFired;
+
+    TankBlitzSession(ServerLevel level, ServerPlayer target) {
+        super(level, target, 'C', "tankblitz");
+        spawnTank(target);
+        SessionManager.broadcastStarted(level, "tankblitz", this.targetName);
+    }
+
+    @Override
+    protected int maxLifetime() {
+        return 1200; // 60 s duros
+    }
+
+    private void spawnTank(ServerPlayer target) {
+        double bearing = this.level.random.nextDouble() * Math.PI * 2.0D;
+        double tx = target.getX() + Math.cos(bearing) * 25.0D;
+        double tz = target.getZ() + Math.sin(bearing) * 25.0D;
+        int ty = this.level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(tx), (int) Math.floor(tz));
+
+        TankEntity t = ModEntities.WAR_TANK.get().create(this.level);
+        if (t == null) {
+            end("spawn_failed");
+            return;
+        }
+        t.setPos(tx, ty + 18.0D, tz);
+        t.setSessionId(this.id);
+        float yaw = yawTowards(new Vec3(tx, 0, tz), target.position());
+        t.setYRot(yaw);
+        this.turretYaw = yaw;
+        t.setTurretYaw(yaw);
+        this.level.addFreshEntity(t);
+        this.tank = t;
+        // Klaxon de aviso sobre el objetivo: algo cae del cielo.
+        this.level.playSound(null, target.getX(), target.getY(), target.getZ(),
+                ModSounds.KLAXON.get(), SoundSource.HOSTILE, 1.2F, 1.15F);
+    }
+
+    /** Yaw vanilla (0 = +Z) que mira de {@code from} hacia {@code to}. */
+    private static float yawTowards(Vec3 from, Vec3 to) {
+        double dx = to.x - from.x;
+        double dz = to.z - from.z;
+        return (float) (Mth.atan2(-dx, dz) * Mth.RAD_TO_DEG);
+    }
+
+    @Override
+    protected void tickInternal(@Nullable ServerPlayer target) {
+        if (this.tank == null || this.tank.isRemoved()) {
+            end("tank_lost");
+            return;
+        }
+        switch (this.phase) {
+            case DROP -> tickDrop();
+            case HUNT -> {
+                trackTarget(target);
+                tickHunt();
+            }
+            case FIRE -> {
+                trackTarget(target);
+                tickFire(target);
+            }
+            case LEAVE -> tickLeave();
+        }
+    }
+
+    private void enterPhase(Phase next) {
+        this.phase = next;
+        this.phaseStart = this.age;
+    }
+
+    private int phaseAge() {
+        return this.age - this.phaseStart;
+    }
+
+    // ------------------------------------------------------------ DROP
+    private void tickDrop() {
+        if (this.tank.onGround()) {
+            land();
+            return;
+        }
+        if (phaseAge() > 100) {
+            // Seguro: aterrizaje forzoso (agua, vacío raro…)
+            int y = this.level.getHeight(Heightmap.Types.MOTION_BLOCKING,
+                    this.tank.getBlockX(), this.tank.getBlockZ());
+            this.tank.setPos(this.tank.getX(), y, this.tank.getZ());
+            land();
+        }
+    }
+
+    private void land() {
+        ModNetwork.fx(this.level, FxType.TANK_LANDING, this.tank.position(), 1.5F);
+        this.level.playSound(null, this.tank.getX(), this.tank.getY(), this.tank.getZ(),
+                ModSounds.TANK_LANDING.get(), SoundSource.HOSTILE, 2.0F, 1.0F);
+        this.tank.setEngineOn(true);
+        enterPhase(Phase.HUNT);
+    }
+
+    // ------------------------------------------------------------ tracking
+    private void trackTarget(@Nullable ServerPlayer target) {
+        if (target == null) {
+            return;
+        }
+        Vec3 aim = leadPoint(target);
+        Vec3 muzzleBase = this.tank.position().add(0.0D, 1.35D, 0.0D);
+        float desiredYaw = yawTowards(muzzleBase, aim);
+        float diff = Mth.wrapDegrees(desiredYaw - this.turretYaw);
+        float step = Mth.clamp(diff, -TRAVERSE_RATE, TRAVERSE_RATE);
+        this.turretYaw += step;
+        this.tank.setTurretYaw(this.turretYaw);
+
+        double horiz = Math.hypot(aim.x - muzzleBase.x, aim.z - muzzleBase.z);
+        float desiredPitch = (float) (Mth.atan2(aim.y - muzzleBase.y, horiz) * Mth.RAD_TO_DEG);
+        this.tank.setBarrelPitch(Mth.clamp(desiredPitch, -8.0F, 25.0F));
+
+        boolean aligned = Math.abs(diff) < 3.0F;
+        this.alignedTicks = aligned ? this.alignedTicks + 1 : 0;
+        this.tank.setAiming(aligned);
+    }
+
+    /** Predicción de tiro: posición futura + compensación de gravedad del obús. */
+    private Vec3 leadPoint(ServerPlayer target) {
+        Vec3 center = target.position().add(0.0D, target.getBbHeight() * 0.6D, 0.0D);
+        double dist = center.distanceTo(this.tank.position().add(0.0D, 1.35D, 0.0D));
+        double flight = dist / SHELL_SPEED;
+        Vec3 lead = target.getDeltaMovement().multiply(1.0D, 0.0D, 1.0D).scale(flight * 0.8D);
+        double drop = 0.5D * SHELL_GRAVITY * flight * flight;
+        return center.add(lead).add(0.0D, drop, 0.0D);
+    }
+
+    // ------------------------------------------------------------ HUNT / FIRE
+    private void tickHunt() {
+        if (this.alignedTicks >= 25 || phaseAge() >= 130) {
+            enterPhase(Phase.FIRE);
+        }
+    }
+
+    private void tickFire(@Nullable ServerPlayer target) {
+        if (this.shotsFired < SHOT_SCRIPT.length
+                && phaseAge() >= SHOT_SCRIPT[this.shotsFired]
+                && this.alignedTicks >= 2) {
+            fireShell(target);
+            this.shotsFired++;
+        }
+        if (this.shotsFired >= SHOT_SCRIPT.length
+                && phaseAge() >= SHOT_SCRIPT[SHOT_SCRIPT.length - 1] + LEAVE_DELAY) {
+            enterPhase(Phase.LEAVE);
+        }
+        // Seguro: si nunca se alinea (jugador orbitando), no eternizarse.
+        if (phaseAge() > 400) {
+            enterPhase(Phase.LEAVE);
+        }
+    }
+
+    private void fireShell(@Nullable ServerPlayer target) {
+        Vec3 muzzle = this.tank.muzzlePoint();
+        Vec3 dir = target != null
+                ? leadPoint(target).subtract(muzzle).normalize()
+                : this.tank.barrelDirection();
+        this.tank.markFired();
+        ModNetwork.fx(this.level, FxType.MUZZLE_FLASH, muzzle, dir, 1.0F);
+        this.level.playSound(null, muzzle.x, muzzle.y, muzzle.z,
+                ModSounds.CANNON_FIRE.get(), SoundSource.HOSTILE, 2.5F,
+                0.95F + this.level.random.nextFloat() * 0.1F);
+
+        TankShellEntity shell = ModEntities.TANK_SHELL.get().create(this.level);
+        if (shell == null) {
+            return;
+        }
+        shell.setPos(muzzle.x, muzzle.y, muzzle.z);
+        shell.setSessionId(this.id);
+        shell.setDeltaMovement(dir.scale(SHELL_SPEED));
+        this.level.addFreshEntity(shell);
+    }
+
+    // ------------------------------------------------------------ LEAVE
+    private void tickLeave() {
+        this.tank.setAiming(false);
+        if (phaseAge() == SMOKE_AT) {
+            // Lanzadores de humo de la torreta: cortina blanca.
+            ModNetwork.fx(this.level, FxType.SILO_VENT, this.tank.position().add(0.0D, 1.5D, 0.0D), 2.2F);
+        }
+        if (phaseAge() >= LEAVE_DELAY + SMOKE_AT) {
+            Vec3 pos = this.tank.position().add(0.0D, 1.0D, 0.0D);
+            ModNetwork.fx(this.level, FxType.EXPLOSION_LARGE, pos, new Vec3(0.0D, 1.0D, 0.0D), 1.1F);
+            ModNetwork.fx(this.level, FxType.DEBRIS_RAIN, pos, 3.0F);
+            this.level.playSound(null, pos.x, pos.y, pos.z,
+                    ModSounds.DEBRIS_CLANK.get(), SoundSource.HOSTILE, 1.6F, 0.9F);
+            this.tank.discard();
+            end("complete");
+        }
+    }
+
+    @Override
+    protected void onEnd(String reason) {
+        if (this.tank != null && !this.tank.isRemoved()) {
+            this.tank.discard();
+        }
+    }
+}

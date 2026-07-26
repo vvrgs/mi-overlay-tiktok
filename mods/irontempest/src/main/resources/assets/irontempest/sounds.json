@@ -1,0 +1,70 @@
+{
+  "explosion_near": {
+    "subtitle": "subtitles.irontempest.explosion_near",
+    "sounds": [{"name": "irontempest:explosion_near", "attenuation_distance": 48}]
+  },
+  "explosion_far": {
+    "subtitle": "subtitles.irontempest.explosion_far",
+    "sounds": [{"name": "irontempest:explosion_far", "attenuation_distance": 96}]
+  },
+  "shell_whistle": {
+    "subtitle": "subtitles.irontempest.shell_whistle",
+    "sounds": [{"name": "irontempest:shell_whistle", "attenuation_distance": 64}]
+  },
+  "cannon_fire": {
+    "subtitle": "subtitles.irontempest.cannon_fire",
+    "sounds": [{"name": "irontempest:cannon_fire", "attenuation_distance": 80}]
+  },
+  "tank_engine": {
+    "subtitle": "subtitles.irontempest.tank_engine",
+    "sounds": [{"name": "irontempest:tank_engine", "attenuation_distance": 32}]
+  },
+  "tank_landing": {
+    "subtitle": "subtitles.irontempest.tank_landing",
+    "sounds": [{"name": "irontempest:tank_landing", "attenuation_distance": 64}]
+  },
+  "missile_launch": {
+    "subtitle": "subtitles.irontempest.missile_launch",
+    "sounds": [{"name": "irontempest:missile_launch", "attenuation_distance": 80}]
+  },
+  "missile_loop": {
+    "subtitle": "subtitles.irontempest.missile_loop",
+    "sounds": [{"name": "irontempest:missile_loop", "attenuation_distance": 48}]
+  },
+  "mlrs_launch": {
+    "subtitle": "subtitles.irontempest.mlrs_launch",
+    "sounds": [{"name": "irontempest:mlrs_launch", "attenuation_distance": 48}]
+  },
+  "laser_charge": {
+    "subtitle": "subtitles.irontempest.laser_charge",
+    "sounds": [{"name": "irontempest:laser_charge", "attenuation_distance": 64}]
+  },
+  "laser_beam": {
+    "subtitle": "subtitles.irontempest.laser_beam",
+    "sounds": [{"name": "irontempest:laser_beam", "attenuation_distance": 64}]
+  },
+  "warp_in": {
+    "subtitle": "subtitles.irontempest.warp_in",
+    "sounds": [{"name": "irontempest:warp_in", "attenuation_distance": 96}]
+  },
+  "warp_out": {
+    "subtitle": "subtitles.irontempest.warp_out",
+    "sounds": [{"name": "irontempest:warp_out", "attenuation_distance": 96}]
+  },
+  "klaxon": {
+    "subtitle": "subtitles.irontempest.klaxon",
+    "sounds": [{"name": "irontempest:klaxon", "attenuation_distance": 64}]
+  },
+  "ultra_siren": {
+    "subtitle": "subtitles.irontempest.ultra_siren",
+    "sounds": [{"name": "irontempest:ultra_siren", "attenuation_distance": 128}]
+  },
+  "debris_clank": {
+    "subtitle": "subtitles.irontempest.debris_clank",
+    "sounds": [
+      {"name": "irontempest:debris_clank_0", "attenuation_distance": 24},
+      {"name": "irontempest:debris_clank_1", "attenuation_distance": 24},
+      {"name": "irontempest:debris_clank_2", "attenuation_distance": 24}
+    ]
+  }
+}

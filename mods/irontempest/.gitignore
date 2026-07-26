@@ -1,0 +1,21 @@
+# Gradle / build
+.gradle/
+build/
+run/
+out/
+logs/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+eclipse/
+
+# Verificación local (stubs del API, no forman parte del mod)
+verify/build/

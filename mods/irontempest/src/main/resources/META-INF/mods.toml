@@ -1,0 +1,38 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="irontempest"
+version="1.0.0"
+displayName="Iron Tempest"
+logoFile="logo.png"
+authors="vvrgs"
+description='''
+Arsenal de guerra cinematico: tanque pesado con IA de torreta, misiles crucero guiados,
+lluvia de cohetes MLRS, nave orbital con haz de energia y modo armageddon.
+Motor de FX propio (cero particulas vanilla), shaders GLSL, sonido sintetizado.
+Comandos de consola listos para StreamToEarn / TikFinity via ServerTap.
+'''
+
+[[dependencies.irontempest]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.irontempest]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1]"
+    ordering="NONE"
+    side="BOTH"
+
+# Integracion opcional Effekseer (deteccion por reflexion en runtime, sin dependencia de compilacion)
+[[dependencies.irontempest]]
+    modId="aaa_particles"
+    mandatory=false
+    versionRange="[1.0,)"
+    ordering="AFTER"
+    side="BOTH"

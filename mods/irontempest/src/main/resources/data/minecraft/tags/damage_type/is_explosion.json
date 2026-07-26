@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "irontempest:tank_shell",
+    "irontempest:missile",
+    "irontempest:rocket",
+    "irontempest:shockwave"
+  ]
+}

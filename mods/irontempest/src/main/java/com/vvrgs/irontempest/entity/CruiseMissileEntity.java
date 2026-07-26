@@ -1,0 +1,220 @@
+package com.vvrgs.irontempest.entity;
+
+import com.vvrgs.irontempest.net.FxType;
+import com.vvrgs.irontempest.net.ModNetwork;
+import com.vvrgs.irontempest.registry.ModDamage;
+import com.vvrgs.irontempest.registry.ModParticles;
+import com.vvrgs.irontempest.server.session.SessionManager;
+import com.vvrgs.irontempest.server.util.DamageUtil;
+import com.vvrgs.irontempest.server.util.TerrainSculptor;
+import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * Misil de crucero guiado. Fases cronológicas:
+ * BOOST (vertical) → TIPOVER (giro balístico) → CRUISE (altitud fija) →
+ * TERMINAL (homing proporcional con tasa de giro limitada) → detonación
+ * de proximidad o impacto.
+ */
+public class CruiseMissileEntity extends AbstractWarProjectile {
+
+    public static final byte PHASE_BOOST = 0;
+    public static final byte PHASE_TIPOVER = 1;
+    public static final byte PHASE_CRUISE = 2;
+    public static final byte PHASE_TERMINAL = 3;
+
+    private static final EntityDataAccessor<Byte> DATA_PHASE =
+            SynchedEntityData.defineId(CruiseMissileEntity.class, EntityDataSerializers.BYTE);
+
+    /** Tasa máxima de giro en fase terminal (radianes/tick). */
+    private static final double TURN_RATE = Math.toRadians(9.0D);
+    private static final double PROX_FUSE = 3.5D;
+
+    @Nullable
+    private UUID targetId;
+    private Vec3 lastKnownTarget = Vec3.ZERO;
+    private int phaseTicks;
+
+    public CruiseMissileEntity(EntityType<? extends CruiseMissileEntity> type, Level level) {
+        super(type, level);
+    }
+
+    public void launch(UUID target, int sessionId) {
+        this.targetId = target;
+        setSessionId(sessionId);
+        setDeltaMovement(0.0D, 0.05D, 0.0D);
+        setPhase(PHASE_BOOST);
+    }
+
+    public byte getPhase() {
+        return this.entityData.get(DATA_PHASE);
+    }
+
+    private void setPhase(byte phase) {
+        this.entityData.set(DATA_PHASE, phase);
+        this.phaseTicks = 0;
+    }
+
+    @Override
+    protected double gravity() {
+        return 0.0D; // el guiado controla la trayectoria por completo
+    }
+
+    @Override
+    protected int maxLife() {
+        return 700;
+    }
+
+    @Nullable
+    private Vec3 targetPos() {
+        if (this.targetId != null && this.level() instanceof ServerLevel server) {
+            if (server.getEntity(this.targetId) instanceof ServerPlayer player
+                    && player.isAlive() && !player.isSpectator()) {
+                this.lastKnownTarget = player.position().add(0.0D, 1.0D, 0.0D);
+            }
+        }
+        return this.lastKnownTarget == Vec3.ZERO ? null : this.lastKnownTarget;
+    }
+
+    @Override
+    public void tick() {
+        this.phaseTicks++;
+        if (!this.level().isClientSide) {
+            steer();
+        }
+        super.tick();
+    }
+
+    private void steer() {
+        Vec3 vel = getDeltaMovement();
+        Vec3 target = targetPos();
+        byte phase = getPhase();
+        switch (phase) {
+            case PHASE_BOOST -> {
+                setDeltaMovement(0.0D, Math.min(1.2D, vel.y + 0.06D), 0.0D);
+                if (this.phaseTicks >= 35) {
+                    setPhase(PHASE_TIPOVER);
+                }
+            }
+            case PHASE_TIPOVER -> {
+                if (target == null) {
+                    setPhase(PHASE_CRUISE);
+                    return;
+                }
+                Vec3 toTarget = new Vec3(target.x - getX(), 0.0D, target.z - getZ()).normalize();
+                double t = Math.min(1.0D, this.phaseTicks / 20.0D);
+                Vec3 dir = new Vec3(
+                        toTarget.x * t, 1.0D - 0.9D * t, toTarget.z * t).normalize();
+                setDeltaMovement(dir.scale(1.2D + 0.4D * t));
+                if (this.phaseTicks >= 20) {
+                    setPhase(PHASE_CRUISE);
+                }
+            }
+            case PHASE_CRUISE -> {
+                if (target == null) {
+                    return; // vuela recto hasta timeout
+                }
+                double cruiseY = target.y + 22.0D;
+                Vec3 horiz = new Vec3(target.x - getX(), 0.0D, target.z - getZ());
+                double horizDist = horiz.length();
+                Vec3 dir = new Vec3(horiz.x, (cruiseY - getY()) * 0.08D, horiz.z).normalize();
+                setDeltaMovement(dir.scale(1.6D));
+                if (horizDist < 26.0D) {
+                    setPhase(PHASE_TERMINAL);
+                }
+            }
+            case PHASE_TERMINAL -> {
+                if (target != null) {
+                    if (position().distanceTo(target) < PROX_FUSE) {
+                        detonate(position());
+                        return;
+                    }
+                    Vec3 current = vel.normalize();
+                    Vec3 desired = target.subtract(position()).normalize();
+                    double angle = Math.acos(Math.max(-1.0D, Math.min(1.0D, current.dot(desired))));
+                    Vec3 newDir;
+                    if (angle <= TURN_RATE || angle < 1.0E-4D) {
+                        newDir = desired;
+                    } else {
+                        double f = TURN_RATE / angle;
+                        newDir = current.lerp(desired, f).normalize();
+                    }
+                    setDeltaMovement(newDir.scale(1.9D));
+                }
+            }
+            default -> {}
+        }
+    }
+
+    @Override
+    protected void onImpact(HitResult hit) {
+        detonate(hit.getLocation());
+    }
+
+    private void detonate(Vec3 pos) {
+        if (!(this.level() instanceof ServerLevel server)) {
+            return;
+        }
+        int ground = server.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,
+                (int) Math.floor(pos.x), (int) Math.floor(pos.z));
+        boolean airburst = pos.y - ground > 2.5D;
+        ModNetwork.fx(server, airburst ? FxType.AIRBURST : FxType.EXPLOSION_LARGE,
+                pos, getDeltaMovement().normalize(), 2.0F);
+        TerrainSculptor.crater(server, BlockPos.containing(pos), 4, true);
+        DamageUtil.strikeDamage(server, pos, 2.5D, 7.0D, 18.0F, ModDamage.MISSILE, this);
+        SessionManager.notifyProjectileImpact(this.sessionId);
+        discard();
+    }
+
+    @Override
+    protected void clientTrail() {
+        Vec3 vel = getDeltaMovement();
+        Vec3 back = position().subtract(vel.normalize().scale(1.2D));
+        byte phase = getPhase();
+        // Motor: fuego pulsante + columna de humo (denso en boost, fino en crucero)
+        this.level().addParticle(ModParticles.EMBER.get(), back.x, back.y, back.z,
+                -vel.x * 0.15D, -vel.y * 0.15D, -vel.z * 0.15D);
+        if (phase == PHASE_BOOST) {
+            for (int i = 0; i < 3; i++) {
+                this.level().addParticle(ModParticles.FIREBALL.get(),
+                        back.x + this.random.nextGaussian() * 0.15D,
+                        back.y + this.random.nextGaussian() * 0.15D,
+                        back.z + this.random.nextGaussian() * 0.15D,
+                        -vel.x * 0.2D, -vel.y * 0.25D, -vel.z * 0.2D);
+                this.level().addParticle(ModParticles.SMOKE.get(),
+                        back.x + this.random.nextGaussian() * 0.3D,
+                        back.y - 0.4D * i,
+                        back.z + this.random.nextGaussian() * 0.3D,
+                        0.0D, -0.02D, 0.0D);
+            }
+        } else {
+            this.level().addParticle(ModParticles.FIREBALL.get(), back.x, back.y, back.z,
+                    -vel.x * 0.1D, -vel.y * 0.1D, -vel.z * 0.1D);
+            if (this.life % 2 == 0) {
+                this.level().addParticle(ModParticles.SMOKE.get(), back.x, back.y, back.z,
+                        this.random.nextGaussian() * 0.02D, 0.01D, this.random.nextGaussian() * 0.02D);
+            }
+            if (phase == PHASE_TERMINAL) {
+                this.level().addParticle(ModParticles.SPARK.get(), back.x, back.y, back.z,
+                        this.random.nextGaussian() * 0.05D,
+                        this.random.nextGaussian() * 0.05D,
+                        this.random.nextGaussian() * 0.05D);
+            }
+        }
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_PHASE, PHASE_BOOST);
+    }
+}

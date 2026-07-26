@@ -1,0 +1,15 @@
+{
+  "blend": { "func": "add", "srcrgb": "one", "dstrgb": "zero" },
+  "vertex": "irontempest:shockwave",
+  "fragment": "irontempest:shockwave",
+  "attributes": [ "Position" ],
+  "samplers": [
+    { "name": "DiffuseSampler" }
+  ],
+  "uniforms": [
+    { "name": "Center",   "type": "float", "count": 2, "values": [ 0.5, 0.5 ] },
+    { "name": "Radius",   "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "Strength", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "Aspect",   "type": "float", "count": 1, "values": [ 1.777 ] }
+  ]
+}
