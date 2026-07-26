@@ -66,10 +66,11 @@ va justo, en este orden:
    solo se dibujan menos figuras)
 3. `graphics.postProcessing` → `false` (quita bloom, viñeta y grading; ahorra varias
    pasadas a pantalla completa)
-4. `graphics.propDensity` → `0` y `graphics.clouds` → `0`
-5. `graphics.shadows` → `false`
-6. `graphics.particleLimit` → `2000`
-7. `graphics.bloodTextureSize` → `256`
+4. `graphics.lodDistance` → `40` (menos figuras con el modelo detallado)
+5. `graphics.propDensity` → `0` y `graphics.clouds` → `0`
+6. `graphics.shadows` → `false`
+7. `graphics.particleLimit` → `2000`
+8. `graphics.bloodTextureSize` → `256`
 
 Poner `graphics.quality` en `"low"` hace varios de estos pasos de golpe: apaga el
 post-procesado, el decorado, las sombras y la sangre, y usa siluetas simplificadas.

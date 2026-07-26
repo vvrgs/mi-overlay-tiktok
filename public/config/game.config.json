@@ -614,7 +614,8 @@
     "exposure": 1.05,
     "sharpen": 0.22,
     "clouds": 0.85,
-    "propDensity": 1.0
+    "propDensity": 1.0,
+    "lodDistance": 70
   },
   "hud": {
     "showScoreboard": true,

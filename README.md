@@ -62,13 +62,33 @@ directo empiece a tironear.
 
 ## Cómo se ve
 
-**Unidades con silueta propia.** No son cápsulas de colores: el soldado lleva casco,
-espada y escudo; el arquero, capucha, arco y carcaj; el mago, túnica, sombrero y un
-báculo con orbe encendido; la caballería, gualdrapa y lanza calada; el gigante,
-hombreras y maza; el campeón del chat, penacho y capa que ondea al correr. A la
-distancia de cámara de un directo, la silueta es lo único que distingue una unidad de
-otra —el color ya lo ocupa el equipo—. Cada instancia además varía de estatura y tono,
-para que el ejército no parezca una figura clonada mil veces.
+**Personajes, no bloques.** La primitiva de todo el cuerpo es un prisma de ocho lados
+con sección elíptica que se estrecha a lo largo del miembro, con normales suaves. Es lo
+que separa un brazo de un ladrillo: una caja tiene cuatro caras planas y aristas de 90°
+que la luz delata al instante. Encima van proporciones heroicas (cuello, pelvis,
+rótulas, botas, guanteletes, hombreras) y **oclusión ambiental horneada por vértice**,
+que oscurece axilas y articulaciones y da sensación de volumen sin calcular sombras
+propias.
+
+Cada arquetipo tiene su equipo: el soldado, casco con nasal, espada que se afila y
+escudo con umbo; el arquero, capucha, arco de cuatro tramos curvados y carcaj; el mago,
+túnica acampanada, sombrero cónico y báculo con orbe encendido; la caballería, montura
+completa con crin, gualdrapa y lanza calada; el gigante, hombreras y maza con pinchos;
+el campeón del chat, penacho y capa que ondea al correr; el dragón, cuello, cresta
+dorsal y alas con diedro y dedos alares. A la distancia de cámara de un directo la
+silueta es lo único que distingue una unidad de otra —el color ya lo ocupa el equipo—.
+Cada instancia varía además de estatura y tono, para que el ejército no parezca una
+figura clonada mil veces.
+
+**Animación con esqueleto de dos huesos.** Cada vértice conoce su articulación y la de
+su hueso padre, así que el shader dobla rodillas y codos rotando primero sobre una y
+después sobre la otra. De ahí salen la flexión de rodilla al despegar el pie, el codo
+que se extiende en el golpe, la contrarrotación del torso, la cabeza que se mantiene
+mirando al frente y la inclinación del cuerpo al correr. Todo en GPU, cero coste de CPU.
+
+Para juzgar los modelos sin cazar el momento en que la cámara pasa cerca, hay un
+previsualizador en **`models.html`**: muestra un ejemplar de cada arquetipo con los
+mismos shaders, y se puede orbitar, cambiar de equipo y pausar la animación.
 
 **Render HDR.** La escena se dibuja en coma flotante y en espacio lineal, sin recortar
 a blanco. Eso permite que explosiones, meteoros, orbes y el sol emitan por encima de
@@ -92,6 +112,7 @@ escala, y suelo mezclado en tres escalas de ruido con barro en la ribera.
 ```
 public/config/game.config.json   Toda la configuración (se lee en caliente, no se compila)
 index.html / control.html        Overlay y panel de control
+models.html                      Previsualizador de unidades (herramienta de desarrollo)
 src/
   events/     Contrato de eventos, normalizador configurable, transportes, simulador
   sim/        Worker de simulación: mundo SoA, rejilla espacial, protocolo
@@ -133,6 +154,7 @@ index.html?battle.difficulty=1.5&graphics.timeOfDay=sunset&camera.mode=orbit
 | `graphics.bloomIntensity` | Cuánta luz rebosa del fuego. `graphics.bloomThreshold` sube el listón de qué brilla |
 | `graphics.timeOfDay` | `day`, `sunset` o `night`: cambia toda la paleta de golpe |
 | `graphics.clouds` / `propDensity` | Nubes y densidad de bosque |
+| `graphics.lodDistance` | A partir de qué distancia se usa la malla reducida |
 | `hud.safeAreaTop` | Hueco arriba para tu cámara |
 | `battle.autoBalance` | Da ventaja al bando que va perdiendo para que la ronda no se muera |
 

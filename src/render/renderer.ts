@@ -181,14 +181,15 @@ export class GameRenderer {
       capacityPerGroup: config.battle.renderCapPerTeam + 512,
       // Solo la calidad más baja recorta brazos y equipo: sin ellos el soldado se
       // lee como un bloque y se pierde la animación de golpe.
-      detail: config.graphics.quality === 'low' ? 'simple' : 'full',
+      detail: config.graphics.quality === 'low' ? 'simple' : config.graphics.quality === 'medium' ? 'low' : 'high',
       // Una silueta propia por arquetipo; el orden debe coincidir con el que
       // recibe el worker, porque el snapshot agrupa por índice de arquetipo.
-      archetypes: buildArchetypes(config).map((a) => ({ key: a.key, mesh: a.mesh })),
+      archetypes: buildArchetypes(config).map((a) => ({ key: a.key, mesh: a.mesh, stackable: a.stackable })),
       teamColors,
       shadows: config.graphics.shadows,
       fogColor: this.palette.fog,
       fogDensity: config.graphics.fogDensity,
+      lodDistance: config.graphics.lodDistance ?? 70,
     });
     this.unitsRenderer.setLighting(this.palette.sky, this.palette.ground, this.palette.sun, this.palette.lightDir);
     this.scene.add(this.unitsRenderer.root);
@@ -224,7 +225,8 @@ export class GameRenderer {
 
   applySnapshot(snapshot: Snapshot): void {
     const units = new Float32Array(snapshot.units);
-    this.unitsRenderer.update(units, snapshot.groups);
+    // El reparto por LOD necesita la posición de la cámara de este frame.
+    this.unitsRenderer.update(units, snapshot.groups, this.camera.position);
 
     const projectiles = new Float32Array(snapshot.projectiles);
     this.effects.updateProjectiles(projectiles, snapshot.projectileCount, PROJECTILE_STRIDE);
@@ -353,6 +355,8 @@ export class GameRenderer {
     this.currentPixelRatio = this.basePixelRatio;
     this.applyPixelRatio();
     this.unitsRenderer.setShadowsEnabled(quality !== 'low' && this.config.graphics.shadows);
+    // Con menos calidad, el corte de LOD se acerca: menos figuras detalladas.
+    this.unitsRenderer.setLodDistance((this.config.graphics.lodDistance ?? 70) * { low: 0, medium: 0.55, high: 1, ultra: 1.5 }[quality]);
     this.effects.setGore(quality !== 'low' && this.config.graphics.gore);
     this.post.setOptions({ enabled: this.config.graphics.postProcessing !== false && quality !== 'low' });
   }

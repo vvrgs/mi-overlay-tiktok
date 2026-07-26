@@ -87,7 +87,15 @@ async function boot(): Promise<void> {
     if (ev.key === 'n') game.startRound();
   });
 
-  Object.assign(window as unknown as Record<string, unknown>, { __game: game, __config: config, __bus: bus });
+  // Expuesto a propósito para depurar en directo desde la consola del navegador:
+  // inspeccionar el estado, forzar eventos o mover la cámara sin recompilar.
+  Object.assign(window as unknown as Record<string, unknown>, {
+    __game: game,
+    __config: config,
+    __bus: bus,
+    __renderer: renderer,
+    __simulator: simulator,
+  });
 }
 
 void boot().catch((err) => {

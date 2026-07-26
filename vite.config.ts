@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         overlay: 'index.html',
         control: 'control.html',
+        models: 'models.html',
       },
     },
   },

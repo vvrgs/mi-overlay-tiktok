@@ -180,6 +180,8 @@ export interface GameConfig {
     clouds: number;
     /** Densidad de rocas y árboles; 0 los desactiva. */
     propDensity: number;
+    /** Distancia (en unidades) a partir de la cual se usa la malla reducida. */
+    lodDistance: number;
   };
   hud: {
     showScoreboard: boolean;
@@ -315,6 +317,7 @@ const EMERGENCY_CONFIG = {
     sharpen: 0.22,
     clouds: 0.85,
     propDensity: 1,
+    lodDistance: 70,
   },
   hud: {
     showScoreboard: true,
