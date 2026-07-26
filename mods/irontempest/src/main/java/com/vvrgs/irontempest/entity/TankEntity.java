@@ -32,6 +32,8 @@ public class TankEntity extends Entity {
             SynchedEntityData.defineId(TankEntity.class, EntityDataSerializers.BOOLEAN);
 
     private int sessionId = -1;
+    /** Velocidad de avance ordenada por la sesión (bloques/tick, solo server). */
+    private double driveSpeed;
 
     // Estado SOLO cliente para interpolación/retroceso.
     public float turretYawO;
@@ -85,6 +87,18 @@ public class TankEntity extends Entity {
         this.entityData.set(DATA_FIRE_SEQ, this.entityData.get(DATA_FIRE_SEQ) + 1);
     }
 
+    /** Server: orden de avance de la sesión (0 = detenido). */
+    public void setDriveSpeed(double speed) {
+        this.driveSpeed = speed;
+    }
+
+    /** Velocidad horizontal real de este tick (útil en cliente vía posiciones). */
+    public double horizontalSpeed() {
+        double dx = getX() - this.xo;
+        double dz = getZ() - this.zo;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
     /** Cliente: ticks (con parcial) desde el último disparo, o MAX_VALUE. */
     public float ticksSinceFire(float partialTick) {
         if (this.clientFireGameTick == Integer.MIN_VALUE) {
@@ -132,9 +146,12 @@ public class TankEntity extends Entity {
             return;
         }
 
-        // Gravedad + colisión (caída del drop-pod).
+        // Gravedad + colisión (caída del drop-pod) + avance ordenado por la sesión.
         if (!onGround()) {
             setDeltaMovement(getDeltaMovement().add(0.0D, -0.08D, 0.0D));
+        } else if (this.driveSpeed > 0.0D) {
+            float yaw = getYRot() * Mth.DEG_TO_RAD;
+            setDeltaMovement(-Mth.sin(yaw) * this.driveSpeed, -0.08D, Mth.cos(yaw) * this.driveSpeed);
         } else {
             setDeltaMovement(Vec3.ZERO);
         }
@@ -142,15 +159,44 @@ public class TankEntity extends Entity {
     }
 
     private void clientAmbient() {
-        if (!isEngineOn() || this.random.nextFloat() > 0.35F) {
-            return;
-        }
-        // Humo de escape trasero: la parte de atrás es -facing = (sin(yaw), ·, -cos(yaw)).
         float yaw = getYRot() * Mth.DEG_TO_RAD;
-        Vec3 rear = position().add(new Vec3(Mth.sin(yaw) * 2.1D, 1.15D, -Mth.cos(yaw) * 2.1D));
-        this.level().addParticle(ModParticles.SMOKE.get(),
-                rear.x + this.random.nextGaussian() * 0.1D, rear.y, rear.z + this.random.nextGaussian() * 0.1D,
-                0.0D, 0.05D + this.random.nextFloat() * 0.03D, 0.0D);
+        if (isEngineOn() && this.random.nextFloat() <= 0.35F) {
+            // Humo de escape trasero: la parte de atrás es -facing = (sin(yaw), ·, -cos(yaw)).
+            Vec3 rear = position().add(new Vec3(Mth.sin(yaw) * 2.1D, 1.15D, -Mth.cos(yaw) * 2.1D));
+            this.level().addParticle(ModParticles.SMOKE.get(),
+                    rear.x + this.random.nextGaussian() * 0.1D, rear.y, rear.z + this.random.nextGaussian() * 0.1D,
+                    0.0D, 0.05D + this.random.nextFloat() * 0.03D, 0.0D);
+        }
+        // Polvo levantado por las orugas cuando el tanque avanza.
+        if (horizontalSpeed() > 0.02D) {
+            Vec3 side = new Vec3(Mth.cos(yaw), 0.0D, -Mth.sin(yaw));
+            Vec3 rear = position().add(Mth.sin(yaw) * 2.0D, 0.15D, -Mth.cos(yaw) * 2.0D);
+            for (int i = 0; i < 2; i++) {
+                double s = this.random.nextBoolean() ? 1.25D : -1.25D;
+                Vec3 p = rear.add(side.scale(s));
+                this.level().addParticle(ModParticles.SMOKE.get(), p.x, p.y, p.z,
+                        this.random.nextGaussian() * 0.03D, 0.05D, this.random.nextGaussian() * 0.03D);
+            }
+        }
+        // Coreografía post-disparo: casquillo eyectado + humo de recámara/boca.
+        float sinceFire = ticksSinceFire(0.0F);
+        if (sinceFire == 2.0F) {
+            Vec3 breech = position().add(0.0D, 1.6D, 0.0D);
+            Vec3 side = new Vec3(Mth.cos(getTurretYaw() * Mth.DEG_TO_RAD), 0.0D,
+                    -Mth.sin(getTurretYaw() * Mth.DEG_TO_RAD));
+            this.level().addParticle(ModParticles.DEBRIS.get(),
+                    breech.x + side.x * 0.8D, breech.y, breech.z + side.z * 0.8D,
+                    side.x * 0.18D, 0.25D, side.z * 0.18D);
+            this.level().playLocalSound(breech.x, breech.y, breech.z,
+                    com.vvrgs.irontempest.registry.ModSounds.SHELL_CASING.get(),
+                    net.minecraft.sounds.SoundSource.HOSTILE, 0.9F,
+                    0.95F + this.random.nextFloat() * 0.1F, false);
+        }
+        if (sinceFire > 3.0F && sinceFire < 26.0F && this.random.nextFloat() < 0.45F) {
+            Vec3 muzzle = muzzlePoint();
+            this.level().addParticle(ModParticles.SMOKE.get(), muzzle.x, muzzle.y, muzzle.z,
+                    this.random.nextGaussian() * 0.015D, 0.04D, this.random.nextGaussian() * 0.015D);
+        }
     }
 
     // ------------------------------------------------------------ plumbing

@@ -167,7 +167,16 @@ public final class TankBlitzSession extends WarSession {
 
     // ------------------------------------------------------------ HUNT / FIRE
     private void tickHunt() {
+        // El tanque AVANZA hacia el jugador mientras caza (orugas + polvo en
+        // cliente), y frena a distancia de tiro o al agotar la fase de avance.
+        ServerPlayer target = target();
+        boolean advance = target != null
+                && phaseAge() < 70
+                && this.tank.position().distanceTo(target.position()) > 14.0D;
+        this.tank.setDriveSpeed(advance ? 0.055D : 0.0D);
+
         if (this.alignedTicks >= 25 || phaseAge() >= 130) {
+            this.tank.setDriveSpeed(0.0D);
             enterPhase(Phase.FIRE);
         }
     }

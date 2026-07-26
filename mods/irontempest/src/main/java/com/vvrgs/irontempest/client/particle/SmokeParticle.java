@@ -15,7 +15,11 @@ import net.minecraft.util.Mth;
  */
 public class SmokeParticle extends TextureSheetParticle {
 
+    private static final int LIT_TICKS = 9;
+
     private final SpriteSet sprites;
+    private final boolean darkSmoke;
+    private final float baseShade;
 
     protected SmokeParticle(ClientLevel level, double x, double y, double z,
                             double xSpeed, double ySpeed, double zSpeed, SpriteSet sprites) {
@@ -28,13 +32,29 @@ public class SmokeParticle extends TextureSheetParticle {
         this.friction = 0.94F;
         this.lifetime = 30 + this.random.nextInt(41); // 30-70
         this.quadSize = 0.8F + this.random.nextFloat() * 1.0F; // 0.8-1.8
-        float shade = ySpeed < 0.02D
+        this.darkSmoke = ySpeed < 0.02D;
+        this.baseShade = this.darkSmoke
                 ? 0.10F + this.random.nextFloat() * 0.10F  // humo negro de explosión
                 : 0.55F + this.random.nextFloat() * 0.20F; // gris claro / polvo de venteo
-        this.rCol = shade;
-        this.gCol = shade;
-        this.bCol = shade;
+        applyTint(0);
         this.setSpriteFromAge(sprites);
+    }
+
+    /**
+     * El humo de explosión nace ILUMINADO por la bola de fuego (tinte naranja
+     * que se apaga en los primeros ticks) — detalle que vende la cronología.
+     */
+    private void applyTint(int ageNow) {
+        if (this.darkSmoke && ageNow < LIT_TICKS) {
+            float lit = 1.0F - ageNow / (float) LIT_TICKS;
+            this.rCol = this.baseShade + 0.85F * lit;
+            this.gCol = this.baseShade + 0.42F * lit;
+            this.bCol = this.baseShade + 0.10F * lit;
+        } else {
+            this.rCol = this.baseShade;
+            this.gCol = this.baseShade;
+            this.bCol = this.baseShade;
+        }
     }
 
     @Override
@@ -42,6 +62,7 @@ public class SmokeParticle extends TextureSheetParticle {
         super.tick();
         if (this.isAlive()) {
             this.setSpriteFromAge(this.sprites);
+            applyTint(this.age);
         }
     }
 

@@ -33,6 +33,8 @@ src/main/java/com/vvrgs/irontempest/client/sound/BeamHumSound.java
 src/main/java/com/vvrgs/irontempest/client/sound/ClientSoundHandler.java
 src/main/java/com/vvrgs/irontempest/client/sound/MissileLoopSound.java
 src/main/java/com/vvrgs/irontempest/client/sound/TankEngineSound.java
+src/main/java/com/vvrgs/irontempest/client/sound/TankTracksSound.java
+src/main/java/com/vvrgs/irontempest/client/sound/TurretServoSound.java
 src/main/java/com/vvrgs/irontempest/config/WarConfig.java
 src/main/java/com/vvrgs/irontempest/entity/AbstractWarProjectile.java
 src/main/java/com/vvrgs/irontempest/entity/CruiseMissileEntity.java

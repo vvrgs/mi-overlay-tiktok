@@ -126,6 +126,8 @@ public final class FxDirector {
             schedule(5 + i * 3, () -> smokeColumn(level, pos, 3, 0.4D + step * 0.09D, true));
         }
         schedule(8, () -> sound(level, pos, ModSounds.DEBRIS_CLANK.get(), 0.9F, 1.0F));
+        // T+35: el cráter queda chisporroteando mientras el humo se asienta.
+        schedule(35, () -> sound(level, pos, ModSounds.CRATER_SIZZLE.get(), 0.9F, 1.0F));
     }
 
     private static void explosionSmall(ClientLevel level, Vec3 pos) {

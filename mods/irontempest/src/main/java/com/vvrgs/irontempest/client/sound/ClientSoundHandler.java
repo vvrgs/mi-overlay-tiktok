@@ -26,6 +26,8 @@ public final class ClientSoundHandler {
         Minecraft mc = Minecraft.getInstance();
         if (event.getEntity() instanceof TankEntity tank) {
             mc.getSoundManager().play(new TankEngineSound(tank));
+            mc.getSoundManager().play(new TurretServoSound(tank));
+            mc.getSoundManager().play(new TankTracksSound(tank));
         } else if (event.getEntity() instanceof CruiseMissileEntity missile) {
             mc.getSoundManager().play(new MissileLoopSound(missile));
         } else if (event.getEntity() instanceof MlrsRocketEntity rocket) {

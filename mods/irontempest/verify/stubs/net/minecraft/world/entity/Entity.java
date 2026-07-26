@@ -30,6 +30,14 @@ public abstract class Entity {
     public Vec3 getPosition(float partialTicks) { throw new UnsupportedOperationException(); }
     public void setPos(double x, double y, double z) {}
     public void setPos(Vec3 pos) {}
+    // Posición del tick anterior (API real 1.20.1: campos públicos xo/yo/zo y xOld/yOld/zOld)
+    public double xo;
+    public double yo;
+    public double zo;
+    public double xOld;
+    public double yOld;
+    public double zOld;
+
     public double getX() { return 0.0D; }
     public double getY() { return 0.0D; }
     public double getZ() { return 0.0D; }

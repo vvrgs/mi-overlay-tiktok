@@ -27,6 +27,10 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> KLAXON = sound("klaxon");
     public static final RegistryObject<SoundEvent> ULTRA_SIREN = sound("ultra_siren");
     public static final RegistryObject<SoundEvent> DEBRIS_CLANK = sound("debris_clank");
+    public static final RegistryObject<SoundEvent> TURRET_SERVO = sound("turret_servo");
+    public static final RegistryObject<SoundEvent> TANK_TRACKS = sound("tank_tracks");
+    public static final RegistryObject<SoundEvent> SHELL_CASING = sound("shell_casing");
+    public static final RegistryObject<SoundEvent> CRATER_SIZZLE = sound("crater_sizzle");
 
     private static RegistryObject<SoundEvent> sound(String name) {
         return REGISTER.register(name,
