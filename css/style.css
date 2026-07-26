@@ -1,0 +1,201 @@
+/* ============================================================
+ * ESTILOS DEL OVERLAY — fuente pixel + HUD estilo TikTok Live
+ * ============================================================ */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../vendor/press-start-2p-latin-400-normal.woff2') format('woff2');
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Press Start 2P', monospace;
+  user-select: none;
+}
+
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* --- Marcador --- */
+#score {
+  position: fixed; top: 18px; left: 18px;
+  font-size: 42px; color: #fff;
+  text-shadow: 4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+  z-index: 10;
+}
+
+#record {
+  position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
+  font-size: 16px; color: rgba(255,255,255,0.9);
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.8);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* --- Panel de regalos --- */
+#gift-panel {
+  position: fixed; top: 80px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  z-index: 10;
+}
+
+.gift-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  padding: 7px 10px;
+  min-width: 190px;
+}
+
+.gift-icon { font-size: 20px; font-family: sans-serif; }
+
+.gift-label {
+  flex: 1;
+  font-size: 9px; color: #fff;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+}
+
+.gift-count {
+  font-size: 12px; color: #ffd23b;
+  min-width: 22px; text-align: center;
+  background: rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 4px 5px;
+}
+
+.gift-count.pop { animation: pop 0.35s ease; }
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.6); background: #ffd23b; color: #000; }
+  100% { transform: scale(1); }
+}
+
+/* --- Banner central --- */
+#banner {
+  position: fixed; top: 24%; left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+#banner.show { animation: banner-in 2.6s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+
+@keyframes banner-in {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  12% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  18% { transform: translate(-50%, -50%) scale(1); }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+}
+
+#banner-text {
+  font-size: 34px; color: #fff;
+  text-shadow: 4px 4px 0 #000, 0 0 24px rgba(255,120,0,0.7);
+}
+
+#banner-sub {
+  margin-top: 12px;
+  font-size: 13px; color: #ffd23b;
+  text-shadow: 3px 3px 0 #000;
+}
+
+/* --- Toasts --- */
+#toasts {
+  position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(0,0,0,0.65);
+  color: #fff; font-size: 10px;
+  padding: 8px 14px; border-radius: 14px;
+  animation: toast-in 0.3s ease;
+  white-space: nowrap;
+}
+.toast.out { opacity: 0; transition: opacity 0.5s; }
+@keyframes toast-in { from { transform: translateY(12px); opacity: 0; } }
+
+/* --- Flash --- */
+#flash {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 30;
+}
+#flash.show { animation: flash-anim 0.5s ease-out; }
+@keyframes flash-anim { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* --- Game over --- */
+#gameover {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 25;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+#gameover.show { opacity: 1; }
+
+#go-cause {
+  font-size: 22px; color: #ff5a5a;
+  text-shadow: 4px 4px 0 #000;
+  text-align: center;
+  line-height: 1.6;
+  padding: 0 20px;
+}
+
+.go-score-label { font-size: 12px; color: #ccc; text-shadow: 2px 2px 0 #000; }
+
+#go-score {
+  font-size: 64px; color: #fff;
+  text-shadow: 5px 5px 0 #000;
+}
+
+#go-record {
+  font-size: 14px; color: #ffd23b;
+  text-shadow: 3px 3px 0 #000;
+}
+#go-record.new-record { animation: newrec 0.6s ease infinite alternate; }
+@keyframes newrec { from { transform: scale(1); } to { transform: scale(1.2); color: #fff; } }
+
+#go-countdown { font-size: 11px; color: #aaa; text-shadow: 2px 2px 0 #000; }
+
+/* --- Conexión --- */
+#conn {
+  position: fixed; bottom: 12px; left: 12px;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.5);
+  padding: 6px 10px; border-radius: 10px;
+  z-index: 10;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.on { background: #35e05a; box-shadow: 0 0 8px #35e05a; }
+.dot.connecting { background: #ffd23b; animation: blink 0.8s infinite; }
+.dot.off { background: #ff4a4a; }
+@keyframes blink { 50% { opacity: 0.3; } }
+#conn-label { font-size: 8px; color: #ddd; }
+
+/* --- Ayuda --- */
+#help {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 8px; color: #fff;
+  background: rgba(0,0,0,0.55);
+  padding: 8px 12px; border-radius: 10px;
+  line-height: 1.8;
+  z-index: 10;
+  animation: help-fade 1s ease 14s forwards;
+  max-width: 92%;
+  text-align: center;
+}
+@keyframes help-fade { to { opacity: 0; visibility: hidden; } }

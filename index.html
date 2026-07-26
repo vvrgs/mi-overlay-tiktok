@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cruza la Calle — Overlay TikTok</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Marcador -->
+<div id="score">0</div>
+<div id="record">RECORD: 0</div>
+
+<!-- Panel de regalos (como en el live) -->
+<div id="gift-panel"></div>
+
+<!-- Banner central de eventos -->
+<div id="banner">
+  <div id="banner-text"></div>
+  <div id="banner-sub"></div>
+</div>
+
+<!-- Avisos pequeños -->
+<div id="toasts"></div>
+
+<!-- Flash de pantalla (rayo / alerta) -->
+<div id="flash"></div>
+
+<!-- Game over -->
+<div id="gameover">
+  <div id="go-cause">¡GAME OVER!</div>
+  <div class="go-score-label">PUNTOS</div>
+  <div id="go-score">0</div>
+  <div id="go-record">RECORD: 0</div>
+  <div id="go-countdown"></div>
+</div>
+
+<!-- Estado de conexión -->
+<div id="conn">
+  <span id="conn-dot" class="dot off"></span>
+  <span id="conn-label">TikTok sin conexión</span>
+</div>
+
+<!-- Ayuda de teclas (se desvanece sola) -->
+<div id="help">
+  <b>Teclas:</b> flechas/WASD mover · T camión · V volcán · E terremoto ·
+  N tornado · U ovni · L rayo · 1 reset · 2 escudo · 3/4 izq/der · M silencio
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/models.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/disasters.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/tiktok.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
