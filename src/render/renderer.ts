@@ -382,6 +382,49 @@ export class GameRenderer {
     this.post.setOptions({ enabled: this.config.graphics.postProcessing !== false && quality !== 'low' });
   }
 
+  /**
+   * Ajustes gráficos sueltos, en caliente. Solo se aplica lo que llega: el panel
+   * manda un deslizador cada vez y no tiene por qué conocer el resto.
+   */
+  tuneGraphics(patch: {
+    bloomIntensity?: number;
+    saturation?: number;
+    contrast?: number;
+    exposure?: number;
+    vignette?: number;
+    lodDistance?: number;
+    textureDistance?: number;
+    fogDensity?: number;
+  }): void {
+    const g = this.config.graphics;
+    if (patch.bloomIntensity !== undefined) g.bloomIntensity = patch.bloomIntensity;
+    if (patch.saturation !== undefined) g.saturation = patch.saturation;
+    if (patch.contrast !== undefined) g.contrast = patch.contrast;
+    if (patch.exposure !== undefined) g.exposure = patch.exposure;
+    if (patch.vignette !== undefined) g.vignette = patch.vignette;
+    this.post.setOptions({
+      bloomIntensity: g.bloomIntensity,
+      saturation: g.saturation,
+      contrast: g.contrast,
+      exposure: g.exposure,
+      vignette: g.vignette,
+    });
+
+    if (patch.lodDistance !== undefined) {
+      g.lodDistance = patch.lodDistance;
+      this.unitsRenderer.setLodDistance(patch.lodDistance);
+    }
+    if (patch.textureDistance !== undefined) {
+      g.textureDistance = patch.textureDistance;
+      this.unitsRenderer.setTextureDistance(patch.textureDistance);
+    }
+    if (patch.fogDensity !== undefined) {
+      g.fogDensity = patch.fogDensity;
+      // Pasa por applyAtmosphere para que la niebla del clima siga multiplicando.
+      this.applyAtmosphere();
+    }
+  }
+
   updateConfig(config: GameConfig): void {
     this.config = config;
     this.director.updateConfig(config);

@@ -82,7 +82,35 @@ export type ControlCommand =
   | { type: 'control'; action: 'unban'; uniqueId: string }
   | { type: 'control'; action: 'setSimulator'; enabled: boolean }
   | { type: 'control'; action: 'setCamera'; mode: string }
+  /**
+   * Ajustes finos de cámara en vivo. Solo se aplican los campos presentes, así
+   * que el panel puede mandar un único deslizador sin arrastrar el resto.
+   */
+  | {
+      type: 'control';
+      action: 'tuneCamera';
+      distance?: number;
+      height?: number;
+      fov?: number;
+      cutSpeed?: number;
+      orbit?: number;
+      shake?: number;
+      followAction?: boolean;
+    }
   | { type: 'control'; action: 'setGraphics'; quality: string }
+  /** Opciones gráficas sueltas que el streamer puede mover sin recargar. */
+  | {
+      type: 'control';
+      action: 'tuneGraphics';
+      bloomIntensity?: number;
+      saturation?: number;
+      contrast?: number;
+      exposure?: number;
+      vignette?: number;
+      lodDistance?: number;
+      textureDistance?: number;
+      fogDensity?: number;
+    }
   | { type: 'control'; action: 'setSeason'; season: string }
   | { type: 'control'; action: 'setWeather'; weather: string };
 
@@ -100,6 +128,29 @@ export interface OverlayStatus {
   weather: string;
   entities: { red: number; blue: number };
   champions: { red: number; blue: number };
+  /** Ajustes vivos, para que el panel arranque mostrando los valores reales. */
+  camera: {
+    mode: string;
+    distance: number;
+    height: number;
+    fov: number;
+    cutSpeed: number;
+    orbit: number;
+    shake: number;
+    followAction: boolean;
+  };
+  graphics: {
+    quality: string;
+    bloomIntensity: number;
+    saturation: number;
+    contrast: number;
+    exposure: number;
+    vignette: number;
+    lodDistance: number;
+    textureDistance: number;
+    fogDensity: number;
+  };
+  difficulty: number;
   fps: number;
   roundElapsed: number;
   simulator: boolean;

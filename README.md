@@ -29,8 +29,8 @@ npm start
 | 🌦️ **Estaciones y clima** | Primavera, verano, otoño e invierno cambian la paleta del campo, el follaje y el agua; encima llueve, nieva, cae niebla o revienta una tormenta con relámpagos y viento. Rota solo cada ronda, o lo fijas desde el panel. |
 | 🩸 **Batalla que se ve** | El campo y el río se van tiñendo de rojo con las bajas reales. Cadáveres, sangre, flechas, explosiones con onda de choque, chispas, humo y meteoros con estela. |
 | ✨ **Presentación HDR** | Render en espacio lineal con bloom real, tonemapping ACES, viñeta y grading. El fuego rebosa luz; el resto no. |
-| 🎥 **Cámara automática** | Se dirige sola: encuadra donde más gente está muriendo, corta con planos variados y se sacude con las ultimates. Nadie tiene que pilotarla en un directo de 8 horas. |
-| 🎛️ **Panel de control** | Pantalla aparte para iniciar/pausar, cambiar países, mandar tropas, lanzar ultimates, banear, probar regalos y ver rankings. |
+| 🎥 **Cámara automática, pero tuya** | Se dirige sola —encuadra donde más gente muere, corta con planos variados, se sacude con las ultimates— y aun así distancia, altura, campo de visión, ritmo de corte, órbita y sacudida se mueven en vivo con deslizadores, más cuatro encuadres listos: épica, al ras, táctica y por defecto. |
+| 🎛️ **Panel de control** | Pantalla aparte, en seis pestañas, pensada para usarse con el pulgar desde el móvil mientras hablas. Partida, cámara, aspecto, mundo, pruebas y rankings, y todo se aplica al instante sin recargar. |
 | 🧪 **Simulador** | Genera chats, regalos, likes y follows falsos para desarrollar, grabar clips y probar el balance sin estar en vivo. |
 
 ---
@@ -72,7 +72,7 @@ que oscurece axilas y articulaciones y da sensación de volumen sin calcular som
 propias.
 
 Cada arquetipo tiene su equipo: el soldado, casco con nasal, espada que se afila y
-escudo con umbo; el arquero, capucha, arco de cuatro tramos curvados y carcaj; el mago,
+escudo con umbo; el arquero, capucha, arco recurvo con cuerda y carcaj; el mago,
 túnica acampanada, sombrero cónico y báculo con orbe encendido; la caballería, montura
 completa con crin, gualdrapa y lanza calada; el gigante, hombreras y maza con pinchos;
 el campeón del chat, penacho y capa que ondea al correr; el dragón, cuello, cresta
@@ -80,6 +80,19 @@ dorsal y alas con diedro y dedos alares. A la distancia de cámara de un directo
 silueta es lo único que distingue una unidad de otra —el color ya lo ocupa el equipo—.
 Cada instancia varía además de estatura y tono, para que el ejército no parezca una
 figura clonada mil veces.
+
+**Menos color de equipo, no más.** Un soldado vestido de rojo intenso de la cabeza a
+los pies no se lee como un soldado: se lee como un muñeco de plástico. Un ejército real
+es en su mayoría cuero, acero y tela sucia. Así que las calzas van en un tono apagado y
+el color del bando se concentra en la sobrevesta y el escudo —que además es donde el
+espectador lo busca—. Es el cambio que más hizo por sacarlos del aspecto de juguete.
+
+**Relieve sin mapas de normales.** El shader estima la pendiente del material en UV y
+dobla la normal con ella, así que los pliegues, los anillos de la malla y las
+abolladuras del acero recogen la luz de verdad en vez de estar pintados. El campo de
+altura NO es el del color: la trama del tejido va a 110 ciclos por unidad, cae muy por
+debajo del píxel y derivarla solo produce moiré, así que al relieve solo entran los
+rasgos gruesos.
 
 **Materiales, no colores planos.** Ninguna unidad usa una sola imagen: los materiales
 se generan dentro del shader a partir de las coordenadas del propio modelo. El paño
@@ -99,6 +112,13 @@ metal, además de barro en las botas que va subiendo con la refriega. Dos soldad
 contiguos nunca son el mismo píxel repetido, pero el color de equipo se mantiene
 intacto y legible: es lo único que el espectador tiene que distinguir a la primera.
 
+El arquero tiene su propia cadena de huesos, y por un motivo concreto: colgado del
+antebrazo normal, un arco de metro y pico barría un arco enorme cada vez que el codo se
+plegaba y acababa tumbado detrás de la espalda, como si se hubiera desprendido. Ahora el
+brazo del arco va extendido y rígido, el otro tensa hacia la mejilla, y **el arco vive
+en un hueso que solo traslada**: se queda vertical y sigue a la mano. Si rotara con el
+brazo, visto de frente sería una raya invisible.
+
 **Animación con esqueleto de dos huesos.** Cada vértice conoce su articulación y la de
 su hueso padre, así que el shader dobla rodillas y codos rotando primero sobre una y
 después sobre la otra. De ahí salen la flexión de rodilla al despegar el pie, el codo
@@ -114,7 +134,9 @@ túnicas ondean con el viento del clima actual.
 
 Para juzgar los modelos sin cazar el momento en que la cámara pasa cerca, hay un
 previsualizador en **`models.html`**: muestra un ejemplar de cada arquetipo con los
-mismos shaders, y se puede orbitar, cambiar de equipo y pausar la animación.
+mismos shaders, y se puede orbitar, cambiar de equipo y pausar la animación. Acepta
+además el encuadre por URL —`models.html?unit=archer&yaw=0.6&pitch=0.1&dist=3&anim=0`—
+para volver siempre exactamente a la misma vista al comparar cambios.
 
 **Render HDR.** La escena se dibuja en coma flotante y en espacio lineal, sin recortar
 a blanco. Eso permite que explosiones, meteoros, orbes y el sol emitan por encima de
@@ -126,6 +148,15 @@ el color en las altas luces en vez de quemarlas—, viñeta, saturación y contr
 chispas con trayectoria balística y humo que asciende y se disipa. Cada capa entra en
 un momento distinto: eso es lo que la hace leerse como una explosión y no como un
 fogonazo plano. Los meteoros caen con estela de fuego y sacuden la cámara.
+
+**Cámara dirigida, pero tuya.** Sigue encuadrando sola donde muere más gente y
+cortando entre planos variados, que es lo que hace falta en un directo de ocho
+horas. Lo que cambia es que ahora todos sus parámetros se mueven en vivo desde el
+panel, y como **multiplicadores** sobre lo que dice la config: 1,00× es el
+encuadre base y a partir de ahí acercas o alejas sin tener que saber que el rango
+del mapa va de 55 a 130 unidades. Los ajustes se aplican al ENCUADRAR, no al
+elegir el plano, así que mover un deslizador se ve al momento, no corta la toma en
+curso y no altera la secuencia de planos.
 
 **Escenario.** Cielo con nubes procedurales en dos capas y disco solar, río que
 serpentea con espuma en la orilla y corriente, bosque y rocas en las laderas para dar
@@ -204,6 +235,7 @@ index.html?battle.difficulty=1.5&graphics.timeOfDay=sunset&camera.mode=orbit
 | `graphics.lodDistance` | A partir de qué distancia se usa la malla reducida |
 | `graphics.textureDistance` | Hasta dónde se calculan las texturas de material de las unidades |
 | `graphics.precipitationParticles` | Densidad de lluvia y nieve. Lo primero que bajar si la tormenta cuesta FPS |
+| `camera.distanceRange` / `heightRange` | Encuadre base. Los deslizadores del panel multiplican sobre esto |
 | `hud.safeAreaTop` | Hueco arriba para tu cámara |
 | `battle.autoBalance` | Da ventaja al bando que va perdiendo para que la ronda no se muera |
 

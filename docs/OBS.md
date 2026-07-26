@@ -43,8 +43,32 @@ Abre `http://localhost:8787/control.html` en tu navegador, en el segundo monitor
 Se conecta solo al overlay (por WebSocket y, si están en el mismo navegador, también
 por `BroadcastChannel`, así que funciona incluso sin servidor).
 
-Desde ahí controlas la partida, cambias países, mandas tropas, lanzas ultimates,
-baneas usuarios y pruebas regalos sin depender de que alguien regale de verdad.
+Está repartido en seis pestañas, y **todo lo que se toca se aplica al instante**
+en el overlay, sin recargar nada:
+
+| Pestaña | Qué hay |
+| --- | --- |
+| ⚔ **Partida** | Iniciar, pausar, repetir o terminar ronda; dificultad; países; enviar tropas; lanzar ultimates y llenar furia |
+| 🎥 **Cámara** | Modo, distancia, altura, campo de visión, duración del plano, órbita, sacudida, perseguir la acción, y cuatro encuadres listos |
+| ✨ **Aspecto** | Calidad, exposición, contraste, saturación, bloom, viñeta, distancia de modelos y de texturas, niebla |
+| 🌦 **Mundo** | Estación y clima manuales |
+| 🧪 **Pruebas** | Simulador, regalo/chat/like de prueba, moderación |
+| 🏆 **Rankings** | Generales, guerreros, países y últimas rondas |
+
+Los deslizadores de cámara y aspecto son **relativos**: 1,00× es lo que dice la
+config y a partir de ahí acercas, alejas, subes o bajas sin tener que saber en qué
+unidades trabaja el motor. El panel se pone al día solo con lo que reporta el
+overlay, así que puedes abrirlo a mitad del directo o en el móvil y verá los
+valores reales, no los de arranque.
+
+Los cuatro encuadres de la pestaña de cámara mueven varios deslizadores a la vez:
+
+| Encuadre | Para qué |
+| --- | --- |
+| 🏔 Épica | Plano general alto y pausado. Para el choque inicial y los finales |
+| 💥 Al ras | Pegada a la tropa, cortes rápidos y sacudida fuerte. Para el cuerpo a cuerpo |
+| 🗺 Táctica | Casi cenital, planos largos, poca órbita. Se ve el mapa entero |
+| ↺ Por defecto | Vuelve a 1,00× en todo |
 
 ## 5. Atajos de teclado sobre el overlay
 

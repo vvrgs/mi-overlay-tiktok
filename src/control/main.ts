@@ -5,6 +5,12 @@
  * pestañas del mismo navegador, sin necesidad de servidor) y WebSocket (para
  * cuando el overlay corre dentro de OBS, que es un proceso aparte). Manda el
  * comando por las dos y el overlay lo recibe por la que esté disponible.
+ *
+ * Los mandos se declaran en el HTML, no aquí: un deslizador solo necesita
+ * `data-cmd` (la acción), `data-key` (el campo) y `data-format` (cómo se
+ * escribe su valor). Añadir un mando nuevo es añadir un `<input>`; este archivo
+ * no se toca. Es lo que evita que el panel se convierta en cien manejadores
+ * copiados.
  */
 
 import './styles.css';
@@ -78,51 +84,123 @@ function connect(): void {
   open();
 }
 
+// -------------------------------------------------------------- formatos
+
+const FORMATS: Record<string, (value: number) => string> = {
+  x: (v) => `${v.toFixed(2)}×`,
+  deg: (v) => `${Math.round(v)}°`,
+  m: (v) => (v <= 0 ? 'nunca' : `${Math.round(v)} m`),
+  // La densidad de niebla es un número minúsculo (0,0022): en el deslizador se
+  // maneja en milésimas para que los pasos sean manejables con el dedo.
+  milli: (v) => `${v.toFixed(1)}‰`,
+  plain: (v) => String(Math.round(v)),
+};
+
+/** Valor que se manda al overlay a partir del que muestra el deslizador. */
+function toWire(format: string, value: number): number {
+  return format === 'milli' ? value / 1000 : value;
+}
+
+/** Valor del deslizador a partir del que reporta el overlay. */
+function fromWire(format: string, value: number): number {
+  return format === 'milli' ? value * 1000 : value;
+}
+
+function paintSlider(input: HTMLInputElement): void {
+  const key = input.dataset.el!;
+  const out = document.querySelector<HTMLOutputElement>(`[data-out="${key}"]`);
+  if (!out) return;
+  const format = input.dataset.format ?? 'plain';
+  out.textContent = (FORMATS[format] ?? FORMATS.plain)(Number(input.value));
+}
+
+/** Mueve un deslizador desde fuera sin pisar al streamer si lo está arrastrando. */
+function syncSlider(key: string, value: number): void {
+  const input = el[key] as HTMLInputElement | undefined;
+  if (!input || document.activeElement === input) return;
+  const next = fromWire(input.dataset.format ?? 'plain', value);
+  if (Math.abs(Number(input.value) - next) < 1e-6) return;
+  input.value = String(next);
+  paintSlider(input);
+}
+
+function syncPills(group: string, value: string): void {
+  const host = document.querySelector<HTMLElement>(`[data-pills="${group}"]`);
+  if (!host) return;
+  for (const pill of host.querySelectorAll<HTMLElement>('.pill')) {
+    pill.classList.toggle('is-active', pill.dataset.value === value);
+  }
+}
+
+// ---------------------------------------------------------------- estado
+
+const PHASES: Record<string, string> = {
+  lobby: 'En espera',
+  countdown: 'Cuenta atrás',
+  battle: 'Batalla',
+  roundEnd: 'Fin de ronda',
+  seriesEnd: 'Fin de serie',
+};
+const SEASONS: Record<string, string> = { spring: '🌱 Primavera', summer: '☀️ Verano', autumn: '🍂 Otoño', winter: '❄️ Invierno' };
+const WEATHERS: Record<string, string> = { clear: '☀️ Despejado', rain: '🌧 Lluvia', snow: '❄️ Nieve', fog: '🌫 Niebla', storm: '⛈ Tormenta' };
+
 function applyStatus(status: OverlayStatus): void {
   lastStatusAt = performance.now();
-  const phases: Record<string, string> = {
-    lobby: 'En espera',
-    countdown: 'Cuenta atrás',
-    battle: 'Batalla',
-    roundEnd: 'Fin de ronda',
-    seriesEnd: 'Fin de serie',
-  };
-  q('phase').textContent = (phases[status.phase] ?? status.phase) + (status.paused ? ' (pausa)' : '');
-  q('round').textContent = String(status.round);
-  q('score').textContent = `${status.wins.red} — ${status.wins.blue} (a ${status.seriesTarget})`;
+
+  q('phase').textContent = (PHASES[status.phase] ?? status.phase) + (status.paused ? ' · pausa' : '');
+  q('score').textContent = `R${status.round} · ${status.wins.red}–${status.wins.blue} (a ${status.seriesTarget})`;
   q('elapsed').textContent = formatTime(status.roundElapsed);
-  q('fps').textContent = String(status.fps);
-  q('entities').textContent = `${status.entities.red + status.entities.blue}`;
+  q('fps').textContent = `${status.fps} fps · ${status.entities.red + status.entities.blue} figuras`;
 
   q('redSoldiers').textContent = formatCount(status.soldiers.red);
   q('blueSoldiers').textContent = formatCount(status.soldiers.blue);
-
   const total = Math.max(1, status.soldiers.red + status.soldiers.blue);
-  (q('redBar') as HTMLElement).style.width = `${(status.soldiers.red / total) * 100}%`;
-  (q('blueBar') as HTMLElement).style.width = `${(status.soldiers.blue / total) * 100}%`;
+  q('redBar').style.width = `${(status.soldiers.red / total) * 100}%`;
 
   const rageMax = config.likes.rageMax || 100;
-  q('redRage').textContent = String(Math.round((status.rage.red / rageMax) * 100));
-  q('blueRage').textContent = String(Math.round((status.rage.blue / rageMax) * 100));
+  for (const team of ['red', 'blue'] as const) {
+    const pct = Math.round((status.rage[team] / rageMax) * 100);
+    q(`${team}Rage`).textContent = `${pct}%`;
+    q(`${team}RageBar`).style.width = `${Math.min(100, pct)}%`;
+  }
 
-  q('redLabel').textContent = `${config.countries[status.countries.red]?.flag ?? ''} ${config.teams.red.shortName}`;
-  q('blueLabel').textContent = `${config.countries[status.countries.blue]?.flag ?? ''} ${config.teams.blue.shortName}`;
-
-  const redSelect = q<HTMLSelectElement>('redCountry');
-  const blueSelect = q<HTMLSelectElement>('blueCountry');
-  if (document.activeElement !== redSelect) redSelect.value = status.countries.red;
-  if (document.activeElement !== blueSelect) blueSelect.value = status.countries.blue;
+  for (const team of ['red', 'blue'] as const) {
+    const select = q<HTMLSelectElement>(`${team}Country`);
+    if (document.activeElement !== select) select.value = status.countries[team];
+  }
 
   const simToggle = q<HTMLInputElement>('simToggle');
   if (document.activeElement !== simToggle) simToggle.checked = status.simulator;
 
-  const seasons: Record<string, string> = { spring: '🌱 Primavera', summer: '☀️ Verano', autumn: '🍂 Otoño', winter: '❄️ Invierno' };
-  const weathers: Record<string, string> = { clear: '☀️ Despejado', rain: '🌧️ Lluvia', snow: '❄️ Nieve', fog: '🌫️ Niebla', storm: '⛈️ Tormenta' };
-  q('atmosphere').textContent = `${seasons[status.season] ?? status.season ?? '—'} · ${weathers[status.weather] ?? status.weather ?? '—'}`;
-  const seasonSelect = q<HTMLSelectElement>('season');
-  const weatherSelect = q<HTMLSelectElement>('weather');
-  if (document.activeElement !== seasonSelect && status.season) seasonSelect.value = status.season;
-  if (document.activeElement !== weatherSelect && status.weather) weatherSelect.value = status.weather;
+  q('atmosphere').textContent = `${SEASONS[status.season] ?? status.season ?? '—'} · ${WEATHERS[status.weather] ?? status.weather ?? '—'}`;
+  syncPills('season', status.season);
+  syncPills('weather', status.weather);
+
+  // Ajustes vivos: el overlay es la fuente de verdad, así que el panel se pone
+  // al día solo aunque se haya abierto a mitad del directo o en otro dispositivo.
+  if (status.camera) {
+    syncPills('cameraMode', status.camera.mode);
+    syncSlider('camDistance', status.camera.distance);
+    syncSlider('camHeight', status.camera.height);
+    syncSlider('camFov', status.camera.fov);
+    syncSlider('camCut', status.camera.cutSpeed);
+    syncSlider('camOrbit', status.camera.orbit);
+    syncSlider('camShake', status.camera.shake);
+    const follow = q<HTMLInputElement>('camFollow');
+    if (document.activeElement !== follow) follow.checked = status.camera.followAction;
+  }
+  if (status.graphics) {
+    syncPills('quality', status.graphics.quality);
+    syncSlider('gExposure', status.graphics.exposure);
+    syncSlider('gContrast', status.graphics.contrast);
+    syncSlider('gSaturation', status.graphics.saturation);
+    syncSlider('gBloom', status.graphics.bloomIntensity);
+    syncSlider('gVignette', status.graphics.vignette);
+    syncSlider('gLod', status.graphics.lodDistance);
+    syncSlider('gTexture', status.graphics.textureDistance);
+    syncSlider('gFog', status.graphics.fogDensity);
+  }
+  if (typeof status.difficulty === 'number') syncSlider('difficulty', status.difficulty);
 }
 
 /** El overlay late cada 500 ms: si deja de hacerlo, se marca como desconectado. */
@@ -130,7 +208,7 @@ function watchConnection(): void {
   setInterval(() => {
     const alive = performance.now() - lastStatusAt < 2500;
     q('connDot').classList.toggle('is-online', alive);
-    q('connText').textContent = alive ? 'overlay conectado' : 'overlay no detectado';
+    q('connText').textContent = alive ? 'en vivo' : 'sin overlay';
   }, 800);
 }
 
@@ -204,13 +282,89 @@ function populateSelectors(): void {
     ultSelect.appendChild(option);
   }
 
-  q<HTMLSelectElement>('season').value = config.world?.season ?? 'summer';
-  q<HTMLSelectElement>('weather').value = config.world?.weather ?? 'clear';
-  q<HTMLSelectElement>('camera').value = config.camera.mode;
-  q<HTMLSelectElement>('quality').value = config.graphics.quality;
-  q<HTMLInputElement>('difficulty').value = String(config.battle.difficulty);
-  q('difficultyOut').textContent = `${config.battle.difficulty.toFixed(2)}×`;
+  // Valores de arranque desde la config. En cuanto llegue el primer estado del
+  // overlay, mandan los suyos.
+  const g = config.graphics;
+  const starts: Record<string, number> = {
+    difficulty: config.battle.difficulty,
+    camFov: config.camera.fov,
+    gExposure: g.exposure,
+    gContrast: g.contrast,
+    gSaturation: g.saturation,
+    gBloom: g.bloomIntensity,
+    gVignette: g.vignette,
+    gLod: g.lodDistance,
+    gTexture: g.textureDistance,
+    gFog: g.fogDensity,
+  };
+  for (const [key, value] of Object.entries(starts)) syncSlider(key, value);
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[type="range"]')) paintSlider(input);
+
+  syncPills('cameraMode', config.camera.mode);
+  syncPills('quality', g.quality);
+  syncPills('season', config.world?.season ?? 'summer');
+  syncPills('weather', config.world?.weather ?? 'clear');
   q('overlayUrl').textContent = new URL('index.html', location.href).href;
+}
+
+/** Encuadres listos para usar, por si no apetece tocar seis deslizadores en vivo. */
+const CAMERA_PRESETS: Record<string, Record<string, number | boolean>> = {
+  epic: { distance: 1.6, height: 1.5, fov: 46, cutSpeed: 1.6, orbit: 0.6, shake: 1 },
+  action: { distance: 0.55, height: 0.45, fov: 62, cutSpeed: 0.6, orbit: 1.6, shake: 1.5 },
+  tactic: { distance: 1.3, height: 2.1, fov: 40, cutSpeed: 2, orbit: 0.25, shake: 0.4 },
+  default: { distance: 1, height: 1, fov: 52, cutSpeed: 1, orbit: 1, shake: 1 },
+};
+
+function bindTabs(): void {
+  document.addEventListener('click', (ev) => {
+    const tab = (ev.target as HTMLElement).closest<HTMLElement>('[data-tab]');
+    if (!tab) return;
+    for (const node of document.querySelectorAll('.tab')) node.classList.toggle('is-active', node === tab);
+    for (const page of document.querySelectorAll<HTMLElement>('.page')) {
+      page.classList.toggle('is-active', page.dataset.page === tab.dataset.tab);
+    }
+  });
+}
+
+/** Un solo manejador para todos los deslizadores declarados en el HTML. */
+function bindSliders(): void {
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[type="range"][data-cmd]')) {
+    input.addEventListener('input', () => {
+      paintSlider(input);
+      const format = input.dataset.format ?? 'plain';
+      send({
+        type: 'control',
+        action: input.dataset.cmd,
+        [input.dataset.key!]: toWire(format, Number(input.value)),
+      } as unknown as ControlCommand);
+    });
+  }
+  for (const box of document.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-cmd]')) {
+    box.addEventListener('change', () => {
+      send({ type: 'control', action: box.dataset.cmd, [box.dataset.key!]: box.checked } as unknown as ControlCommand);
+    });
+  }
+}
+
+/** Grupos de botones excluyentes (modo de cámara, calidad, estación, clima). */
+const PILL_COMMANDS: Record<string, (value: string) => ControlCommand> = {
+  cameraMode: (mode) => ({ type: 'control', action: 'setCamera', mode }),
+  quality: (quality) => ({ type: 'control', action: 'setGraphics', quality }),
+  season: (season) => ({ type: 'control', action: 'setSeason', season }),
+  weather: (weather) => ({ type: 'control', action: 'setWeather', weather }),
+};
+
+function bindPills(): void {
+  document.addEventListener('click', (ev) => {
+    const pill = (ev.target as HTMLElement).closest<HTMLElement>('.pill');
+    const host = pill?.closest<HTMLElement>('[data-pills]');
+    if (!pill || !host) return;
+    const group = host.dataset.pills!;
+    const value = pill.dataset.value!;
+    syncPills(group, value);
+    const build = PILL_COMMANDS[group];
+    if (build) send(build(value));
+  });
 }
 
 function bindActions(): void {
@@ -229,6 +383,22 @@ function bindActions(): void {
       case 'reloadConfig':
         send({ type: 'control', action } as ControlCommand);
         break;
+
+      case 'camPreset': {
+        const preset = CAMERA_PRESETS[button.dataset.preset ?? 'default'];
+        send({ type: 'control', action: 'tuneCamera', ...preset } as unknown as ControlCommand);
+        for (const [key, slider] of Object.entries({
+          distance: 'camDistance',
+          height: 'camHeight',
+          fov: 'camFov',
+          cutSpeed: 'camCut',
+          orbit: 'camOrbit',
+          shake: 'camShake',
+        })) {
+          if (typeof preset[key] === 'number') syncSlider(slider, preset[key]);
+        }
+        break;
+      }
 
       case 'addTroops': {
         const preset = button.dataset.amount;
@@ -301,37 +471,14 @@ function bindActions(): void {
     }
   });
 
-  q('redCountry').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setCountry', team: 'red', country: (ev.target as HTMLSelectElement).value }),
-  );
-  q('blueCountry').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setCountry', team: 'blue', country: (ev.target as HTMLSelectElement).value }),
-  );
-
-  q('difficulty').addEventListener('input', (ev) => {
-    const value = Number((ev.target as HTMLInputElement).value);
-    q('difficultyOut').textContent = `${value.toFixed(2)}×`;
-    send({ type: 'control', action: 'setDifficulty', value });
-  });
+  for (const team of ['red', 'blue'] as const) {
+    q(`${team}Country`).addEventListener('change', (ev) =>
+      send({ type: 'control', action: 'setCountry', team, country: (ev.target as HTMLSelectElement).value }),
+    );
+  }
 
   q('simToggle').addEventListener('change', (ev) =>
     send({ type: 'control', action: 'setSimulator', enabled: (ev.target as HTMLInputElement).checked }),
-  );
-
-  q('camera').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setCamera', mode: (ev.target as HTMLSelectElement).value }),
-  );
-
-  q('quality').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setGraphics', quality: (ev.target as HTMLSelectElement).value }),
-  );
-
-  q('season').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setSeason', season: (ev.target as HTMLSelectElement).value }),
-  );
-
-  q('weather').addEventListener('change', (ev) =>
-    send({ type: 'control', action: 'setWeather', weather: (ev.target as HTMLSelectElement).value }),
   );
 }
 
@@ -350,6 +497,9 @@ async function boot(): Promise<void> {
   config = await loadConfig();
   apiBase = resolveEndpoints(config).apiBase;
   populateSelectors();
+  bindTabs();
+  bindSliders();
+  bindPills();
   bindActions();
   connect();
   watchConnection();

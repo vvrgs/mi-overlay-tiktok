@@ -313,9 +313,19 @@ export class Game {
       case 'setCamera':
         this.renderer.director.setMode(command.mode as GameConfig['camera']['mode']);
         break;
+      case 'tuneCamera': {
+        const { type: _t, action: _a, ...patch } = command;
+        this.renderer.director.tune(patch);
+        break;
+      }
       case 'setGraphics':
         this.renderer.setQuality(command.quality as GameConfig['graphics']['quality']);
         break;
+      case 'tuneGraphics': {
+        const { type: _t, action: _a, ...patch } = command;
+        this.renderer.tuneGraphics(patch);
+        break;
+      }
       case 'setSeason': {
         const index = SEASONS.indexOf(command.season as Season);
         if (index >= 0) this.seasonIndex = index;
@@ -666,6 +676,19 @@ export class Game {
       weather: this.renderer.atmosphere.weather,
       entities: { ...this.entities },
       champions: { ...this.championCount },
+      camera: { mode: this.config.camera.mode, ...this.renderer.director.settings },
+      graphics: {
+        quality: this.config.graphics.quality,
+        bloomIntensity: this.config.graphics.bloomIntensity,
+        saturation: this.config.graphics.saturation,
+        contrast: this.config.graphics.contrast,
+        exposure: this.config.graphics.exposure,
+        vignette: this.config.graphics.vignette,
+        lodDistance: this.config.graphics.lodDistance,
+        textureDistance: this.config.graphics.textureDistance,
+        fogDensity: this.config.graphics.fogDensity,
+      },
+      difficulty: this.config.battle.difficulty,
       fps: Math.round(this.renderer.fps),
       roundElapsed: Math.round(this.roundElapsed),
       simulator: this.simulator.running,

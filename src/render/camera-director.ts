@@ -23,10 +23,35 @@ interface Shot {
   duration: number;
 }
 
+/**
+ * Ajustes que el panel puede mover en vivo. Son MULTIPLICADORES sobre lo que
+ * dice la config, no valores absolutos: así el streamer mueve un deslizador de
+ * "más cerca / más lejos" sin tener que saber que el rango base va de 55 a 130
+ * unidades de mundo, y el ajuste sigue teniendo sentido si luego cambia la
+ * config del mapa.
+ */
+export interface CameraTuning {
+  /** 0.4 = muy pegada a la tropa, 2 = plano general. */
+  distance: number;
+  /** 0.3 = casi a ras de suelo, 2 = cenital. */
+  height: number;
+  /** Campo de visión en grados. */
+  fov: number;
+  /** 0.4 = corta el doble de rápido, 3 = planos largos. */
+  cutSpeed: number;
+  /** 0 = cámara fija en el eje, 2 = orbita el doble de rápido. */
+  orbit: number;
+  /** 0 = sin sacudidas. */
+  shake: number;
+  /** Seguir el punto donde más gente muere. */
+  followAction: boolean;
+}
+
 export class CameraDirector {
   private rng: Rng;
   private shot: Shot;
   private shotTimer = 0;
+  private tuning: CameraTuning;
   private focus = new THREE.Vector3();
   private desiredFocus = new THREE.Vector3();
   private position = new THREE.Vector3();
@@ -42,6 +67,15 @@ export class CameraDirector {
   ) {
     this.rng = createRng(config.simulator.seed + 7);
     this.manualMode = config.camera.mode;
+    this.tuning = {
+      distance: 1,
+      height: 1,
+      fov: config.camera.fov,
+      cutSpeed: 1,
+      orbit: 1,
+      shake: config.camera.shakeEnabled ? 1 : 0,
+      followAction: config.camera.focusHottestZone,
+    };
     this.shot = this.pickShot();
     this.focus.set(0, 0, 0);
     this.position.set(-90, 40, 90);
@@ -52,14 +86,40 @@ export class CameraDirector {
   updateConfig(config: GameConfig): void {
     this.config = config;
     this.manualMode = config.camera.mode;
-    this.camera.fov = config.camera.fov;
-    this.camera.updateProjectionMatrix();
+    this.tune({ fov: config.camera.fov });
   }
 
   setMode(mode: GameConfig['camera']['mode']): void {
     this.manualMode = mode;
     this.shotTimer = 0;
     this.shot = this.pickShot();
+  }
+
+  get settings(): CameraTuning {
+    return { ...this.tuning };
+  }
+
+  /**
+   * Cambia uno o varios ajustes en caliente.
+   *
+   * Los multiplicadores se aplican al ENCUADRAR, no al elegir el plano: así
+   * mover un deslizador se ve al momento sin cortar, sin cambiar el tipo de
+   * plano en curso y sin gastar números del generador aleatorio (que haría que
+   * la secuencia de planos dependiera de cuánto ha toqueteado el streamer).
+   */
+  tune(patch: Partial<CameraTuning>): void {
+    Object.assign(this.tuning, patch);
+    this.tuning.distance = clamp(this.tuning.distance, 0.25, 2.5);
+    this.tuning.height = clamp(this.tuning.height, 0.2, 2.5);
+    this.tuning.fov = clamp(this.tuning.fov, 20, 100);
+    this.tuning.cutSpeed = clamp(this.tuning.cutSpeed, 0.25, 4);
+    this.tuning.orbit = clamp(this.tuning.orbit, 0, 3);
+    this.tuning.shake = clamp(this.tuning.shake, 0, 3);
+
+    if (this.camera.fov !== this.tuning.fov) {
+      this.camera.fov = this.tuning.fov;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   private pickShot(): Shot {
@@ -111,7 +171,7 @@ export class CameraDirector {
 
   /** Punto de interés que publica el worker (donde más bajas hay). */
   setHotspot(x: number, z: number, intensity: number): void {
-    if (intensity <= 0 || !this.config.camera.focusHottestZone) return;
+    if (intensity <= 0 || !this.tuning.followAction) return;
     this.desiredFocus.set(x, this.terrain.height(x, z), z);
   }
 
@@ -121,8 +181,8 @@ export class CameraDirector {
 
   /** Sacudida de cámara: la disparan los meteoros y las ultimates. */
   shake(amount: number): void {
-    if (!this.config.camera.shakeEnabled) return;
-    this.shakeAmount = Math.min(2.5, this.shakeAmount + amount);
+    if (this.tuning.shake <= 0) return;
+    this.shakeAmount = Math.min(2.5, this.shakeAmount + amount * this.tuning.shake);
   }
 
   /** Corta a un plano dramático (se usa al lanzar una ultimate). */
@@ -136,13 +196,13 @@ export class CameraDirector {
 
   update(dt: number): void {
     if (this.manualMode === 'fixed') {
-      this.camera.position.set(0, 95, 155);
+      this.camera.position.set(0, 95 * this.tuning.height, 155 * this.tuning.distance);
       this.camera.lookAt(0, 0, 0);
       return;
     }
 
     this.shotTimer += dt;
-    if (this.manualMode === 'cinematic' && this.shotTimer >= this.shot.duration) {
+    if (this.manualMode === 'cinematic' && this.shotTimer >= this.shot.duration * this.tuning.cutSpeed) {
       this.shot = this.pickShot();
       this.shotTimer = 0;
     }
@@ -155,15 +215,15 @@ export class CameraDirector {
     this.focus.y = damp(this.focus.y, targetFocus.y, 1.5, dt);
     this.focus.z = damp(this.focus.z, targetFocus.z, 1.5, dt);
 
-    this.shot.angle += this.shot.orbitSpeed * dt;
+    this.shot.angle += this.shot.orbitSpeed * this.tuning.orbit * dt;
 
     // TikTok es vertical: con un encuadre 9:16 el campo de visión HORIZONTAL es
     // mucho más estrecho que en 16:9, y con la misma distancia solo se vería una
     // rebanada del ejército. Se aleja la cámara en proporción al aspecto para que
     // el plano abarque lo mismo sin importar la forma del lienzo.
     const aspectBoost = clamp(1 / Math.max(0.35, this.camera.aspect), 1, 2.4);
-    const distance = this.shot.distance * aspectBoost;
-    const height = this.shot.height * (0.65 + aspectBoost * 0.45);
+    const distance = this.shot.distance * aspectBoost * this.tuning.distance;
+    const height = this.shot.height * (0.65 + aspectBoost * 0.45) * this.tuning.height;
 
     const desiredX = this.focus.x + Math.cos(this.shot.angle) * distance;
     const desiredZ = this.focus.z + Math.sin(this.shot.angle) * distance;

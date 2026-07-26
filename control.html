@@ -2,225 +2,309 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Guerra de Naciones — Panel de control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Guerra de Naciones — Panel</title>
     <link rel="icon" href="data:," />
   </head>
   <body>
-    <header class="topbar">
-      <h1>Guerra de Naciones <small>panel de control</small></h1>
-      <div class="conn">
-        <span class="conn__dot" data-el="connDot"></span>
-        <span data-el="connText">buscando overlay…</span>
+    <!--
+      El panel se maneja EN DIRECTO, muchas veces desde el móvil y con una mano,
+      mientras el streamer habla. Por eso: pestañas en vez de una lista larga,
+      un mando por línea, y el valor siempre visible al lado del deslizador.
+      Todo lo que se toca aquí se aplica al instante en el overlay.
+    -->
+    <header class="bar">
+      <div class="bar__title">
+        <strong>Guerra de Naciones</strong>
+        <span class="conn" data-el="conn"><i class="conn__dot" data-el="connDot"></i><span data-el="connText">buscando…</span></span>
+      </div>
+      <div class="bar__live">
+        <span class="chip chip--red"><b data-el="redSoldiers">0</b></span>
+        <div class="split"><i class="split__red" data-el="redBar"></i><i class="split__blue" data-el="blueBar"></i></div>
+        <span class="chip chip--blue"><b data-el="blueSoldiers">0</b></span>
+      </div>
+      <div class="bar__meta">
+        <span data-el="phase">—</span>
+        <span data-el="score">—</span>
+        <span data-el="elapsed">0:00</span>
+        <span data-el="fps">— fps</span>
       </div>
     </header>
 
-    <main class="grid">
-      <!-- Estado en vivo -->
-      <section class="card card--wide">
-        <h2>Estado</h2>
-        <div class="stats">
-          <div class="stat"><span class="stat__label">Fase</span><span class="stat__value" data-el="phase">—</span></div>
-          <div class="stat"><span class="stat__label">Ronda</span><span class="stat__value" data-el="round">—</span></div>
-          <div class="stat"><span class="stat__label">Marcador</span><span class="stat__value" data-el="score">—</span></div>
-          <div class="stat"><span class="stat__label">Tiempo</span><span class="stat__value" data-el="elapsed">—</span></div>
-          <div class="stat"><span class="stat__label">FPS</span><span class="stat__value" data-el="fps">—</span></div>
-          <div class="stat"><span class="stat__label">Entidades</span><span class="stat__value" data-el="entities">—</span></div>
-          <div class="stat"><span class="stat__label">Clima</span><span class="stat__value" data-el="atmosphere">—</span></div>
-        </div>
-        <div class="armies">
-          <div class="army army--red">
-            <span class="army__name" data-el="redLabel">ROJO</span>
-            <span class="army__count" data-el="redSoldiers">0</span>
-            <div class="bar"><div class="bar__fill bar__fill--red" data-el="redBar"></div></div>
-            <span class="army__rage">Furia <b data-el="redRage">0</b>%</span>
-          </div>
-          <div class="army army--blue">
-            <span class="army__name" data-el="blueLabel">AZUL</span>
-            <span class="army__count" data-el="blueSoldiers">0</span>
-            <div class="bar"><div class="bar__fill bar__fill--blue" data-el="blueBar"></div></div>
-            <span class="army__rage">Furia <b data-el="blueRage">0</b>%</span>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="partida" role="tab">⚔ Partida</button>
+      <button class="tab" data-tab="camara" role="tab">🎥 Cámara</button>
+      <button class="tab" data-tab="aspecto" role="tab">✨ Aspecto</button>
+      <button class="tab" data-tab="mundo" role="tab">🌦 Mundo</button>
+      <button class="tab" data-tab="pruebas" role="tab">🧪 Pruebas</button>
+      <button class="tab" data-tab="rankings" role="tab">🏆 Rankings</button>
+    </nav>
+
+    <main>
+      <!-- ───────────────────────────────────────────── Partida -->
+      <section class="page is-active" data-page="partida">
+        <div class="card">
+          <h2>Control</h2>
+          <div class="btns">
+            <button data-action="start" class="btn btn--go">▶ Iniciar serie</button>
+            <button data-action="pause" class="btn">⏸ Pausar</button>
+            <button data-action="resume" class="btn">⏵ Reanudar</button>
+            <button data-action="reset" class="btn">↻ Repetir ronda</button>
+            <button data-action="skipRound" class="btn">⏭ Terminar ronda</button>
+            <button data-action="resetSeries" class="btn btn--warn">⟲ Reiniciar serie</button>
           </div>
         </div>
-      </section>
 
-      <!-- Control de partida -->
-      <section class="card">
-        <h2>Partida</h2>
-        <div class="row">
-          <button data-action="start">▶ Iniciar serie</button>
-          <button data-action="pause">⏸ Pausar</button>
-          <button data-action="resume">⏵ Reanudar</button>
-        </div>
-        <div class="row">
-          <button data-action="reset">↻ Reiniciar ronda</button>
-          <button data-action="skipRound">⏭ Terminar ronda</button>
-          <button data-action="resetSeries" class="danger">⟲ Reiniciar serie</button>
-        </div>
-        <label class="field">
-          Dificultad (multiplicador de daño)
-          <input type="range" min="0.3" max="3" step="0.05" value="1" data-el="difficulty" />
-          <output data-el="difficultyOut">1.00×</output>
-        </label>
-      </section>
-
-      <!-- Países -->
-      <section class="card">
-        <h2>Países</h2>
-        <label class="field">
-          Equipo rojo
-          <select data-el="redCountry"></select>
-        </label>
-        <label class="field">
-          Equipo azul
-          <select data-el="blueCountry"></select>
-        </label>
-        <p class="hint">Los países rotan solos al terminar cada ronda si <code>series.rotateCountriesOnRoundEnd</code> está activo.</p>
-      </section>
-
-      <!-- Tropas manuales -->
-      <section class="card">
-        <h2>Enviar tropas</h2>
-        <div class="row">
-          <select data-el="troopTeam">
-            <option value="red">Rojo</option>
-            <option value="blue">Azul</option>
-          </select>
-          <select data-el="troopUnit"></select>
-          <input type="number" value="5000" min="1" step="500" data-el="troopAmount" />
-        </div>
-        <div class="row">
-          <button data-action="addTroops">➕ Enviar</button>
-          <button data-action="addTroops" data-amount="1000">+1.000</button>
-          <button data-action="addTroops" data-amount="10000">+10.000</button>
-          <button data-action="addTroops" data-amount="50000">+50.000</button>
-        </div>
-      </section>
-
-      <!-- Ultimates -->
-      <section class="card">
-        <h2>Ultimates</h2>
-        <div class="row">
-          <select data-el="ultTeam">
-            <option value="red">Rojo</option>
-            <option value="blue">Azul</option>
-          </select>
-          <select data-el="ultKey"></select>
-          <button data-action="castUltimate">💥 Lanzar</button>
-        </div>
-        <div class="row">
-          <button data-action="fillRage" data-team="red">Llenar furia roja</button>
-          <button data-action="fillRage" data-team="blue">Llenar furia azul</button>
-        </div>
-      </section>
-
-      <!-- Simulador -->
-      <section class="card">
-        <h2>Simulador y pruebas</h2>
-        <label class="check">
-          <input type="checkbox" data-el="simToggle" />
-          Generar eventos falsos (chats, regalos, likes)
-        </label>
-        <div class="row">
-          <input type="text" placeholder="usuario" value="tester" data-el="testUser" />
-          <input type="text" placeholder="regalo" value="Rosa" data-el="testGift" />
-        </div>
-        <div class="row">
-          <input type="number" placeholder="monedas" value="1" min="0" data-el="testCoins" />
-          <input type="number" placeholder="cantidad" value="1" min="1" data-el="testCount" />
-          <button data-action="testGift">🎁 Probar regalo</button>
-        </div>
-        <div class="row">
-          <input type="text" placeholder="comentario" value="rojo" data-el="testChat" />
-          <button data-action="testChat">💬 Probar chat</button>
-          <button data-action="testLike">❤ Probar likes</button>
-        </div>
-      </section>
-
-      <!-- Moderación -->
-      <section class="card">
-        <h2>Moderación</h2>
-        <div class="row">
-          <input type="text" placeholder="@usuario" data-el="banUser" />
-          <button data-action="ban" class="danger">🚫 Banear</button>
-          <button data-action="unban">✓ Quitar ban</button>
-        </div>
-        <ul class="banlist" data-el="banList"></ul>
-      </section>
-
-      <!-- Estación y clima -->
-      <section class="card">
-        <h2>Estación y clima</h2>
-        <label class="field">
-          Estación
-          <select data-el="season">
-            <option value="spring">🌱 Primavera</option>
-            <option value="summer">☀️ Verano</option>
-            <option value="autumn">🍂 Otoño</option>
-            <option value="winter">❄️ Invierno</option>
-          </select>
-        </label>
-        <label class="field">
-          Clima
-          <select data-el="weather">
-            <option value="clear">☀️ Despejado</option>
-            <option value="rain">🌧️ Lluvia</option>
-            <option value="snow">❄️ Nieve</option>
-            <option value="fog">🌫️ Niebla</option>
-            <option value="storm">⛈️ Tormenta</option>
-          </select>
-        </label>
-        <p class="hint">Con <code>world.cycleSeasonEachRound</code> la estación avanza sola cada ronda y el clima se sortea entre los que encajan con ella.</p>
-      </section>
-
-      <!-- Presentación -->
-      <section class="card">
-        <h2>Presentación</h2>
-        <label class="field">
-          Cámara
-          <select data-el="camera">
-            <option value="cinematic">Cinematográfica</option>
-            <option value="orbit">Órbita</option>
-            <option value="follow">Seguimiento</option>
-            <option value="fixed">Fija</option>
-          </select>
-        </label>
-        <label class="field">
-          Calidad gráfica
-          <select data-el="quality">
-            <option value="low">Baja</option>
-            <option value="medium">Media</option>
-            <option value="high">Alta</option>
-            <option value="ultra">Ultra</option>
-          </select>
-        </label>
-        <div class="row">
-          <button data-action="reloadConfig">🔄 Recargar config del overlay</button>
-        </div>
-        <p class="hint">Abre el overlay en OBS con la URL <code data-el="overlayUrl">index.html</code></p>
-      </section>
-
-      <!-- Rankings -->
-      <section class="card card--wide">
-        <h2>Rankings</h2>
-        <div class="boards">
-          <div>
-            <h3>Top generales (monedas)</h3>
-            <ol data-el="boardDonors" class="board"></ol>
+        <div class="card">
+          <h2>Equilibrio</h2>
+          <label class="ctl">
+            <span class="ctl__label">Dificultad <small>daño de todos</small></span>
+            <input type="range" data-el="difficulty" data-cmd="setDifficulty" data-key="value" data-format="x" min="0.3" max="3" step="0.05" value="1" />
+            <output data-out="difficulty">1.00×</output>
+          </label>
+          <div class="btns">
+            <button data-action="fillRage" data-team="red" class="btn btn--red">Furia roja al máximo</button>
+            <button data-action="fillRage" data-team="blue" class="btn btn--blue">Furia azul al máximo</button>
           </div>
-          <div>
-            <h3>Guerreros más resistentes</h3>
-            <ol data-el="boardWarriors" class="board"></ol>
-          </div>
-          <div>
-            <h3>Países</h3>
-            <ol data-el="boardCountries" class="board"></ol>
-          </div>
-          <div>
-            <h3>Últimas rondas</h3>
-            <ol data-el="boardMatches" class="board"></ol>
+          <div class="meters">
+            <div><span>Furia roja</span><i class="meter"><b class="meter__red" data-el="redRageBar"></b></i><em data-el="redRage">0%</em></div>
+            <div><span>Furia azul</span><i class="meter"><b class="meter__blue" data-el="blueRageBar"></b></i><em data-el="blueRage">0%</em></div>
           </div>
         </div>
+
+        <div class="card">
+          <h2>Países</h2>
+          <label class="ctl ctl--pick"><span class="ctl__label">Rojo</span><select data-el="redCountry"></select></label>
+          <label class="ctl ctl--pick"><span class="ctl__label">Azul</span><select data-el="blueCountry"></select></label>
+          <p class="hint">Rotan solos al terminar cada ronda si <code>series.rotateCountriesOnRoundEnd</code> está activo.</p>
+        </div>
+
+        <div class="card">
+          <h2>Enviar tropas</h2>
+          <div class="row">
+            <select data-el="troopTeam"><option value="red">Rojo</option><option value="blue">Azul</option></select>
+            <select data-el="troopUnit"></select>
+            <input type="number" value="5000" min="1" step="500" data-el="troopAmount" />
+          </div>
+          <div class="btns">
+            <button data-action="addTroops" class="btn btn--go">➕ Enviar</button>
+            <button data-action="addTroops" data-amount="1000" class="btn">+1.000</button>
+            <button data-action="addTroops" data-amount="10000" class="btn">+10.000</button>
+            <button data-action="addTroops" data-amount="50000" class="btn">+50.000</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Ultimates</h2>
+          <div class="row">
+            <select data-el="ultTeam"><option value="red">Rojo</option><option value="blue">Azul</option></select>
+            <select data-el="ultKey"></select>
+            <button data-action="castUltimate" class="btn btn--go">💥 Lanzar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────── Cámara -->
+      <section class="page" data-page="camara">
+        <div class="card">
+          <h2>Modo</h2>
+          <div class="pills" data-pills="cameraMode">
+            <button class="pill" data-value="cinematic">Cinematográfica</button>
+            <button class="pill" data-value="orbit">Órbita</button>
+            <button class="pill" data-value="follow">Seguimiento</button>
+            <button class="pill" data-value="fixed">Fija</button>
+          </div>
+          <p class="hint">La cinematográfica corta sola entre planos. Las otras se quedan en uno.</p>
+        </div>
+
+        <div class="card">
+          <h2>Encuadre</h2>
+          <label class="ctl">
+            <span class="ctl__label">Distancia <small>cerca ↔ lejos</small></span>
+            <input type="range" data-el="camDistance" data-cmd="tuneCamera" data-key="distance" data-format="x" min="0.35" max="2.2" step="0.05" value="1" />
+            <output data-out="camDistance">1.00×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Altura <small>a ras ↔ cenital</small></span>
+            <input type="range" data-el="camHeight" data-cmd="tuneCamera" data-key="height" data-format="x" min="0.3" max="2.2" step="0.05" value="1" />
+            <output data-out="camHeight">1.00×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Campo de visión <small>grados</small></span>
+            <input type="range" data-el="camFov" data-cmd="tuneCamera" data-key="fov" data-format="deg" min="24" max="90" step="1" value="52" />
+            <output data-out="camFov">52°</output>
+          </label>
+        </div>
+
+        <div class="card">
+          <h2>Movimiento</h2>
+          <label class="ctl">
+            <span class="ctl__label">Duración del plano <small>corta rápido ↔ planos largos</small></span>
+            <input type="range" data-el="camCut" data-cmd="tuneCamera" data-key="cutSpeed" data-format="x" min="0.3" max="3" step="0.05" value="1" />
+            <output data-out="camCut">1.00×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Órbita</span>
+            <input type="range" data-el="camOrbit" data-cmd="tuneCamera" data-key="orbit" data-format="x" min="0" max="3" step="0.05" value="1" />
+            <output data-out="camOrbit">1.00×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Sacudida <small>meteoros y ultimates</small></span>
+            <input type="range" data-el="camShake" data-cmd="tuneCamera" data-key="shake" data-format="x" min="0" max="2.5" step="0.05" value="1" />
+            <output data-out="camShake">1.00×</output>
+          </label>
+          <label class="check">
+            <input type="checkbox" data-el="camFollow" data-cmd="tuneCamera" data-key="followAction" checked />
+            <span>Perseguir donde más gente cae</span>
+          </label>
+          <div class="btns">
+            <button data-action="camPreset" data-preset="epic" class="btn">🏔 Épica</button>
+            <button data-action="camPreset" data-preset="action" class="btn">💥 Al ras</button>
+            <button data-action="camPreset" data-preset="tactic" class="btn">🗺 Táctica</button>
+            <button data-action="camPreset" data-preset="default" class="btn">↺ Por defecto</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────── Aspecto -->
+      <section class="page" data-page="aspecto">
+        <div class="card">
+          <h2>Calidad</h2>
+          <div class="pills" data-pills="quality">
+            <button class="pill" data-value="low">Baja</button>
+            <button class="pill" data-value="medium">Media</button>
+            <button class="pill" data-value="high">Alta</button>
+            <button class="pill" data-value="ultra">Ultra</button>
+          </div>
+          <p class="hint">Si el directo pierde fotogramas, baja aquí primero. En <b>Baja</b> se apagan post-procesado, sombras y clima.</p>
+        </div>
+
+        <div class="card">
+          <h2>Imagen</h2>
+          <label class="ctl">
+            <span class="ctl__label">Exposición</span>
+            <input type="range" data-el="gExposure" data-cmd="tuneGraphics" data-key="exposure" data-format="x" min="0.6" max="1.8" step="0.01" value="1.05" />
+            <output data-out="gExposure">1.05×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Contraste</span>
+            <input type="range" data-el="gContrast" data-cmd="tuneGraphics" data-key="contrast" data-format="x" min="0.8" max="1.5" step="0.01" value="1.05" />
+            <output data-out="gContrast">1.05×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Saturación</span>
+            <input type="range" data-el="gSaturation" data-cmd="tuneGraphics" data-key="saturation" data-format="x" min="0.5" max="1.8" step="0.01" value="1.14" />
+            <output data-out="gSaturation">1.14×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Brillo del fuego <small>bloom</small></span>
+            <input type="range" data-el="gBloom" data-cmd="tuneGraphics" data-key="bloomIntensity" data-format="x" min="0" max="2" step="0.02" value="0.6" />
+            <output data-out="gBloom">0.60×</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Viñeta</span>
+            <input type="range" data-el="gVignette" data-cmd="tuneGraphics" data-key="vignette" data-format="x" min="0" max="1.2" step="0.02" value="0.5" />
+            <output data-out="gVignette">0.50×</output>
+          </label>
+        </div>
+
+        <div class="card">
+          <h2>Detalle</h2>
+          <label class="ctl">
+            <span class="ctl__label">Modelos detallados hasta <small>metros</small></span>
+            <input type="range" data-el="gLod" data-cmd="tuneGraphics" data-key="lodDistance" data-format="m" min="0" max="140" step="1" value="70" />
+            <output data-out="gLod">70 m</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Texturas de material hasta <small>metros</small></span>
+            <input type="range" data-el="gTexture" data-cmd="tuneGraphics" data-key="textureDistance" data-format="m" min="0" max="120" step="1" value="45" />
+            <output data-out="gTexture">45 m</output>
+          </label>
+          <label class="ctl">
+            <span class="ctl__label">Niebla</span>
+            <input type="range" data-el="gFog" data-cmd="tuneGraphics" data-key="fogDensity" data-format="milli" min="0" max="8" step="0.1" value="2.2" />
+            <output data-out="gFog">2.2‰</output>
+          </label>
+          <p class="hint">Bajar estas tres es lo que más FPS devuelve sin que se note en pantalla.</p>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────── Mundo -->
+      <section class="page" data-page="mundo">
+        <div class="card">
+          <h2>Estación</h2>
+          <div class="pills" data-pills="season">
+            <button class="pill" data-value="spring">🌱 Primavera</button>
+            <button class="pill" data-value="summer">☀️ Verano</button>
+            <button class="pill" data-value="autumn">🍂 Otoño</button>
+            <button class="pill" data-value="winter">❄️ Invierno</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Clima</h2>
+          <div class="pills" data-pills="weather">
+            <button class="pill" data-value="clear">☀️ Despejado</button>
+            <button class="pill" data-value="rain">🌧 Lluvia</button>
+            <button class="pill" data-value="snow">❄️ Nieve</button>
+            <button class="pill" data-value="fog">🌫 Niebla</button>
+            <button class="pill" data-value="storm">⛈ Tormenta</button>
+          </div>
+          <p class="hint">Con <code>world.cycleSeasonEachRound</code> la estación avanza sola cada ronda y el clima se sortea entre los que encajan con ella.</p>
+        </div>
+        <div class="card">
+          <h2>Ahora mismo</h2>
+          <p class="big" data-el="atmosphere">—</p>
+          <div class="btns">
+            <button data-action="reloadConfig" class="btn">🔄 Recargar config del overlay</button>
+          </div>
+          <p class="hint">URL del overlay para OBS: <code data-el="overlayUrl">index.html</code></p>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────── Pruebas -->
+      <section class="page" data-page="pruebas">
+        <div class="card">
+          <h2>Simulador</h2>
+          <label class="check">
+            <input type="checkbox" data-el="simToggle" />
+            <span>Generar chats, regalos y likes falsos</span>
+          </label>
+          <p class="hint">Para desarrollar, grabar clips o probar el balance sin estar en vivo.</p>
+        </div>
+        <div class="card">
+          <h2>Evento manual</h2>
+          <div class="row">
+            <input type="text" placeholder="usuario" value="tester" data-el="testUser" />
+            <input type="text" placeholder="regalo" value="Rosa" data-el="testGift" />
+          </div>
+          <div class="row">
+            <input type="number" placeholder="monedas" value="1" min="0" data-el="testCoins" />
+            <input type="number" placeholder="cantidad" value="1" min="1" data-el="testCount" />
+            <button data-action="testGift" class="btn">🎁 Regalo</button>
+          </div>
+          <div class="row">
+            <input type="text" placeholder="comentario" value="rojo" data-el="testChat" />
+            <button data-action="testChat" class="btn">💬 Chat</button>
+            <button data-action="testLike" class="btn">❤ Likes</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Moderación</h2>
+          <div class="row">
+            <input type="text" placeholder="@usuario" data-el="banUser" />
+            <button data-action="ban" class="btn btn--warn">🚫 Banear</button>
+            <button data-action="unban" class="btn">✓ Quitar</button>
+          </div>
+          <ul class="banlist" data-el="banList"></ul>
+        </div>
+      </section>
+
+      <!-- ───────────────────────────────────────────── Rankings -->
+      <section class="page" data-page="rankings">
+        <div class="card"><h2>Top generales</h2><ol class="board" data-el="boardDonors"></ol></div>
+        <div class="card"><h2>Guerreros más resistentes</h2><ol class="board" data-el="boardWarriors"></ol></div>
+        <div class="card"><h2>Países</h2><ol class="board" data-el="boardCountries"></ol></div>
+        <div class="card"><h2>Últimas rondas</h2><ol class="board" data-el="boardMatches"></ol></div>
       </section>
     </main>
 
