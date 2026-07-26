@@ -38,15 +38,16 @@ clímax y resolución, con clima, cámara y sonido propios:
 
 | Acción | Qué hace |
 |---|---|
-| 💎 **RESET** | Un diamante gigante cae del cielo persiguiéndote, revienta en esquirlas y mata la run |
+| 💎 **RESET** | El cielo se oscurece y un diamante gigante cae persiguiéndote con una sombra que crece bajo tus pies; cámara lenta, revienta en esquirlas y mata la run |
 | 🍓 **SAVE THE RUN** | Pilar de luz dorada + halo descendente; da un escudo (aguanta una muerte y te recoloca a salvo) |
 | 🪽 **MOVE LEFT** / 💗 **MOVE RIGHT** | Mueven al pollo un paso |
-| 🚛 **SUPER CAMIÓN** | El suelo se agrieta por donde va a pasar; entra un camión monstruo con pala quitanieves, ruedas girando, fuego en los escapes, chispas, derrapes... y manda los coches por los aires |
-| 🌋 **VOLCÁN** | El suelo se resquebraja incandescente, el volcán revienta lanzando rocas, escupe una columna de humo y bombas de lava con estela de brasas que dejan charcos ardientes |
-| 🫨 **TERREMOTO** | La cámara se ladea, se abren fisuras que cruzan el mapa, los árboles se desploman y rocas gigantes cruzan rebotando (y aplastan) |
-| 🌪️ **TORNADO** | Se hace de noche con ráfagas de viento; el embudo se retuerce, absorbe cosas del suelo, voltea coches y arranca árboles; si te atrapa, te arrastra muchas filas atrás |
-| 🛸 **OVNI** | Cae la noche; el platillo te busca con su foco, te abduce aspirando todo con su rayo y despega en warp dejando un círculo quemado |
-| ⚡ **TORMENTA** | Lluvia, cielo negro y rayos aleatorios cayendo alrededor… antes del rayo final teledirigido con doble destello |
+| 🚛 **SUPER CAMIÓN** | El suelo se agrieta; entra un camión monstruo con faros encendidos, pala quitanieves, fuego en los escapes y chispas, deja el asfalto EN LLAMAS, manda los coches por los aires… y cuando crees que pasó, **da la vuelta y vuelve a por ti** |
+| 🌋 **VOLCÁN** | Grietas incandescentes, erupción que lanza rocas, **lluvia de ceniza**, columna de humo, bombas de lava con charcos ardientes… y de remate una **MEGA BOMBA teledirigida** con marcador sobre tu casilla |
+| 🫨 **TERREMOTO** | La cámara se ladea, un **carril entero se hunde**, fisuras cruzan el mapa, árboles desplomándose, hasta 4 rocas gigantes rebotando… y cuando parece que acabó: **RÉPLICA** |
+| 🌪️ **TORNADO** | Noche con ráfagas de viento y relámpagos lejanos; el embudo se retuerce y va acompañado de un **tornado bebé** que hace el caos; al irse **llueven los escombros** que se llevó |
+| 🛸 **OVNI** | Noche cerrada con **interferencia en el HUD**; la nave madre llega con **2 drones escolta**, te busca con su foco, **abduce un árbol de muestra**, y luego a ti — despegue en warp |
+| ⚡ **TORMENTA** | Lluvia, relámpagos ambiente y 4 rayos de aviso… y de remate **TRES rayos seguidos que te persiguen** |
+| ☠️ **APOCALIPSIS** | Si coinciden 2+ desastres a la vez, banner especial y sacudida extra |
 
 Cada evento muestra un banner con el nombre del regalo y del espectador, y el
 panel lateral (como el del video) lleva el conteo de cada acción.

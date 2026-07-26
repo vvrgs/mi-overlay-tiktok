@@ -434,7 +434,7 @@ const World = (() => {
       for (const [row, lane] of lanes) {
         if (row < lo || row > hi) continue;
 
-        lane.group.position.y = q > 0 ? Math.sin(now * 26 + row * 1.35) * 0.07 * q : 0;
+        lane.group.position.y = (q > 0 ? Math.sin(now * 26 + row * 1.35) * 0.07 * q : 0) + (lane.sinkY || 0);
 
         if (lane.type === 'road') {
           for (const v of lane.vehicles) {

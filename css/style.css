@@ -48,6 +48,18 @@ body.hud-shake #record { transform: translateX(-50%); }
 }
 body.hud-shake #record { animation: hud-shake-rec 0.4s ease; }
 
+/* --- Interferencia del HUD durante el OVNI --- */
+body.glitch #score,
+body.glitch #coins,
+body.glitch #gift-panel { animation: glitch-jit 0.28s steps(2) infinite; }
+@keyframes glitch-jit {
+  0% { transform: translate(0, 0); filter: none; }
+  25% { transform: translate(-2px, 1px); filter: hue-rotate(80deg); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, -1px); filter: hue-rotate(-60deg); }
+  100% { transform: translate(0, 0); }
+}
+
 /* --- Portada --- */
 #title {
   position: fixed; inset: 0;

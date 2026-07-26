@@ -97,6 +97,9 @@ const Game = (() => {
     /* golpe de zoom para momentos de impacto */
     punch(v) { punchVal = Math.max(punchVal, v); },
 
+    /* cámara lenta bajo demanda (clímax de los desastres) */
+    slowmoHit(d) { slowmo = Math.max(slowmo, d); },
+
     addCoin() {
       this.coins++;
       UI.setCoins(this.coins);

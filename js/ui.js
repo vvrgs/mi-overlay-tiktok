@@ -108,6 +108,16 @@ const UI = (() => {
       f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
     },
 
+    /* relámpago lejano, suave */
+    flashSoft() {
+      const f = $('#flash');
+      f.style.background = 'rgba(255,255,255,0.22)';
+      f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
+    },
+
+    /* interferencia del HUD (ovni) */
+    setGlitch(on) { document.body.classList.toggle('glitch', !!on); },
+
     showGameOver(cause, score, record, isNewRecord) {
       $('#go-cause').textContent = CAUSE_TEXT[cause] || '¡GAME OVER!';
       $('#go-score').textContent = score;

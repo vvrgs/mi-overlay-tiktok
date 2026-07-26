@@ -14,6 +14,7 @@ const Effects = (() => {
   // clima
   let rainOn = false, rainPool = null;
   let windOn = 0, windPool = null;
+  let ashOn = false, ashPool = null;
 
   function spawnParticle(mesh, vel, opts) {
     opts = opts || {};
@@ -59,6 +60,18 @@ const Effects = (() => {
     }
   }
 
+  function initAsh() {
+    ashPool = [];
+    const geo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+    for (let i = 0; i < 50; i++) {
+      const gray = Math.random() < 0.7 ? 0x8a8a92 : 0x55555d;
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: gray, transparent: true, opacity: 0.7 }));
+      m.visible = false;
+      scene.add(m);
+      ashPool.push({ mesh: m, x: (Math.random() - 0.5) * 18, y: Math.random() * 10, z: (Math.random() - 0.5) * 22, ph: Math.random() * 6 });
+    }
+  }
+
   function initWind() {
     windPool = [];
     const geo = new THREE.BoxGeometry(1.1, 0.04, 0.04);
@@ -83,7 +96,7 @@ const Effects = (() => {
       for (const d of decals) disposeDecal(d);
       decals.length = 0;
       shakeMag = 0; shakeSustain = 0; rollSustain = 0;
-      this.setRain(false); this.setWind(0);
+      this.setRain(false); this.setWind(0); this.setAsh(false);
     },
 
     /* ---------- partículas ---------- */
@@ -298,6 +311,12 @@ const Effects = (() => {
       if (windPool) for (const w of windPool) w.mesh.visible = !!dir;
     },
 
+    setAsh(on) {
+      ashOn = on;
+      if (on && !ashPool) initAsh();
+      if (ashPool) for (const a of ashPool) a.mesh.visible = on;
+    },
+
     /* ---------- cámara ---------- */
 
     shake(mag, dur) {
@@ -342,6 +361,20 @@ const Effects = (() => {
             r.z = -focusRow + (Math.random() - 0.5) * 22;
           }
           r.mesh.position.set(r.x, r.y, r.z);
+        }
+      }
+      // ceniza volcánica cayendo con vaivén
+      if (ashPool && ashOn) {
+        for (const a of ashPool) {
+          a.y -= 1.6 * dt;
+          a.x += Math.sin(now * 1.5 + a.ph) * 0.5 * dt;
+          if (a.y < 0) {
+            a.y = 8 + Math.random() * 3;
+            a.x = focusX + (Math.random() - 0.5) * 18;
+            a.z = -focusRow + (Math.random() - 0.5) * 22;
+          }
+          a.mesh.position.set(a.x, a.y, a.z);
+          a.mesh.rotation.x += dt; a.mesh.rotation.z += 0.7 * dt;
         }
       }
       // ráfagas de viento
