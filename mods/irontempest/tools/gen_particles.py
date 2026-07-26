@@ -276,21 +276,24 @@ def gen_fireball():
         holes = smoothstep(eth, eth + 0.26, er) * np.clip(p * 1.9 - 0.10, 0, 1)
         holes = holes * smoothstep(1.20, 0.30, rr)
         dens = body * (1.0 - 0.95 * holes)
-        # ultimos 4 frames: jirones rotos — solo sobreviven los grumos del campo
+        # ultimos 4 frames: jirones rotos — sobreviven los grumos con er BAJO
+        # (las zonas que la erosion NO se comio; coherente con el frame previo)
         if t >= F - 4:
             j = t - (F - 4)
-            th0 = 0.48 + 0.05 * j
-            shred = smoothstep(th0, th0 + 0.14, er)
-            dens = dens * (0.12 + 0.88 * shred)
+            th0 = 0.52 - 0.05 * j
+            shred = smoothstep(th0, th0 - 0.20, er)
+            dens = dens * (0.10 + 0.90 * shred)
         # nucleo caliente que se apaga
         core = np.exp(-(R / (0.16 + 0.08 * p)) ** 2) * max(0.0, 1.30 - 2.0 * p)
         # intensidad -> temperatura (la bola entera se enfria con p, pero los
         # jirones finales conservan rescoldo naranja legible)
-        I = dens * (1.05 - 0.40 * p) + core
-        Tamp = 1.25 - 0.62 * p
+        I = dens * (1.05 - 0.35 * p) + core
+        Tamp = 1.25 - 0.55 * p
         temp = np.clip(I * Tamp, 0, 1)
         temp = np.clip(temp + 0.35 * np.exp(-(rr / 0.45) ** 2)
                        * (1.0 - p) * dens, 0, 1)
+        # rescoldo: el centro de cada grumo sigue incandescente al final
+        temp = np.clip(temp + smoothstep(0.35, 0.85, dens) * 0.22 * p, 0, 1)
         col = ramp(temp ** 0.88, BLACKBODY)
         # rim darkening: hollin envolviendo SOLO el borde exterior
         soot = smoothstep(0.75, 1.05, rr) * (0.22 + 0.58 * p)
@@ -349,13 +352,16 @@ def gen_shockwave():
     # streaks radiales: ruido que solo depende del angulo, fino
     streak = fbm(fld2, np.cos(TH) * 4.0 + 9.3, np.sin(TH) * 4.0 - 4.1,
                  freq=6.0, octaves=2)
-    trail = np.exp(-np.clip(-d / 0.20, 0, 20) ** 1.3) * (0.40 + 0.70 * streak)
-    I = np.where(d > 0, lead, np.maximum(trail * 0.85, lead))
+    trail = np.exp(-np.clip(-d / 0.12, 0, 20) ** 1.35) * (0.26 + 0.92 * streak)
+    I = np.where(d > 0, lead, np.maximum(trail * 0.90, lead))
     # textura de polvo fina sobre todo el anillo
     dust = fbm(fld2, X * 2.2, Y * 2.2, freq=7.0, octaves=3)
-    I = I * (0.72 + 0.52 * dust)
-    # elipse de brillo calido (flash rasante del suelo)
-    I = I + np.exp(-(((X / 0.80) ** 2 + (Y / 0.58) ** 2)) ** 1.2) * 0.20
+    I = I * (0.58 + 0.80 * dust)
+    # centro limpio: es un ANILLO, no un disco
+    hollow = smoothstep(0.10, 0.40, R)
+    I = I * hollow
+    # ligera elipse de brillo calido (flash rasante), tambien vaciada al centro
+    I = I + np.exp(-(((X / 0.86) ** 2 + (Y / 0.62) ** 2)) ** 1.3) * 0.14 * hollow
     col = ramp(np.clip(I * 1.05, 0, 1) ** 0.9, SHOCKC)
     a = np.clip(I, 0, 1) ** 0.95
     finish("shockwave_0", col, a, 0.85)
@@ -386,17 +392,20 @@ def gen_smoke():
                 Y * 1.15 * sc + p * 1.15 + 5.0, freq=2.8, octaves=4)
         cut = smoothstep(0.08 + 0.42 * p, 0.72,
                          n * 0.62 + (1.0 - np.clip(rr, 0, 1)) * 0.38)
-        hole = 0.35 + 0.60 * p                           # compacto -> disperso
-        dens = (body * ((1.0 - hole) + hole * cut)) ** 0.9
+        hole = 0.25 + 0.60 * p                           # compacto -> disperso
+        dens = body * ((1.0 - hole) + hole * cut)
+        # saturar el interior para que el cuerpo llene el rango de alpha
+        # (sin esto el maximo es un pico aislado y el humo queda fantasma)
+        dens = np.clip(dens * 1.45, 0.0, 1.0) ** 0.75
         # ---- auto-sombreado volumetrico por gradiente vertical del campo
         db = blur(dens, k=11, passes=2)
         ddy = np.gradient(db, axis=0)                    # +y hacia abajo
         norm = np.abs(ddy).max() * 0.60 + 1e-9
         gn = np.clip(ddy / norm, -1.0, 1.0)              # >0: cara superior
-        v = 0.58 + 0.30 * gn
-        v = v * (0.88 + 0.26 * (n - 0.5))                # textura interna
-        v = v * (1.0 - 0.18 * db)                        # espesor absorbe luz
-        v = np.clip(v, 0.10, 1.0)
+        v = 0.60 + 0.32 * gn
+        v = v * (0.86 + 0.30 * (n - 0.5))                # textura interna
+        v = v * (1.0 - 0.16 * db)                        # espesor absorbe luz
+        v = np.clip(v, 0.12, 1.0)
         rgb = np.stack([v, v, v], axis=-1)
         finish("smoke_%d" % t, rgb, dens ** 0.85, amaxs[t])
 
@@ -486,9 +495,9 @@ def gen_debris():
         s = 6
         rim_tl = mask * (1.0 - _shift(mask, s, s))
         rim_br = mask * (1.0 - _shift(mask, -s, -s))
-        lit = np.clip(tone * 2.1 + 0.22, 0, 1)
+        lit = np.clip(tone * 1.9 + 0.16, 0, 1)
         col = col * (1.0 - 0.50 * rim_br[..., None]) + \
-            lit[None, None, :] * rim_tl[..., None]
+            lit[None, None, :] * rim_tl[..., None] * 0.75
         col = np.clip(col, 0, 1) * mask[..., None]
         finish("debris_%d" % i, col, mask, 1.0, envlo=0.93, envhi=1.03)
 
