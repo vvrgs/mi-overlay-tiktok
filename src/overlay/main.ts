@@ -48,7 +48,7 @@ async function boot(): Promise<void> {
   void ranking.start();
 
   // El simulador se puede forzar con ?sim=1 sin tocar la config.
-  if (config.simulator.enabled || params.get('sim') === '1') simulator.start();
+  if (config.simulator.enabled || params.get('sim') === '1' || import.meta.env.VITE_FORCE_SIM === '1') simulator.start();
 
   window.addEventListener('resize', () => renderer.resize());
   // OBS puede redimensionar la fuente sin disparar 'resize' en la ventana.
@@ -56,7 +56,11 @@ async function boot(): Promise<void> {
 
   let last = performance.now();
   function frame(now: number): void {
-    const raw = (now - last) / 1000;
+    // Nunca negativo: el timestamp del primer rAF puede ser ANTERIOR al
+    // performance.now() del arranque, y un dt negativo convierte el damp de la
+    // cámara en anti-amortiguación: se dispara a miles de unidades y la escena
+    // queda en niebla hasta que vuelve.
+    const raw = Math.max(0, (now - last) / 1000);
     last = now;
     // `dt` va acotado para que un frame largo no dé saltos en animaciones y cámara.
     // `realDt` conserva el tiempo real (con tope por si la pestaña se suspendió):

@@ -8,7 +8,7 @@
  */
 
 /*
- * Tipografías autoalojadas (OFL, en public/fonts/): Bebas Neue para números y
+ * Tipografías autoalojadas (OFL, en src/assets/fonts/): Bebas Neue para números y
  * titulares —condensada y alta, hecha para marcadores deportivos y para el
  * formato vertical— y Archivo (variable 100-900) para todo el texto de UI.
  * Nada se pide a un CDN: el overlay debe arrancar sin internet.
@@ -18,7 +18,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/bebas-latin.woff2') format('woff2');
+  src: url('../assets/fonts/bebas-latin.woff2') format('woff2');
 }
 
 @font-face {
@@ -26,7 +26,7 @@
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url('/fonts/archivo-latin.woff2') format('woff2');
+  src: url('../assets/fonts/archivo-latin.woff2') format('woff2');
 }
 
 :root {
@@ -1235,6 +1235,14 @@ body {
 
 .status__watermark {
   color: rgba(255, 255, 255, 0.35);
+}
+
+/* En pantallas estrechas (verlo directamente en un teléfono, no por OBS) todo
+   el HUD escala un punto abajo para que marcador y reloj no se pisen. */
+@media (max-width: 600px) {
+  .hud {
+    font-size: calc(11.5px * var(--hud-scale));
+  }
 }
 
 /* Oculta bloques desactivados desde la config sin romper el layout. */

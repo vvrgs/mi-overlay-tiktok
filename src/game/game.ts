@@ -12,6 +12,9 @@ import type { TransportManager } from '../events/transports';
 import type { ChatEvent, ControlCommand, GiftEvent, LikeEvent, LiveEvent, LiveUser } from '../events/types';
 import type { GameRenderer } from '../render/renderer';
 import type { GameConfig, TeamId, UltimateDef } from '../shared/config';
+// El '?worker&inline' empaqueta el worker DENTRO del bundle (blob): el juego
+// entero puede vivir en un único archivo HTML, clave para la demo web.
+import SimWorker from '../sim/worker?worker&inline';
 import { clamp, createRng, normalizeText, type Rng } from '../shared/math';
 import type { MainToWorker, Snapshot } from '../sim/protocol';
 import type { Hud } from '../ui/hud';
@@ -94,7 +97,7 @@ export class Game {
     this.roundSeed = this.config.simulator.seed;
     this.seasonIndex = Math.max(0, SEASONS.indexOf(this.config.world?.season ?? 'summer'));
 
-    this.worker = new Worker(new URL('../sim/worker.ts', import.meta.url), { type: 'module' });
+    this.worker = new SimWorker();
     this.worker.onmessage = (ev: MessageEvent) => this.onWorkerMessage(ev);
     this.send({ t: 'init', settings: this.buildSettings() });
 

@@ -1,0 +1,6 @@
+# Despliegue estático de prueba. El juego corre entero en el navegador con el
+# simulador (?sim=1); el servidor Node solo hace falta para recibir eventos
+# reales de prizvo.live y persistir rankings, así que aquí no se publica.
+[build]
+  publish = "dist"
+  command = "npm ci && npm run build"
