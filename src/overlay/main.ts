@@ -14,6 +14,7 @@ import { RankingStore } from '../game/ranking';
 import { GameRenderer } from '../render/renderer';
 import { loadConfig, resolveEndpoints } from '../shared/config';
 import { Hud } from '../ui/hud';
+import { mountTestMode } from '../ui/test-mode';
 
 async function boot(): Promise<void> {
   const config = await loadConfig();
@@ -49,6 +50,12 @@ async function boot(): Promise<void> {
 
   // El simulador se puede forzar con ?sim=1 sin tocar la config.
   if (config.simulator.enabled || params.get('sim') === '1' || import.meta.env.VITE_FORCE_SIM === '1') simulator.start();
+
+  // Modo prueba: cajón táctil para disparar eventos y configurar la escena a
+  // mano. Siempre presente en la demo web; en producción, con ?test=1.
+  if (params.get('test') === '1' || import.meta.env.VITE_TEST_MODE === '1') {
+    mountTestMode({ game, bus, renderer, simulator, config });
+  }
 
   window.addEventListener('resize', () => renderer.resize());
   // OBS puede redimensionar la fuente sin disparar 'resize' en la ventana.

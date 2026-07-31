@@ -1249,3 +1249,152 @@ body {
 [hidden] {
   display: none !important;
 }
+
+/* ------------------------------------------------------------ modo prueba */
+
+/* Vive fuera de la capa del HUD (que es pointer-events: none): es el único
+   trozo del overlay pensado para tocarse. */
+.test {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.test button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.test__fab {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 196, 60, 0.55);
+  background: rgba(8, 12, 22, 0.88);
+  font-size: 24px;
+  pointer-events: auto;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+}
+
+.test__drawer {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px);
+  width: min(92vw, 340px);
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px 16px;
+  border-radius: 16px;
+  background: rgba(10, 14, 24, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+  pointer-events: auto;
+  color: #e8ecf4;
+}
+
+.test__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.test__head b {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: var(--gold);
+}
+
+.test__close {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.test section {
+  margin-top: 10px;
+}
+
+.test h3 {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.test__grid,
+.test__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.test__grid button,
+.test__pills button {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.test__pills button.is-on {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #241a02;
+  font-weight: 700;
+}
+
+.test__slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.test__slider input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.test__slider output {
+  grid-row: 1;
+  grid-column: 2;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.test__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.test__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+}

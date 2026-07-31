@@ -405,12 +405,20 @@ export const CONFIG_URL = 'config/game.config.json';
 /** Descarga la config del servidor y la fusiona con la de emergencia. */
 export async function loadConfig(url = CONFIG_URL): Promise<GameConfig> {
   let fetched: unknown = {};
-  try {
-    const res = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    fetched = await res.json();
-  } catch (err) {
-    console.warn('[config] No se pudo cargar game.config.json, usando valores de emergencia.', err);
+  // El build de demo (un solo archivo, sin servidor) lleva la config real
+  // EMBEBIDA: sin esto caía a la de emergencia, que no tiene ni ultimates ni
+  // catálogo de regalos, y la demo era un juego a medias.
+  const embedded = import.meta.env.VITE_EMBEDDED_CONFIG;
+  if (embedded) {
+    fetched = JSON.parse(embedded);
+  } else {
+    try {
+      const res = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      fetched = await res.json();
+    } catch (err) {
+      console.warn('[config] No se pudo cargar game.config.json, usando valores de emergencia.', err);
+    }
   }
   const merged = deepMerge(EMERGENCY_CONFIG, fetched);
   return applyUrlOverrides(merged, location.search);

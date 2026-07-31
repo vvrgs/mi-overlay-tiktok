@@ -33,6 +33,7 @@ npm start
 | 🎥 **Cámara automática, pero tuya** | Se dirige sola —encuadra donde más gente muere, corta con planos variados, se sacude con las ultimates— y aun así distancia, altura, campo de visión, ritmo de corte, órbita y sacudida se mueven en vivo con deslizadores, más cuatro encuadres listos: épica, al ras, táctica y por defecto. |
 | 🎛️ **Panel de control** | Pantalla aparte, en seis pestañas, pensada para usarse con el pulgar desde el móvil mientras hablas. Partida, cámara, aspecto, mundo, pruebas y rankings, y todo se aplica al instante sin recargar. |
 | 🧪 **Simulador** | Genera chats, regalos, likes y follows falsos para desarrollar, grabar clips y probar el balance sin estar en vivo. |
+| 🎛️ **Modo prueba** | Con `?test=1` (o siempre en la demo web) aparece un cajón táctil dentro del propio overlay: dispara cada regalo por tramo, campeones, likes, ultimates y tropas por unidad, y configura hora del día, estación, clima, cámara, calidad y dificultad. Todo entra por el mismo camino que los eventos reales. |
 
 ---
 

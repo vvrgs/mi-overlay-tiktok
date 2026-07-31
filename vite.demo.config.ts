@@ -4,14 +4,20 @@
  * página web de prueba para el teléfono; el build normal (vite.config.ts)
  * sigue siendo el de producción para OBS.
  */
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+
+const gameConfig = readFileSync('public/config/game.config.json', 'utf8');
 
 export default defineConfig({
   base: './',
   plugins: [viteSingleFile()],
   define: {
     'import.meta.env.VITE_FORCE_SIM': JSON.stringify('1'),
+    'import.meta.env.VITE_TEST_MODE': JSON.stringify('1'),
+    // La config real del juego, embebida como cadena JSON.
+    'import.meta.env.VITE_EMBEDDED_CONFIG': JSON.stringify(gameConfig),
   },
   build: {
     target: 'es2022',

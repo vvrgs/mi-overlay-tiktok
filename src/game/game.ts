@@ -262,6 +262,14 @@ export class Game {
     }
   }
 
+  /**
+   * Punto de entrada público para paneles embebidos (el modo prueba). Ejecuta
+   * exactamente los mismos comandos que el panel de control manda por red.
+   */
+  execute(command: ControlCommand): void {
+    this.onCommand(command);
+  }
+
   private onCommand(command: ControlCommand): void {
     switch (command.action) {
       case 'start':
