@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
 @Mod.EventBusSubscriber(modid = IronTempest.MODID)
 public final class SessionManager {
 
-    public enum AttackKind { TANK, CRUISE, ROCKET, ORBITAL, ARMAGEDDON }
+    public enum AttackKind { TANK, CRUISE, ROCKET, ORBITAL, ARMAGEDDON, EXECUTION }
 
     private record Pending(AttackKind kind, UUID playerId) {}
 
@@ -97,6 +97,15 @@ public final class SessionManager {
         return enqueue(AttackKind.ORBITAL, target);
     }
 
+    /** Ejecución orbital: 1 por jugador, extras en cola. */
+    public static int execution(ServerLevel level, ServerPlayer target) {
+        if (countFor(target.getUUID(), ExecutionSession.class) == 0) {
+            register(new ExecutionSession(level, target));
+            return 0;
+        }
+        return enqueue(AttackKind.EXECUTION, target);
+    }
+
     /** Tier U: exclusión GLOBAL. false = ya hay un armagedón activo. */
     public static boolean armageddon(ServerLevel level, ServerPlayer target) {
         if (ultraActive) {
@@ -135,6 +144,7 @@ public final class SessionManager {
         PENDING.clear();
         TerrainSculptor.clearAll();
         com.vvrgs.irontempest.server.util.SustainedDamage.clearAll();
+        com.vvrgs.irontempest.server.util.TotemShredder.clearAll();
         return n;
     }
 
@@ -177,6 +187,13 @@ public final class SessionManager {
             case ORBITAL -> {
                 if (countFor(player.getUUID(), OrbitalStrikeSession.class) == 0) {
                     register(new OrbitalStrikeSession(level, player));
+                    yield true;
+                }
+                yield false;
+            }
+            case EXECUTION -> {
+                if (countFor(player.getUUID(), ExecutionSession.class) == 0) {
+                    register(new ExecutionSession(level, player));
                     yield true;
                 }
                 yield false;
@@ -265,6 +282,7 @@ public final class SessionManager {
         });
         TerrainSculptor.serverTick();
         com.vvrgs.irontempest.server.util.SustainedDamage.serverTick();
+        com.vvrgs.irontempest.server.util.TotemShredder.serverTick();
         processPending(event.getServer());
     }
 
@@ -291,6 +309,7 @@ public final class SessionManager {
         }
         PENDING.removeIf(p -> p.playerId().equals(id));
         com.vvrgs.irontempest.server.util.SustainedDamage.removeFor(id);
+        com.vvrgs.irontempest.server.util.TotemShredder.removeFor(id);
     }
 
     /** Hook 3/3: muerte del objetivo. */
@@ -307,6 +326,7 @@ public final class SessionManager {
         }
         PENDING.removeIf(p -> p.playerId().equals(id));
         com.vvrgs.irontempest.server.util.SustainedDamage.removeFor(id);
+        com.vvrgs.irontempest.server.util.TotemShredder.removeFor(id);
     }
 
     private SessionManager() {}

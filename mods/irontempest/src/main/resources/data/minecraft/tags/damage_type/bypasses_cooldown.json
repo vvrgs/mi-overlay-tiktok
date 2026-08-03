@@ -1,7 +1,6 @@
 {
   "replace": false,
   "values": [
-    "irontempest:orbital_beam",
     "irontempest:totem_shred",
     "irontempest:napalm"
   ]

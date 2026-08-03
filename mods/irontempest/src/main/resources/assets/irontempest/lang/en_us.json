@@ -46,5 +46,11 @@
   "irontempest.attack.rocketrain": "Rocket Rain",
   "irontempest.attack.orbitalstrike": "Orbital Strike",
   "irontempest.attack.armageddon": "Armageddon",
-  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cAttack queue full: this attack was dropped."
+  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cAttack queue full: this attack was dropped.",
+  "death.attack.irontempest.totem_shred": "%1$s ran out of totems to offer",
+  "death.attack.irontempest.totem_shred.player": "%1$s ran out of totems to offer whilst fighting %2$s",
+  "death.attack.irontempest.napalm": "%1$s was consumed by the tempest's fire",
+  "death.attack.irontempest.napalm.player": "%1$s was consumed by the tempest's fire whilst fighting %2$s",
+  "irontempest.attack.execution": "Orbital Execution",
+  "irontempest.attack.shred": "Totem Devourer"
 }

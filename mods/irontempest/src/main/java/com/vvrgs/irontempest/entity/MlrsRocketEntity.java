@@ -43,12 +43,17 @@ public class MlrsRocketEntity extends AbstractWarProjectile {
         }
         Vec3 pos = hit.getLocation();
         ModNetwork.fx(server, FxType.EXPLOSION_SMALL, pos, getDeltaMovement().normalize(), 1.0F);
-        TerrainSculptor.scorch(server, BlockPos.containing(pos).below());
+        if (com.vvrgs.irontempest.config.WarConfig.STREAMER_MODE.get()) {
+            TerrainSculptor.crater(server, BlockPos.containing(pos), 2, true); // el mundo se resetea cada live
+        } else {
+            TerrainSculptor.scorch(server, BlockPos.containing(pos).below());
+        }
         // Tier S: daño radial honesto, sin insta-kill (spameable)… pero que DUELE.
         DamageUtil.radialDamage(server, pos, 4.5D, 16.0F, ModDamage.ROCKET, this);
         DamageUtil.blastImpulse(server, pos, 5.0D, 0.8D);
         SustainedDamage.zone(server, pos, 3.0D, 3.0D, 3.0F, ModDamage.ROCKET, true);
         SustainedDamage.afflictArea(server, pos, 4.5D, 3.0D, 2.0F, ModDamage.ROCKET, true);
+        com.vvrgs.irontempest.server.util.TotemShredder.shredArea(server, pos, 4.5D, "rocketrain", 1);
         discard();
     }
 

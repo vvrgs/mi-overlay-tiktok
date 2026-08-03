@@ -23,6 +23,8 @@ atacan al **primer jugador online** (para regalos: pon el nick fijo).
 | `irontempest tankblitz [jugador]` | C | 1000–3000 | Drop-pod → torreta que te caza (2.2°/tick) → designador láser → 5 obuses con predicción de tiro → cortina de humo y desguace |
 | `irontempest orbitalstrike [jugador]` | C | 1000–3000 | Warp-in → carga 4 s → haz orbital que TE PERSIGUE vaporizando el suelo → pulso final → warp-out |
 | `irontempest armageddon [jugador]` | U | 4880+ | TODO el arsenal orquestado en oleadas + sirena y título global. Exclusión global: uno a la vez |
+| `irontempest execution [jugador]` | U | 10000+ | La nave te ANCLA bajo el haz y te DEVORA los tótems uno a uno (~5/s); si sobrevives al presupuesto, clímax de sobrecarga |
+| `irontempest shred [jugador] [pops]` | — | a gusto | Trituradora pura de tótems, sin nave (para regalos medianos) |
 | `irontempest stopall` | — | — | Corta todas las sesiones activas |
 
 Prueba rápida en consola del server (Mohist):
@@ -31,6 +33,24 @@ irontempest tankblitz TuNick
 ```
 Smoke test: busca en el log `[irontempest] session start id=1 tier=C attack=tankblitz`
 y su `session end` correspondiente. Sin stacktraces = verde.
+
+## Modo Streamer (ON por defecto — hecho para tus lives)
+
+`streamer.streamerMode=true` activa el paquete completo:
+- **Trituradora de tótems**: los impactos directos rompen tótems EN CADENA
+  (~5/s, `shredIntervalTicks=4`) saltándose la ventana de invulnerabilidad
+  (damage type con `bypasses_cooldown` + `invulnerableTime=0` anti-plugins).
+  Auto-recarga la offhand desde el inventario (los tótems no se apilan y solo
+  salvan desde la mano). Presupuestos: cohete 1, obús 2, misil 3, haz 2/tick de
+  contacto, sobrecarga 8, tormenta del armagedón 25 a 10/s → armagedón ≈ 60-70 tótems.
+  Log por pop para tu overlay: `[irontempest] totem pop target=... n=... left=...`
+- **DoT napalm**: el daño sostenido ignora armadura Y Protection (tu Netherite
+  Prot IV no lo amortigua).
+- **Destrucción total**: cráteres agrandados (misil r=6, sobrecarga r=7, cohetes
+  tier S con cráter real r=2) y presupuesto de bloques 2200/tick. El mapa queda
+  lunar — perfecto si reinicias el mundo cada live.
+- El tótem SIEMPRE puede salvar (jamás `bypasses_invulnerability`): el show es
+  exactamente verlos reventar.
 
 ## Build (en tu máquina Windows)
 

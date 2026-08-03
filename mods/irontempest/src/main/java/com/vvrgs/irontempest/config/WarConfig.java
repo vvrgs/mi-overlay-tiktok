@@ -21,6 +21,12 @@ public final class WarConfig {
     public static final ForgeConfigSpec.BooleanValue POST_SHADER;
     public static final ForgeConfigSpec.BooleanValue FLASH_OVERLAY;
     public static final ForgeConfigSpec.BooleanValue BROADCAST_MESSAGES;
+    public static final ForgeConfigSpec.BooleanValue STREAMER_MODE;
+    public static final ForgeConfigSpec.BooleanValue TOTEM_SHREDDER;
+    public static final ForgeConfigSpec.IntValue SHRED_INTERVAL_TICKS;
+    public static final ForgeConfigSpec.BooleanValue SHRED_AUTO_REFILL;
+    public static final ForgeConfigSpec.DoubleValue SHRED_BUDGET_MULTIPLIER;
+    public static final ForgeConfigSpec.IntValue EXECUTION_MAX_POPS;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -65,12 +71,52 @@ public final class WarConfig {
                 .define("flashOverlay", true);
         b.pop();
 
+        b.push("streamer");
+        STREAMER_MODE = b.comment("MODO STREAMER: pensado para lives donde el objetivo es MATARTE con espectáculo. Activa: cráteres grandes en TODO (los cohetes tier S incluidos), presupuesto de bloques 2200/tick, DoT perforante (ignora armadura+Protection) y trituradora de tótems en los ataques.")
+                .define("streamerMode", true);
+        TOTEM_SHREDDER = b.comment("Trituradora de tótems: los impactos directos rompen tótems EN CADENA saltándose la ventana de invulnerabilidad (requiere lethalStrikes=true y streamerMode).")
+                .define("totemShredder", true);
+        SHRED_INTERVAL_TICKS = b.comment("Ticks entre pops de tótem (4 = 5 pops/segundo). No bajar de 2: la animación deja de leerse.")
+                .defineInRange("shredIntervalTicks", 4, 1, 20);
+        SHRED_AUTO_REFILL = b.comment("Auto-recarga la offhand con tótems del inventario antes de cada pulso (los tótems NO se apilan y solo salvan desde la mano — sin esto la cadena muere en el primer pop).")
+                .define("shredAutoRefill", true);
+        SHRED_BUDGET_MULTIPLIER = b.comment("Multiplicador del presupuesto de pops por ataque.")
+                .defineInRange("shredBudgetMultiplier", 1.0D, 0.0D, 5.0D);
+        EXECUTION_MAX_POPS = b.comment("Tótems máximos que devora el comando execution.")
+                .defineInRange("executionMaxPops", 40, 1, 150);
+        b.pop();
+
         b.push("feedback");
         BROADCAST_MESSAGES = b.comment("Mensajes de chat al lanzar/encolar ataques.")
                 .define("broadcastMessages", true);
         b.pop();
 
         SPEC = b.build();
+    }
+
+    // ------------------------------------------------------------ helpers streamer
+    /** Presupuesto de bloques/tick efectivo (streamer sube el suelo a 2200). */
+    public static int effectiveBlockBudget() {
+        int base = GLOBAL_BLOCK_BUDGET_PER_TICK.get();
+        return STREAMER_MODE.get() ? Math.max(base, 2200) : base;
+    }
+
+    /** Radio de cráter efectivo: streamer agranda (3→4, 4→6, 2→3, 5→7). */
+    public static int craterRadius(int base) {
+        if (!STREAMER_MODE.get()) {
+            return base;
+        }
+        return base + (base >= 4 ? 2 : 1);
+    }
+
+    /** Damage type de los pulsos DoT: napalm perforante en streamer. */
+    public static net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> sustainedType(
+            net.minecraft.resources.ResourceKey<net.minecraft.world.damagesource.DamageType> fallback) {
+        return STREAMER_MODE.get() ? com.vvrgs.irontempest.registry.ModDamage.NAPALM : fallback;
+    }
+
+    public static boolean shredEnabled() {
+        return STREAMER_MODE.get() && TOTEM_SHREDDER.get();
     }
 
     private WarConfig() {}

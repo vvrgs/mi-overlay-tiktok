@@ -46,5 +46,11 @@
   "irontempest.attack.rocketrain": "Lluvia de cohetes",
   "irontempest.attack.orbitalstrike": "Ataque orbital",
   "irontempest.attack.armageddon": "Armagedón",
-  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cCola de ataques llena: este ataque se descartó."
+  "irontempest.msg.queue_full": "§6[Iron Tempest]§r §cCola de ataques llena: este ataque se descartó.",
+  "death.attack.irontempest.totem_shred": "%1$s se quedó sin tótems que ofrecer",
+  "death.attack.irontempest.totem_shred.player": "%1$s se quedó sin tótems que ofrecer luchando contra %2$s",
+  "death.attack.irontempest.napalm": "%1$s se consumió en el fuego de la tormenta",
+  "death.attack.irontempest.napalm.player": "%1$s se consumió en el fuego de la tormenta luchando contra %2$s",
+  "irontempest.attack.execution": "Ejecución orbital",
+  "irontempest.attack.shred": "Devora-tótems"
 }

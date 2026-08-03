@@ -52,6 +52,7 @@ src/main/java/com/vvrgs/irontempest/registry/ModSounds.java
 src/main/java/com/vvrgs/irontempest/server/command/WarCommands.java
 src/main/java/com/vvrgs/irontempest/server/session/ArmageddonSession.java
 src/main/java/com/vvrgs/irontempest/server/session/CruiseMissileSession.java
+src/main/java/com/vvrgs/irontempest/server/session/ExecutionSession.java
 src/main/java/com/vvrgs/irontempest/server/session/OrbitalStrikeSession.java
 src/main/java/com/vvrgs/irontempest/server/session/RocketRainSession.java
 src/main/java/com/vvrgs/irontempest/server/session/SessionManager.java
@@ -60,6 +61,7 @@ src/main/java/com/vvrgs/irontempest/server/session/WarSession.java
 src/main/java/com/vvrgs/irontempest/server/util/DamageUtil.java
 src/main/java/com/vvrgs/irontempest/server/util/SustainedDamage.java
 src/main/java/com/vvrgs/irontempest/server/util/TerrainSculptor.java
+src/main/java/com/vvrgs/irontempest/server/util/TotemShredder.java
 verify/stubs/com/google/gson/JsonElement.java
 verify/stubs/com/google/gson/JsonObject.java
 verify/stubs/com/google/gson/JsonParser.java
@@ -129,6 +131,7 @@ verify/stubs/net/minecraft/commands/arguments/EntityArgument.java
 verify/stubs/net/minecraft/commands/arguments/selector/EntitySelector.java
 verify/stubs/net/minecraft/core/BlockPos.java
 verify/stubs/net/minecraft/core/Holder.java
+verify/stubs/net/minecraft/core/NonNullList.java
 verify/stubs/net/minecraft/core/Position.java
 verify/stubs/net/minecraft/core/Registry.java
 verify/stubs/net/minecraft/core/RegistryAccess.java
@@ -164,6 +167,7 @@ verify/stubs/net/minecraft/sounds/SoundEvent.java
 verify/stubs/net/minecraft/sounds/SoundSource.java
 verify/stubs/net/minecraft/util/Mth.java
 verify/stubs/net/minecraft/util/RandomSource.java
+verify/stubs/net/minecraft/world/InteractionHand.java
 verify/stubs/net/minecraft/world/damagesource/DamageSource.java
 verify/stubs/net/minecraft/world/damagesource/DamageType.java
 verify/stubs/net/minecraft/world/entity/Entity.java
@@ -171,8 +175,12 @@ verify/stubs/net/minecraft/world/entity/EntityType.java
 verify/stubs/net/minecraft/world/entity/LivingEntity.java
 verify/stubs/net/minecraft/world/entity/MobCategory.java
 verify/stubs/net/minecraft/world/entity/MoverType.java
+verify/stubs/net/minecraft/world/entity/player/Inventory.java
 verify/stubs/net/minecraft/world/entity/player/Player.java
 verify/stubs/net/minecraft/world/entity/projectile/ProjectileUtil.java
+verify/stubs/net/minecraft/world/item/Item.java
+verify/stubs/net/minecraft/world/item/ItemStack.java
+verify/stubs/net/minecraft/world/item/Items.java
 verify/stubs/net/minecraft/world/level/BlockGetter.java
 verify/stubs/net/minecraft/world/level/ClipContext.java
 verify/stubs/net/minecraft/world/level/Level.java

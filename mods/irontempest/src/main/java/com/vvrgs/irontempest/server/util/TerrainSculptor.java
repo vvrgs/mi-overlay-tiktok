@@ -60,7 +60,7 @@ public final class TerrainSculptor {
 
     /** Llamar UNA vez por tick de servidor (desde SessionManager). */
     public static void serverTick() {
-        int budget = WarConfig.GLOBAL_BLOCK_BUDGET_PER_TICK.get();
+        int budget = WarConfig.effectiveBlockBudget();
         while (budget > 0 && !JOBS.isEmpty()) {
             Job job = JOBS.peek();
             if (!job.positions().hasNext()) {

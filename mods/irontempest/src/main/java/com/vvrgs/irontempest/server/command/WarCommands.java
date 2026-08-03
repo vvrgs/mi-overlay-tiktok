@@ -26,6 +26,8 @@ import org.jetbrains.annotations.Nullable;
  * /irontempest tankblitz [jugador]
  * /irontempest orbitalstrike [jugador]
  * /irontempest armageddon [jugador]
+ * /irontempest execution [jugador]      (ancla + devora-tótems + clímax)
+ * /irontempest shred [jugador] [pops]  (trituradora pura, sin nave)
  * /irontempest stopall
  */
 @Mod.EventBusSubscriber(modid = IronTempest.MODID)
@@ -62,6 +64,17 @@ public final class WarCommands {
                         .executes(ctx -> armageddon(ctx, null))
                         .then(Commands.argument("target", EntityArgument.player())
                                 .executes(ctx -> armageddon(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("execution")
+                        .executes(ctx -> execution(ctx, null))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> execution(ctx, EntityArgument.getPlayer(ctx, "target")))))
+                .then(Commands.literal("shred")
+                        .executes(ctx -> shred(ctx, null, 10))
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> shred(ctx, EntityArgument.getPlayer(ctx, "target"), 10))
+                                .then(Commands.argument("pops", IntegerArgumentType.integer(1, 150))
+                                        .executes(ctx -> shred(ctx, EntityArgument.getPlayer(ctx, "target"),
+                                                IntegerArgumentType.getInteger(ctx, "pops"))))))
                 .then(Commands.literal("stopall")
                         .executes(WarCommands::stopAll)));
     }
@@ -139,6 +152,29 @@ public final class WarCommands {
             return 0;
         }
         feedbackStarted(ctx, "armageddon", target);
+        return 1;
+    }
+
+    private static int execution(CommandContext<CommandSourceStack> ctx,
+                                 @Nullable ServerPlayer explicit) {
+        ServerPlayer target = resolveTarget(ctx, explicit);
+        if (target == null) {
+            return 0;
+        }
+        int queued = SessionManager.execution(target.serverLevel(), target);
+        feedback(ctx, "execution", target, queued);
+        return 1;
+    }
+
+    private static int shred(CommandContext<CommandSourceStack> ctx,
+                             @Nullable ServerPlayer explicit, int pops) {
+        ServerPlayer target = resolveTarget(ctx, explicit);
+        if (target == null) {
+            return 0;
+        }
+        com.vvrgs.irontempest.server.util.TotemShredder.shred(
+                target.serverLevel(), target, "shred", pops);
+        feedbackStarted(ctx, "shred", target);
         return 1;
     }
 

@@ -75,6 +75,8 @@ public final class ArmageddonSession extends WarSession {
         }
         if (this.age == T_EMBERS) {
             ModNetwork.fx(this.level, FxType.DEBRIS_RAIN, target.position(), 12.0F);
+            // Tormenta final: ametralladora de tótems a 10 pops/s.
+            com.vvrgs.irontempest.server.util.TotemShredder.shred(this.level, target, "armageddon", 25, 2);
         }
         if (this.age >= T_FIN) {
             end("complete");

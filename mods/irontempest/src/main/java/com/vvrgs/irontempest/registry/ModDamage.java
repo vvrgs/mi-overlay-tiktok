@@ -18,6 +18,10 @@ public final class ModDamage {
     public static final ResourceKey<DamageType> ROCKET = key("rocket");
     public static final ResourceKey<DamageType> ORBITAL_BEAM = key("orbital_beam");
     public static final ResourceKey<DamageType> SHOCKWAVE = key("shockwave");
+    /** Pulso trituradora de tótems: bypasses_cooldown+armor+enchantments, JAMÁS bypasses_invulnerability. */
+    public static final ResourceKey<DamageType> TOTEM_SHRED = key("totem_shred");
+    /** DoT perforante del modo streamer (ignora armadura y Protection). */
+    public static final ResourceKey<DamageType> NAPALM = key("napalm");
 
     private static ResourceKey<DamageType> key(String name) {
         return ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(IronTempest.MODID, name));

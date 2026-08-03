@@ -67,6 +67,7 @@ public final class FxDirector {
             case SCORCH -> scorch(level, pos);
             case SILO_VENT -> siloVent(level, pos, s);
             case DEBRIS_RAIN -> debrisRain(level, pos, s);
+            case TOTEM_POP -> totemPop(level, pos);
             case SHAKE_ONLY -> ScreenShake.addTrauma(s, pos);
         }
     }
@@ -312,6 +313,19 @@ public final class FxDirector {
     }
 
     /** Suelo ardiendo de las zonas de daño sostenido (scale = radio/3). */
+    /** Pop de tótem: anillo dorado + corona de chispas — puntúa cada rotura. */
+    private static void totemPop(ClientLevel level, Vec3 pos) {
+        spawn(level, ModParticles.SHOCKWAVE.get(), pos, 1, 0.0D, 0.45D);
+        for (int i = 0; i < 14; i++) {
+            double angle = i / 14.0D * Math.PI * 2.0D;
+            Vec3 v = new Vec3(Math.cos(angle), 0.6D, Math.sin(angle)).scale(0.28D);
+            particle(level, ModParticles.SPARK.get(), pos, v.x, v.y, v.z);
+        }
+        embersBurst(level, pos, 8, 0.3D);
+        spawn(level, ModParticles.FLASH.get(), pos, 1, 0.02D, 0.0D);
+        ScreenShake.addTrauma(0.16F, pos);
+    }
+
     private static void scorch(ClientLevel level, Vec3 pos) {
         double r = 1.0D;
         for (int i = 0; i < 6; i++) {

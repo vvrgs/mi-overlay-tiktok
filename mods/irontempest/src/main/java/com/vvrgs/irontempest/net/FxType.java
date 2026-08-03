@@ -33,6 +33,8 @@ public enum FxType {
     SILO_VENT,
     /** Lluvia de brasas del epílogo. scale = radio del área. */
     DEBRIS_RAIN,
+    /** Pop de tótem de la trituradora: anillo dorado + chispas + shake corto. */
+    TOTEM_POP,
     /** Solo trauma de cámara (sin partículas). scale = trauma 0..1. */
     SHAKE_ONLY;
 

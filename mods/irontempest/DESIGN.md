@@ -16,6 +16,8 @@
   jugador, silbido descendente con pitch-drop → T+impacto: flash 2t → bola de fuego 8t →
   anillo de choque 12t → humo negro 40t + chispas balísticas → quemadura cosmética ≤5 bloques (config).
 - **Cámara/lock:** NUNCA. **Destrucción:** cosmética ≤5 bloques, presupuesto global compartido.
+  **Desviación streamer (2026-08-03):** con `streamerMode=true` (default) el cohete deja cráter real r=2 —
+  el mundo se resetea cada live y el usuario QUIERE el mapa lunar; el presupuesto global sigue protegiendo el TPS.
 
 ### 2. `cruisemissile` — Tier **M** (solapable, 100–700 monedas, 1–5 juntos)
 - **Comando:** `irontempest cruisemissile [jugador]`

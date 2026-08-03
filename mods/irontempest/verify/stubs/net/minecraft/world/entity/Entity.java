@@ -39,6 +39,7 @@ public abstract class Entity {
     public double zOld;
 
     public boolean hurtMarked;
+    public int invulnerableTime;
     public void setSecondsOnFire(int seconds) {}
 
     public double getX() { return 0.0D; }

@@ -181,12 +181,14 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
         boolean airburst = pos.y - ground > 2.5D;
         ModNetwork.fx(server, airburst ? FxType.AIRBURST : FxType.EXPLOSION_LARGE,
                 pos, getDeltaMovement().normalize(), 2.0F);
-        TerrainSculptor.crater(server, BlockPos.containing(pos), 4, true);
+        TerrainSculptor.crater(server, BlockPos.containing(pos),
+                com.vvrgs.irontempest.config.WarConfig.craterRadius(4), true);
         DamageUtil.strikeDamage(server, pos, 2.5D, 8.0D, 26.0F, ModDamage.MISSILE, this);
         DamageUtil.blastImpulse(server, pos, 9.0D, 1.6D);
         // El punto cero arde 6 s; los supervivientes siguen ardiendo 4 s.
         SustainedDamage.zone(server, pos, 5.0D, 6.0D, 4.0F, ModDamage.MISSILE, true);
         SustainedDamage.afflictArea(server, pos, 8.0D, 4.0D, 3.0F, ModDamage.MISSILE, true);
+        com.vvrgs.irontempest.server.util.TotemShredder.shredArea(server, pos, 4.0D, "cruisemissile", 3);
         SessionManager.notifyProjectileImpact(this.sessionId);
         discard();
     }

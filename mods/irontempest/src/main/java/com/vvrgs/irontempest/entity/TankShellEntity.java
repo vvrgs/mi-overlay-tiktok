@@ -44,12 +44,14 @@ public class TankShellEntity extends AbstractWarProjectile {
         }
         Vec3 pos = hit.getLocation();
         ModNetwork.fx(server, FxType.EXPLOSION_LARGE, pos, getDeltaMovement().normalize(), 1.2F);
-        TerrainSculptor.crater(server, BlockPos.containing(pos), 3, true);
+        TerrainSculptor.crater(server, BlockPos.containing(pos),
+                com.vvrgs.irontempest.config.WarConfig.craterRadius(3), true);
         DamageUtil.strikeDamage(server, pos, 1.6D, 5.5D, 22.0F, ModDamage.TANK_SHELL, this);
         DamageUtil.blastImpulse(server, pos, 7.0D, 1.1D);
         // Daño SOSTENIDO: el cráter arde 4 s y los alcanzados siguen quemándose 3 s.
         SustainedDamage.zone(server, pos, 4.0D, 4.0D, 3.0F, ModDamage.TANK_SHELL, true);
         SustainedDamage.afflictArea(server, pos, 5.5D, 3.0D, 2.5F, ModDamage.TANK_SHELL, true);
+        com.vvrgs.irontempest.server.util.TotemShredder.shredArea(server, pos, 3.0D, "tankblitz", 2);
         SessionManager.notifyProjectileImpact(this.sessionId);
         discard();
     }

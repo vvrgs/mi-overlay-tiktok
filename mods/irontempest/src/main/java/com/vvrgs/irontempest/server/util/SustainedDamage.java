@@ -56,6 +56,7 @@ public final class SustainedDamage {
         final ResourceKey<DamageType> type;
         final boolean fire;
         int ticksLeft;
+        boolean expired;
 
         Affliction(ServerLevel level, UUID target, int ticks, float pulseDamage,
                    ResourceKey<DamageType> type, boolean fire) {
@@ -124,11 +125,8 @@ public final class SustainedDamage {
         clock++;
         float mult = (float) (WarConfig.DAMAGE_MULTIPLIER.get() * WarConfig.DOT_MULTIPLIER.get());
 
-        Iterator<Zone> zi = ZONES.iterator();
-        while (zi.hasNext()) {
-            Zone z = zi.next();
+        for (Zone z : new ArrayList<>(ZONES)) {
             if (--z.ticksLeft <= 0) {
-                zi.remove();
                 continue;
             }
             if (clock % FX_INTERVAL == 0) {
@@ -139,7 +137,8 @@ public final class SustainedDamage {
                 AABB box = new AABB(z.pos, z.pos).inflate(z.radius);
                 for (LivingEntity living : z.level.getEntitiesOfClass(LivingEntity.class, box)) {
                     if (living.position().distanceTo(z.pos) <= z.radius) {
-                        living.hurt(ModDamage.source(z.level, z.type, null), z.pulseDamage * mult);
+                        living.hurt(ModDamage.source(z.level, WarConfig.sustainedType(z.type), null),
+                                z.pulseDamage * mult);
                         if (z.fire) {
                             living.setSecondsOnFire(2);
                         }
@@ -147,26 +146,29 @@ public final class SustainedDamage {
                 }
             }
         }
+        ZONES.removeIf(z -> z.ticksLeft <= 0);
 
         if (clock % PULSE_INTERVAL != 0) {
             return;
         }
-        Iterator<Affliction> ai = AFFLICTIONS.iterator();
-        while (ai.hasNext()) {
-            Affliction a = ai.next();
+        // SNAPSHOT anti-CME: un hurt puede matar → LivingDeathEvent → removeFor()
+        // reentra en AFFLICTIONS dentro de este mismo tick.
+        for (Affliction a : new ArrayList<>(AFFLICTIONS)) {
             a.ticksLeft -= PULSE_INTERVAL;
             Entity e = a.level.getEntity(a.target);
             if (a.ticksLeft <= 0 || !(e instanceof LivingEntity living) || !living.isAlive()) {
-                ai.remove();
+                a.expired = true;
                 continue;
             }
             if (mult > 0.0F) {
-                living.hurt(ModDamage.source(a.level, a.type, null), a.pulseDamage * mult);
+                living.hurt(ModDamage.source(a.level, WarConfig.sustainedType(a.type), null),
+                        a.pulseDamage * mult);
                 if (a.fire) {
                     living.setSecondsOnFire(2);
                 }
             }
         }
+        AFFLICTIONS.removeIf(a -> a.expired || a.ticksLeft <= 0);
     }
 
     /** Cleanup duro (ServerStopping / stopall). */
