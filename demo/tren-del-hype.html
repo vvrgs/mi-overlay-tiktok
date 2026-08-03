@@ -96,13 +96,18 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
   background:linear-gradient(180deg,color-mix(in srgb,var(--lvl) 55%,#3A4166) 0%,rgba(30,35,66,.2) 70%);
   border:1px solid color-mix(in srgb,var(--lvl) 70%,#5A628E);opacity:.85;
   background-image:radial-gradient(circle at 3px 3px,rgba(255,255,255,.5) 1px,transparent 1.4px);background-size:12px 10px}
-/* Tier 3 (nv 7+): propulsores */
-.evo3 .boostA,.evo3 .boostB{display:block;position:absolute;width:30px;height:12px;border-radius:6px;
-  background:linear-gradient(180deg,#6C77A8,#2B3154);border:1px solid #7c86b8}
+/* Tier 3 (nv 7+): propulsores — crecen con el nivel vía --boost */
+.evo3 .boostA,.evo3 .boostB{display:block;position:absolute;border-radius:6px;
+  width:calc(30px * var(--boost,1));height:calc(12px * var(--boost,1));
+  background:linear-gradient(180deg,#6C77A8,#2B3154);border:1px solid #7c86b8;
+  transition:width .5s cubic-bezier(.2,1.3,.4,1),height .5s cubic-bezier(.2,1.3,.4,1)}
 .evo3 .boostA{left:8px;bottom:12px}.evo3 .boostB{left:44px;bottom:8px}
-.evo3 .boostA::after,.evo3 .boostB::after{content:"";position:absolute;left:-14px;top:2px;width:15px;height:8px;
-  border-radius:4px;background:radial-gradient(70% 100% at 100% 50%,#CFF6FF 0%,var(--lvl) 45%,transparent 90%);
-  animation:flick .1s infinite alternate}
+.evo3 .boostA::after,.evo3 .boostB::after{content:"";position:absolute;top:2px;
+  width:calc(15px * var(--boost,1) * var(--boost,1));height:calc(8px * var(--boost,1));
+  left:calc(-15px * var(--boost,1) * var(--boost,1) + 1px);
+  border-radius:4px;background:radial-gradient(70% 100% at 100% 50%,#FFFFFF 0%,#CFF6FF 22%,var(--lvl) 55%,transparent 92%);
+  filter:drop-shadow(0 0 calc(6px * var(--boost,1)) var(--lvl));
+  transition:width .5s,height .5s,left .5s;animation:flick .1s infinite alternate}
 /* Tier 4 (nv 10+): aleta aerodinámica + aura de energía */
 .evo4 .finn{display:block;position:absolute;left:56px;bottom:100px;width:44px;height:10px;border-radius:6px 12px 0 0;
   background:linear-gradient(90deg,color-mix(in srgb,var(--lvl) 70%,#5A628E),#2B3154)}
@@ -113,6 +118,19 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
 /* Nivel máximo: iridiscente */
 .mythic{animation:huespin 4s linear infinite}
 @keyframes huespin{to{filter:drop-shadow(0 0 16px color-mix(in srgb,var(--lvl) 45%,transparent)) hue-rotate(360deg)}}
+
+/* ---- modos de velocidad extrema ---- */
+.stage.warp .train{animation:bob .3s ease-in-out infinite,leanfwd .6s forwards}
+@keyframes leanfwd{to{transform:skewX(-4deg)}}
+.stage.lightspeed .train{filter:drop-shadow(0 0 22px var(--lvl)) brightness(1.25)}
+.stage.lightspeed::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(60% 100% at 100% 60%,color-mix(in srgb,var(--lvl) 30%,transparent),transparent 65%);
+  animation:lspulse .8s ease-in-out infinite}
+@keyframes lspulse{0%,100%{opacity:.45}50%{opacity:.9}}
+.speedchip{display:flex;align-items:center;gap:6px;background:rgba(8,10,22,.82);border:1px solid var(--lvl);
+  border-radius:12px;padding:6px 11px;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.speedchip .kmh{color:var(--lvl);font-variant-numeric:tabular-nums;letter-spacing:0}
+.stage.lightspeed .speedchip{animation:dpulse .6s infinite}
 
 /* ruedas con rayos + biela */
 .wheel{position:absolute;bottom:0;width:25px;height:25px;border-radius:50%;
@@ -182,7 +200,7 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
 @keyframes dpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,51,85,0)}50%{box-shadow:0 0 16px 2px rgba(255,51,85,.5)}}
 
 /* cartel de nuevo terreno */
-.terr{position:absolute;left:0;right:0;top:31%;z-index:10;display:flex;justify-content:center;pointer-events:none}
+.terr{position:absolute;left:0;right:0;top:41%;z-index:10;display:flex;justify-content:center;pointer-events:none}
 .terr span{background:rgba(6,8,18,.85);border:1px solid var(--lvl);border-radius:999px;padding:8px 20px;
   font-size:13px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;
   box-shadow:0 0 24px color-mix(in srgb,var(--lvl) 40%,transparent);animation:terrin 2.6s forwards}
@@ -193,7 +211,7 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
   box-shadow:inset 0 0 70px 24px rgba(255,51,85,.55)}
 .stage.danger .vignette{opacity:1;animation:vpulse .6s infinite}
 @keyframes vpulse{0%,100%{opacity:.55}50%{opacity:1}}
-.feedme{position:absolute;left:0;right:0;top:36%;z-index:9;text-align:center;pointer-events:none;
+.feedme{position:absolute;left:0;right:0;top:56%;z-index:9;text-align:center;pointer-events:none;
   font-size:21px;font-weight:900;font-style:italic;letter-spacing:.06em;color:var(--danger);
   text-shadow:0 0 18px rgba(255,51,85,.8);animation:vpulse .5s infinite}
 
@@ -323,6 +341,9 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
         <div class="lvlbadge"><span class="nv" id="nv">NV 1</span><span class="nm" id="nm">ENCENDIDO</span></div>
         <div class="pts" id="pts">0 pts</div>
       </div>
+      <div class="hudrow">
+        <div class="speedchip">⚡ <span id="vname">CRUCERO</span> <span class="kmh" id="vkmh">40 km/h</span></div>
+      </div>
       <div class="fusewrap">
         <div class="fuselbl"><span>⏳ El tren se apaga en</span><span id="ftime">30.0 s</span></div>
         <div class="fuse"><div class="ffill" id="ffill"></div></div>
@@ -370,7 +391,9 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(
   <div class="legend">
     <h2>Cómo funciona</h2>
     <p>Cada regalo suma sus coins como puntos y <code>reinicia el contador de 30 s</code>. El <code>👑 mayor gifter conduce</code> (su foto en la cabina) y los demás viajan en los vagones. Mientras el tren corre acumula <code>metros</code>, y cada ~400 m cruza a un terreno nuevo: Pradera → Montañas nevadas → Gran Puente → Desierto de Egipto → Ciudad de noche → Japón → Tormenta → Aurora boreal → <code>Espacio exterior</code> (y da la vuelta al mundo otra vez).</p>
-    <p><code>12 niveles</code>: Encendido → A todo vapor → Expreso → Bala → Blindado → Supersónico → Relámpago → Cohete → Plasma → Dorado → Estelar → <code>MÍTICO</code>. La locomotora <code>evoluciona</code>: en nv 4 gana blindaje, en nv 7 propulsores, en nv 10 aleta y aura de energía, y en nv 12 se vuelve iridiscente. Regalos de <code>1,000+</code> coins activan el TURBO.</p>
+    <p><code>12 niveles</code>: Encendido → A todo vapor → Expreso → Bala → Blindado → Supersónico → Relámpago → Cohete → Plasma → Dorado → Estelar → <code>MÍTICO</code>. La locomotora <code>evoluciona</code>: en nv 4 gana blindaje, en nv 7 propulsores (que <code>crecen</code> con cada nivel), en nv 10 aleta y aura de energía, y en nv 12 se vuelve iridiscente. Regalos de <code>500+</code> coins activan el TURBO.</p>
+    <p>La <code>velocidad</code> escala de Crucero (40 km/h) a <code>Más allá de la luz</code>: desde nv 9 entra en modo WARP (las estrellas se estiran en líneas de luz y el tren se inclina) y en nv 11 alcanza la <code>velocidad de la luz</code> con túnel de energía.</p>
+    <p>Balance: el regalo tope es la <code>🌌 Galaxia (1,000 coins)</code>, así que los regalos baratos hacen crecer mucho el tren — un 🧴 Perfume (20) ya sube de nivel y una sola Galaxia lo lleva a Relámpago.</p>
     <p>En tu live real el tren arrancaría con <code>2+ gifters distintos</code> (aquí arranca al primer toque). Esta escena se montará como <code>overlay por URL</code> con los eventos de tu app y las fotos de perfil de TikTok.</p>
   </div>
 </div>
@@ -383,19 +406,20 @@ const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---------- 12 niveles con evoluciones ---------- */
+/* balance: el regalo más caro es la Galaxia (1,000 coins) */
 const LEVELS=[
-  {n:'ENCENDIDO',   c:'#22E5DB', need:0},
-  {n:'A TODO VAPOR',c:'#3DDC84', need:150},
-  {n:'EXPRESO',     c:'#9BE84B', need:500},
-  {n:'BALA',        c:'#FFC24B', need:1200},
-  {n:'BLINDADO',    c:'#FF8A3D', need:2500},
-  {n:'SUPERSÓNICO', c:'#FE2C55', need:5000},
-  {n:'RELÁMPAGO',   c:'#FFE34B', need:9000},
-  {n:'COHETE',      c:'#B96BFF', need:15000},
-  {n:'PLASMA',      c:'#7D7BFF', need:25000},
-  {n:'DORADO',      c:'#FFDF6B', need:40000},
-  {n:'ESTELAR',     c:'#9BD8FF', need:60000},
-  {n:'MÍTICO',      c:'#7DF9FF', need:90000},
+  {n:'ENCENDIDO',   c:'#22E5DB', need:0,    v:'CRUCERO',       kmh:'40 km/h'},
+  {n:'A TODO VAPOR',c:'#3DDC84', need:20,   v:'RÁPIDO',        kmh:'120 km/h'},
+  {n:'EXPRESO',     c:'#9BE84B', need:60,   v:'VELOZ',         kmh:'260 km/h'},
+  {n:'BALA',        c:'#FFC24B', need:150,  v:'SÚPER',         kmh:'540 km/h'},
+  {n:'BLINDADO',    c:'#FF8A3D', need:300,  v:'SÚPER +',       kmh:'980 km/h'},
+  {n:'SUPERSÓNICO', c:'#FE2C55', need:550,  v:'HÍPER',         kmh:'1,700 km/h'},
+  {n:'RELÁMPAGO',   c:'#FFE34B', need:900,  v:'HÍPER +',       kmh:'3,400 km/h'},
+  {n:'COHETE',      c:'#B96BFF', need:1400, v:'ULTRA',         kmh:'9,800 km/h'},
+  {n:'PLASMA',      c:'#7D7BFF', need:2100, v:'WARP',          kmh:'42,000 km/h'},
+  {n:'DORADO',      c:'#FFDF6B', need:3000, v:'SUBLUZ',        kmh:'150,000 km/s'},
+  {n:'ESTELAR',     c:'#9BD8FF', need:4200, v:'VELOCIDAD LUZ', kmh:'299,792 km/s'},
+  {n:'MÍTICO',      c:'#7DF9FF', need:6000, v:'MÁS ALLÁ DE LA LUZ', kmh:'∞'},
 ];
 const evoTier=lvl=>Math.min(4,1+Math.floor((lvl-1)/3)); /* 1-3→1, 4-6→2, 7-9→3, 10-12→4 */
 const FUSE_MS=30000, DANGER_MS=10000, MAX_WAGONS=3;
@@ -422,13 +446,13 @@ const BIOMES=[
 /* ---------- regalos reales ---------- */
 const GIFTS=[
   {n:'Rosa',e:'🌹',c:1},{n:'Corazoncito',e:'🫰',c:5},{n:'Perfume',e:'🧴',c:20},
-  {n:'Dona',e:'🍩',c:30},{n:'Grulla',e:'🕊️',c:99},{n:'Corgi',e:'🐕',c:299},
-  {n:'Money Gun',e:'💸',c:500},{n:'Galaxia',e:'🌌',c:1000},{n:'Moto',e:'🏍️',c:2988},
-  {n:'Interestelar',e:'🚀',c:10000},{n:'León',e:'🦁',c:29999},{n:'Universe',e:'🪐',c:44999},
+  {n:'Dona',e:'🍩',c:30},{n:'Manos corazón',e:'🫶',c:100},{n:'Gafas',e:'🕶️',c:199},
+  {n:'Corgi',e:'🐕',c:299},{n:'Money Gun',e:'💸',c:500},{n:'Tren',e:'🚂',c:899},
+  {n:'Galaxia',e:'🌌',c:1000},
 ];
 GIFTS.forEach(g=>{
   const b=document.createElement('div');
-  b.className='gift'+(g.c>=1000?' t4':'');
+  b.className='gift'+(g.c>=899?' t4':'');
   b.innerHTML=`<span class="e">${g.e}</span><div class="n">${g.n}</div><div class="p">🪙 ${fmt(g.c)}</div>`;
   b.addEventListener('click',()=>sendGift(g));
   $('gifts').appendChild(b);
@@ -682,13 +706,27 @@ let smokeAcc=0,tick=0;
   const sky=bx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,lastSky[0]);sky.addColorStop(.55,lastSky[1]);sky.addColorStop(1,lastSky[2]);
   bx.fillStyle=sky;bx.fillRect(0,0,W,H);
-  /* estrellas */
+  /* estrellas — se estiran en líneas de luz al acelerar (warp) */
   const starA=B.space?1.4:(B.storm?.3:1);
-  for(const s of stars){s.x-=speed*s.z*(B.space?2.2:1.2);if(s.x<-4)s.x=W+4;
+  const streak=Math.max(0,speed-3.2);
+  for(const s of stars){s.x-=speed*s.z*(B.space?2.2:1.2);if(s.x<-4)s.x=W+4+Math.random()*40;
     const tw=.55+.45*Math.sin(tick*.05+s.ph);
-    bx.globalAlpha=Math.min(1,(0.2+s.z*.5)*tw*starA);bx.fillStyle='#B9C6F5';
-    bx.fillRect(s.x,s.y,s.z<.6?1.4:2.2,s.z<.6?1.4:2.2)}
+    bx.globalAlpha=Math.min(1,(0.2+s.z*.5)*tw*starA);
+    const th=s.z<.6?1.4:2.2;
+    if(streak>.2&&!REDUCED){
+      const len=streak*s.z*9;
+      const g=bx.createLinearGradient(s.x,0,s.x+len,0);
+      g.addColorStop(0,'#FFFFFF');g.addColorStop(1,hexA(lvlHex,0));
+      bx.fillStyle=g;bx.fillRect(s.x,s.y,len,th)}
+    else{bx.fillStyle='#B9C6F5';bx.fillRect(s.x,s.y,th,th)}}
   bx.globalAlpha=1;
+  /* túnel de warp a velocidad luz */
+  if(speed>7&&!REDUCED){
+    const cxp=W*1.05,cyp=H*.5,k=(tick*.06)%1;
+    for(let i=0;i<4;i++){
+      const p=(k+i/4)%1,r=p*Math.max(W,H)*1.5;
+      bx.strokeStyle=hexA(lvlHex,(1-p)*.22);bx.lineWidth=2+p*3;
+      bx.beginPath();bx.ellipse(cxp,cyp,r,r*.62,0,0,7);bx.stroke()}}
   /* nubes */
   if(!B.space){bx.fillStyle=B.storm?'rgba(40,48,80,.35)':'rgba(120,135,190,.07)';
     for(const c of clouds){c.x-=speed*c.s+.03;if(c.x<-c.w)c.x=W+c.w;
@@ -711,9 +749,9 @@ let smokeAcc=0,tick=0;
     for(let x=-off;x<W;x+=26)bx.fillRect(x,H-50,4,9)}
   /* flash de transición / rayo */
   if(flash>0){bx.fillStyle=`rgba(230,238,255,${flash*.5})`;bx.fillRect(0,0,W,H);flash-=.05}
-  /* humo continuo + chispas */
-  if(T.on){smokeAcc+=speed*.05+.03;if(smokeAcc>1){smokeAcc=0;puff(1,false)}
-    if(speed>2.4&&Math.random()<.3)embers(1)}
+  /* humo continuo + chispas (con tope para no ahogar el render a velocidad luz) */
+  if(T.on&&P.length<420){smokeAcc+=Math.min(.35,speed*.03)+.03;if(smokeAcc>1){smokeAcc=0;puff(1,speed>6)}
+    if(speed>2.4&&Math.random()<.35)embers(speed>7?2:1)}
   spawnWeather();
   /* partículas frontales */
   fc.clearRect(0,0,W,H);
@@ -754,8 +792,16 @@ function setLevelColor(){lvlHex=LEVELS[T.lvl-1].c;
 function setEvo(){const t=evoTier(T.lvl),l=$('loco');
   l.classList.toggle('evo2',t>=2);l.classList.toggle('evo3',t>=3);l.classList.toggle('evo4',t>=4);
   l.classList.toggle('mythic',T.lvl>=LEVELS.length)}
-function setSpeed(){speedTarget=T.on?(.8+T.lvl*.38):0;
+function setSpeed(){
+  /* escalada exponencial: de crucero a velocidad de la luz */
+  speedTarget=T.on?(.7+Math.pow(T.lvl,1.85)*.15):0;
   document.documentElement.style.setProperty('--speed',T.on?(1.3/Math.max(.3,speedTarget)).toFixed(2)+'s':'0s');
+  document.documentElement.style.setProperty('--boost',(1+Math.max(0,T.lvl-7)*.42).toFixed(2));
+  const st=$('stage');
+  st.classList.toggle('warp',T.on&&T.lvl>=9);
+  st.classList.toggle('lightspeed',T.on&&T.lvl>=11);
+  const lv=LEVELS[T.lvl-1];
+  $('vname').textContent=lv.v;$('vkmh').textContent=lv.kmh;
   chug(T.on)}
 function shake(){if(REDUCED)return;const s=$('stage');s.classList.remove('shake');void s.offsetWidth;s.classList.add('shake')}
 function wave(){const t=$('train').getBoundingClientRect(),s=$('stage').getBoundingClientRect();
@@ -851,7 +897,8 @@ function turbo(){
 function parkTrain(){
   T.on=false;T.danger=false;chug(false);speedTarget=0;
   document.documentElement.style.setProperty('--speed','0s');
-  $('stage').classList.remove('danger','on');$('feedme').hidden=true;$('hud').hidden=true;$('crew').hidden=true;
+  $('stage').classList.remove('danger','on','warp','lightspeed');
+  $('feedme').hidden=true;$('hud').hidden=true;$('crew').hidden=true;
   $('train').classList.remove('rolling');$('train').classList.add('parked');
   $('driver').hidden=true;$('crown').hidden=true;
 }
@@ -901,7 +948,7 @@ function sendGift(g){
   T.deadline=Date.now()+FUSE_MS;
   T.pts+=g.c;T.contrib[user]=(T.contrib[user]||0)+g.c;
   sPop();addRecent(user,g);puff(2,g.c>=100);
-  if(g.c>=1000)turbo();
+  if(g.c>=500)turbo();
   const fromLvl=T.lvl;let gained=0;
   while(T.lvl<LEVELS.length&&T.pts>=LEVELS[T.lvl].need){T.lvl++;gained++}
   if(gained)levelUp(gained,fromLvl);
