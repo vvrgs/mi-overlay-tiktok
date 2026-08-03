@@ -7,6 +7,9 @@ public final class WarConfig {
     public static final ForgeConfigSpec SPEC;
 
     public static final ForgeConfigSpec.DoubleValue DAMAGE_MULTIPLIER;
+    public static final ForgeConfigSpec.DoubleValue DOT_MULTIPLIER;
+    public static final ForgeConfigSpec.DoubleValue KNOCKBACK_STRENGTH;
+    public static final ForgeConfigSpec.BooleanValue SUSTAINED_DAMAGE;
     public static final ForgeConfigSpec.BooleanValue LETHAL_STRIKES;
     public static final ForgeConfigSpec.BooleanValue TERRAIN_DESTRUCTION;
     public static final ForgeConfigSpec.IntValue GLOBAL_BLOCK_BUDGET_PER_TICK;
@@ -25,6 +28,12 @@ public final class WarConfig {
         b.push("damage");
         DAMAGE_MULTIPLIER = b.comment("Multiplicador global de daño (0 = inofensivo, solo espectáculo). OJO: con lethalStrikes=true cualquier valor > 0 mata igual salvo tótem; el multiplicador solo escala el daño radial.")
                 .defineInRange("damageMultiplier", 1.0D, 0.0D, 10.0D);
+        DOT_MULTIPLIER = b.comment("Multiplicador del daño SOSTENIDO (zonas ardientes y aflicciones post-impacto).")
+                .defineInRange("dotMultiplier", 1.0D, 0.0D, 10.0D);
+        KNOCKBACK_STRENGTH = b.comment("Fuerza del empujón físico de las ondas expansivas (0 = sin empujón).")
+                .defineInRange("knockbackStrength", 1.0D, 0.0D, 5.0D);
+        SUSTAINED_DAMAGE = b.comment("Daño sostenido tras cada impacto: el cráter arde 3-8 s y quema a quien lo pise; los alcanzados siguen recibiendo daño.")
+                .define("sustainedDamage", true);
         LETHAL_STRIKES = b.comment("Si true, los impactos directos matan salvo tótem (killIfNoTotem). Si false, solo daño radial normal.")
                 .define("lethalStrikes", true);
         b.pop();

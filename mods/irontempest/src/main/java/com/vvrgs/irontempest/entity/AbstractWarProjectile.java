@@ -34,6 +34,11 @@ public abstract class AbstractWarProjectile extends Entity {
     /** Gravedad en bloques/tick². */
     protected abstract double gravity();
 
+    /** Arrastre aerodinámico por tick (1.0 = sin arrastre). */
+    protected double drag() {
+        return 1.0D;
+    }
+
     /** Vida máxima en ticks (seguro anti-huérfanos). */
     protected abstract int maxLife();
 
@@ -60,7 +65,7 @@ public abstract class AbstractWarProjectile extends Entity {
             return;
         }
 
-        Vec3 vel = getDeltaMovement().add(0.0D, -gravity(), 0.0D);
+        Vec3 vel = getDeltaMovement().scale(drag()).add(0.0D, -gravity(), 0.0D);
         setDeltaMovement(vel);
 
         Vec3 from = position();

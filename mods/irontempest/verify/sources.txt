@@ -58,6 +58,7 @@ src/main/java/com/vvrgs/irontempest/server/session/SessionManager.java
 src/main/java/com/vvrgs/irontempest/server/session/TankBlitzSession.java
 src/main/java/com/vvrgs/irontempest/server/session/WarSession.java
 src/main/java/com/vvrgs/irontempest/server/util/DamageUtil.java
+src/main/java/com/vvrgs/irontempest/server/util/SustainedDamage.java
 src/main/java/com/vvrgs/irontempest/server/util/TerrainSculptor.java
 verify/stubs/com/google/gson/JsonElement.java
 verify/stubs/com/google/gson/JsonObject.java

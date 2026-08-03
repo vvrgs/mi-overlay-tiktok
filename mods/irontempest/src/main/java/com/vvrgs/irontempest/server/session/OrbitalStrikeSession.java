@@ -7,6 +7,7 @@ import com.vvrgs.irontempest.registry.ModDamage;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
 import com.vvrgs.irontempest.server.util.DamageUtil;
+import com.vvrgs.irontempest.server.util.SustainedDamage;
 import com.vvrgs.irontempest.server.util.TerrainSculptor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -131,6 +132,8 @@ public final class OrbitalStrikeSession extends WarSession {
         }
         if (this.age % 8 == 0) {
             TerrainSculptor.crater(this.level, BlockPos.containing(this.beamPoint), 2, true);
+            // Suelo fundido: pisar la trinchera del haz quema durante 3 s más.
+            SustainedDamage.zone(this.level, this.beamPoint, 2.5D, 3.0D, 3.0F, ModDamage.ORBITAL_BEAM, true);
         }
         if (this.age % 10 == 0) {
             // Columna del haz: letal (salvo tótem) dentro del radio.
@@ -142,6 +145,9 @@ public final class OrbitalStrikeSession extends WarSession {
                 double horiz = Math.hypot(living.getX() - this.beamPoint.x, living.getZ() - this.beamPoint.z);
                 if (horiz <= BEAM_KILL_RADIUS) {
                     DamageUtil.killIfNoTotem(this.level, living, ModDamage.ORBITAL_BEAM, this.ship);
+                } else if (horiz <= BEAM_KILL_RADIUS + 3.0D) {
+                    // ROCE del haz: no mata, pero te deja ardiendo 4 s (daño sostenido).
+                    SustainedDamage.afflict(this.level, living, 4.0D, 4.0F, ModDamage.ORBITAL_BEAM, true);
                 }
             }
         }
@@ -153,8 +159,12 @@ public final class OrbitalStrikeSession extends WarSession {
         this.level.playSound(null, this.beamPoint.x, this.beamPoint.y, this.beamPoint.z,
                 ModSounds.EXPLOSION_NEAR.get(), SoundSource.HOSTILE, 3.0F, 0.8F);
         TerrainSculptor.crater(this.level, BlockPos.containing(this.beamPoint), 5, true);
-        DamageUtil.strikeDamage(this.level, this.beamPoint, 3.0D, 9.0D, 20.0F,
+        DamageUtil.strikeDamage(this.level, this.beamPoint, 3.0D, 10.0D, 30.0F,
                 ModDamage.SHOCKWAVE, this.ship);
+        DamageUtil.blastImpulse(this.level, this.beamPoint, 11.0D, 2.2D);
+        // La zona cero de la sobrecarga arde 8 s.
+        SustainedDamage.zone(this.level, this.beamPoint, 6.0D, 8.0D, 5.0F, ModDamage.ORBITAL_BEAM, true);
+        SustainedDamage.afflictArea(this.level, this.beamPoint, 10.0D, 5.0D, 3.5F, ModDamage.ORBITAL_BEAM, true);
     }
 
     @Override

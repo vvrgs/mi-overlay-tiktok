@@ -115,11 +115,14 @@ public final class FxDirector {
         PostFxManager.shockwave(pos, 0.8F * sc);
         sound(level, pos, ModSounds.EXPLOSION_NEAR.get(), 3.0F, 0.95F + RNG.nextFloat() * 0.1F);
         sound(level, pos, ModSounds.EXPLOSION_FAR.get(), 2.0F, 1.0F);
-        // T+2: anillo de choque a ras de suelo + humo radial rápido
+        // T+2: anillo de choque a ras de suelo + OLA DE POLVO rasante rápida
         schedule(2, () -> {
             spawn(level, ModParticles.SHOCKWAVE.get(), pos.add(0.0D, 0.15D, 0.0D), 1, 0.0D, sc);
             ringSmoke(level, pos, (int) (8 * sc), 0.45D);
+            ringSmoke(level, pos, (int) (12 * sc), 0.85D); // ola exterior veloz
         });
+        // T+6: segundo anillo (eco de la onda) más tenue
+        schedule(6, () -> spawn(level, ModParticles.SHOCKWAVE.get(), pos.add(0.0D, 0.25D, 0.0D), 1, 0.0D, sc * 0.65D));
         // T+3: metralla y brasas
         schedule(3, () -> {
             debrisBurst(level, pos, (int) (14 * sc), 0.85D);
@@ -131,6 +134,13 @@ public final class FxDirector {
             schedule(5 + i * 3, () -> smokeColumn(level, pos, 3, 0.4D + step * 0.09D, true));
         }
         schedule(8, () -> sound(level, pos, ModSounds.DEBRIS_CLANK.get(), 0.9F, 1.0F));
+        // Explosiones SECUNDARIAS para las grandes (munición cocinándose)
+        if (sc >= 1.6F) {
+            for (int i = 0; i < 2; i++) {
+                schedule(9 + i * 6, () -> explosionSmall(level,
+                        pos.add(RNG.nextGaussian() * 3.0D, 0.5D + RNG.nextDouble() * 1.5D, RNG.nextGaussian() * 3.0D)));
+            }
+        }
         // T+35: el cráter queda chisporroteando mientras el humo se asienta.
         schedule(35, () -> sound(level, pos, ModSounds.CRATER_SIZZLE.get(), 0.9F, 1.0F));
     }
@@ -163,6 +173,7 @@ public final class FxDirector {
         PostFxManager.shockwave(pos, 0.7F * sc);
         sound(level, pos, ModSounds.EXPLOSION_NEAR.get(), 2.8F, 0.9F);
         sound(level, pos, ModSounds.EXPLOSION_FAR.get(), 2.0F, 1.0F);
+        schedule(1, () -> spawn(level, ModParticles.SHOCKWAVE.get(), pos, 1, 0.0D, sc * 0.9D));
         schedule(2, () -> {
             for (int i = 0; i < 24 * sc; i++) {
                 Vec3 v = randomDir().scale(0.3D + RNG.nextDouble() * 0.4D);
@@ -260,9 +271,9 @@ public final class FxDirector {
 
     /** Punto de barrido del haz: fuente de chispas + vapor de roca. */
     private static void beamSweep(ClientLevel level, Vec3 pos) {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 14; i++) {
             particle(level, ModParticles.SPARK.get(), pos,
-                    RNG.nextGaussian() * 0.25D, 0.35D + RNG.nextDouble() * 0.6D, RNG.nextGaussian() * 0.25D);
+                    RNG.nextGaussian() * 0.25D, 0.35D + RNG.nextDouble() * 0.9D, RNG.nextGaussian() * 0.25D);
         }
         embersBurst(level, pos, 8, 0.35D);
         fireballCluster(level, pos, 2, 0.08D);
@@ -300,13 +311,23 @@ public final class FxDirector {
         }
     }
 
+    /** Suelo ardiendo de las zonas de daño sostenido (scale = radio/3). */
     private static void scorch(ClientLevel level, Vec3 pos) {
-        for (int i = 0; i < 4; i++) {
-            particle(level, ModParticles.SMOKE.get(), pos,
-                    RNG.nextGaussian() * 0.03D, 0.06D, RNG.nextGaussian() * 0.03D);
+        double r = 1.0D;
+        for (int i = 0; i < 6; i++) {
+            Vec3 p = pos.add(RNG.nextGaussian() * r, 0.2D, RNG.nextGaussian() * r);
+            particle(level, ModParticles.SMOKE.get(), p,
+                    RNG.nextGaussian() * 0.03D, 0.05D + RNG.nextDouble() * 0.04D, RNG.nextGaussian() * 0.03D);
         }
-        embersBurst(level, pos, 5, 0.25D);
+        for (int i = 0; i < 3; i++) {
+            Vec3 p = pos.add(RNG.nextGaussian() * r, 0.15D, RNG.nextGaussian() * r);
+            particle(level, ModParticles.FIREBALL.get(), p, 0.0D, 0.03D, 0.0D);
+        }
+        embersBurst(level, pos, 7, 0.3D);
         sparksRadial(level, pos, 3, 0.3D, 0.5D);
+        if (RNG.nextFloat() < 0.25F) {
+            sound(level, pos, ModSounds.CRATER_SIZZLE.get(), 0.5F, 1.0F + RNG.nextFloat() * 0.2F);
+        }
     }
 
     /** Venteo de vapor (silo / cortina de humo del tanque). */

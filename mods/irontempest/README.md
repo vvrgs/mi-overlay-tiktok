@@ -54,6 +54,12 @@ copiar (jar parcial = NoClassDefFoundError).
 
 - `damage.damageMultiplier` — 0 = solo espectáculo, sin daño.
 - `damage.lethalStrikes` — impacto directo mata salvo tótem (el tótem SIEMPRE se respeta).
+- `damage.sustainedDamage` + `dotMultiplier` — daño SOSTENIDO: cada impacto deja el
+  cráter ardiendo 3–8 s (pisa y te quemas) y los alcanzados siguen recibiendo daño
+  en pulsos cada 0.5 s aunque corran (cohete 3 s, obús 3 s, misil 4 s, roce del haz 4 s,
+  sobrecarga 5 s), con fuego real encima.
+- `damage.knockbackStrength` — FÍSICA de onda expansiva: las explosiones empujan de
+  verdad (impulso con falloff y sesgo vertical, sincronizado al cliente).
 - `terrain.terrainDestruction` / `globalBlockBudgetPerTick` — cráteres on/off y presupuesto global amortizado.
 - `concurrency.*` — cupos por tier (5 misiles/jugador, cola de 300 cohetes…).
 - `clientFx.postShader` — distorsión de pantalla (se autodesactiva con Oculus/Iris).

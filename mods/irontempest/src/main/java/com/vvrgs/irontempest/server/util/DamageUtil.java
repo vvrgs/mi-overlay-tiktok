@@ -65,5 +65,33 @@ public final class DamageUtil {
         radialDamage(level, center, radius, maxDamage, type, direct);
     }
 
+    /**
+     * FÍSICA de onda expansiva: empuja a todo ser vivo lejos del centro con
+     * falloff, sesgo hacia arriba y sincronización de movimiento al cliente
+     * (hurtMarked). Se siente el golpe, no solo se ve.
+     */
+    public static void blastImpulse(ServerLevel level, Vec3 center, double radius, double strength) {
+        double k = WarConfig.KNOCKBACK_STRENGTH.get();
+        if (k <= 0.0D) {
+            return;
+        }
+        AABB box = new AABB(center, center).inflate(radius);
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, box)) {
+            Vec3 to = living.position().add(0.0D, living.getBbHeight() * 0.5D, 0.0D).subtract(center);
+            double dist = to.length();
+            if (dist > radius) {
+                continue;
+            }
+            double falloff = Math.pow(1.0D - dist / radius, 1.5D);
+            Vec3 dir = dist > 0.05D ? to.normalize() : new Vec3(0.0D, 1.0D, 0.0D);
+            Vec3 impulse = dir.scale(strength * k * falloff)
+                    .add(0.0D, 0.35D * strength * k * falloff, 0.0D);
+            // Techo vertical: espectacular, no un viaje a la luna.
+            impulse = new Vec3(impulse.x, Math.min(impulse.y, 1.1D), impulse.z);
+            living.setDeltaMovement(living.getDeltaMovement().add(impulse));
+            living.hurtMarked = true; // forzar sync del motion al cliente (jugadores)
+        }
+    }
+
     private DamageUtil() {}
 }

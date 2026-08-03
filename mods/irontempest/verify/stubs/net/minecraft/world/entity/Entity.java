@@ -38,6 +38,9 @@ public abstract class Entity {
     public double yOld;
     public double zOld;
 
+    public boolean hurtMarked;
+    public void setSecondsOnFire(int seconds) {}
+
     public double getX() { return 0.0D; }
     public double getY() { return 0.0D; }
     public double getZ() { return 0.0D; }

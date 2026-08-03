@@ -6,6 +6,7 @@ import com.vvrgs.irontempest.registry.ModDamage;
 import com.vvrgs.irontempest.registry.ModParticles;
 import com.vvrgs.irontempest.server.session.SessionManager;
 import com.vvrgs.irontempest.server.util.DamageUtil;
+import com.vvrgs.irontempest.server.util.SustainedDamage;
 import com.vvrgs.irontempest.server.util.TerrainSculptor;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -152,6 +153,13 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
                         double f = TURN_RATE / angle;
                         newDir = current.lerp(desired, f).normalize();
                     }
+                    // FÍSICA: serpenteo terminal (weave) perpendicular — el misil
+                    // se lee vivo y es más difícil de leer, sin volverse imposible.
+                    Vec3 side = newDir.cross(new Vec3(0.0D, 1.0D, 0.0D));
+                    if (side.lengthSqr() > 1.0E-4D) {
+                        double weave = Math.sin(this.life * 0.35D) * 0.14D;
+                        newDir = newDir.add(side.normalize().scale(weave)).normalize();
+                    }
                     setDeltaMovement(newDir.scale(1.9D));
                 }
             }
@@ -174,7 +182,11 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
         ModNetwork.fx(server, airburst ? FxType.AIRBURST : FxType.EXPLOSION_LARGE,
                 pos, getDeltaMovement().normalize(), 2.0F);
         TerrainSculptor.crater(server, BlockPos.containing(pos), 4, true);
-        DamageUtil.strikeDamage(server, pos, 2.5D, 7.0D, 18.0F, ModDamage.MISSILE, this);
+        DamageUtil.strikeDamage(server, pos, 2.5D, 8.0D, 26.0F, ModDamage.MISSILE, this);
+        DamageUtil.blastImpulse(server, pos, 9.0D, 1.6D);
+        // El punto cero arde 6 s; los supervivientes siguen ardiendo 4 s.
+        SustainedDamage.zone(server, pos, 5.0D, 6.0D, 4.0F, ModDamage.MISSILE, true);
+        SustainedDamage.afflictArea(server, pos, 8.0D, 4.0D, 3.0F, ModDamage.MISSILE, true);
         SessionManager.notifyProjectileImpact(this.sessionId);
         discard();
     }

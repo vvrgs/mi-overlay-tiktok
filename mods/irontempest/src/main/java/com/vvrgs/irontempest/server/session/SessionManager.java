@@ -134,6 +134,7 @@ public final class SessionManager {
         }
         PENDING.clear();
         TerrainSculptor.clearAll();
+        com.vvrgs.irontempest.server.util.SustainedDamage.clearAll();
         return n;
     }
 
@@ -263,6 +264,7 @@ public final class SessionManager {
             return false;
         });
         TerrainSculptor.serverTick();
+        com.vvrgs.irontempest.server.util.SustainedDamage.serverTick();
         processPending(event.getServer());
     }
 
@@ -288,6 +290,7 @@ public final class SessionManager {
             }
         }
         PENDING.removeIf(p -> p.playerId().equals(id));
+        com.vvrgs.irontempest.server.util.SustainedDamage.removeFor(id);
     }
 
     /** Hook 3/3: muerte del objetivo. */
@@ -303,6 +306,7 @@ public final class SessionManager {
             }
         }
         PENDING.removeIf(p -> p.playerId().equals(id));
+        com.vvrgs.irontempest.server.util.SustainedDamage.removeFor(id);
     }
 
     private SessionManager() {}

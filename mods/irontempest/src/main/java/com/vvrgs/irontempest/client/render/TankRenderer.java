@@ -89,6 +89,12 @@ public class TankRenderer extends EntityRenderer<TankEntity> {
         poseStack.translate(0.0, 1.5 + bobY, 0.0);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - entityYaw));
         poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
+        // Física de retroceso del CASCO: el disparo mece todo el tanque sobre la
+        // suspensión (cabeceo con rebote amortiguado, máx ~1.6°).
+        if (fireT < 22.0F) {
+            float rock = 1.6F * (float) (Math.exp(-fireT * 0.22) * Math.cos(fireT * 0.55));
+            poseStack.mulPose(Axis.XP.rotationDegrees(rock));
+        }
 
         // a) Torreta: yaw absoluto interpolado, relativo al casco. Mismo
         //    signo que la cabeza de un mob (yRot = (head - body) en rad).

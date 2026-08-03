@@ -41,6 +41,10 @@ public class DebrisParticle extends TextureSheetParticle {
         if (this.onGround && Math.abs(lastYd) > 0.1D) {
             // Rebote amortiguado.
             this.setParticleSpeed(this.xd * 0.6D, -lastYd * 0.45D, this.zd * 0.6D);
+            // FÍSICA: chispa de impacto al rebotar contra el suelo.
+            this.level.addParticle(com.vvrgs.irontempest.registry.ModParticles.SPARK.get(),
+                    this.x, this.y + 0.05D, this.z,
+                    this.xd * 0.5D, 0.12D, this.zd * 0.5D);
         } else if (!this.onGround) {
             this.roll += 0.3F;
         }
