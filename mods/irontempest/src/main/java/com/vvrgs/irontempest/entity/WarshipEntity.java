@@ -81,8 +81,9 @@ public class WarshipEntity extends Entity {
      * (forward = (-sin, 0, cos) en convención living).
      */
     public Vec3 cannonEmitter() {
-        float yaw = getYRot() * Mth.DEG_TO_RAD;
-        return position().add(-Mth.sin(yaw) * 0.375D, -0.9D, Mth.cos(yaw) * 0.375D);
+        // Boca del cañón ventral en reposo: pivote del tubo (modelo (0,2,0) →
+        // mundo (0,-0.125,0), independiente del yaw) + largo del tubo hacia abajo.
+        return position().add(0.0D, -1.0D, 0.0D);
     }
 
     @Override

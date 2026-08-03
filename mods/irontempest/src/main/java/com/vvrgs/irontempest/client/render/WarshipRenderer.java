@@ -121,13 +121,16 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
 
         // IK del cañón hacia el beamTarget sincronizado. Mundo→modelo con la
         // convención YP(180−yaw)·ZP(180): mx=dx·cos+dz·sin, my=−dy,
-        // mz=dx·sin−dz·cos (verificado contra cannonEmitter()).
+        // mz=dx·sin−dz·cos. El pivote del TUBO (cannon_barrel) está en el eje
+        // (modelo (0,2,0) → mundo (0,-0.125,0)): no depende del yaw.
+        // Sin spin: en el orden ZYX de ModelPart un yRot junto al xRot de
+        // elevación PRECESIONA el tubo en vez de girarlo sobre su eje.
         float charge = entity.getCharge();
         Vec3 beamTarget = entity.getBeamTarget();
         if (beamTarget.lengthSqr() > 1.0E-4D) {
             float yawRad = entityYaw * Mth.DEG_TO_RAD;
             Vec3 pivotWorld = entity.getPosition(partialTick).add(hoverOff)
-                    .add(-Mth.sin(yawRad) * 0.375D, -0.5D, Mth.cos(yawRad) * 0.375D);
+                    .add(0.0D, -0.125D, 0.0D);
             Vec3 d = beamTarget.subtract(pivotWorld);
             double mx = d.x * Mth.cos(yawRad) + d.z * Mth.sin(yawRad);
             double my = -d.y;
@@ -141,8 +144,6 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
             this.cannon.yRot = 0.0F;
             this.cannonBarrel.xRot = 0.0F;
         }
-        // Giro del emisor acelerando con la carga (el azimut vive en cannon.yRot).
-        this.cannonBarrel.yRot = time * (0.05F + 0.5F * charge);
 
         // Alas flexando a contrafase del bob (lag de masa); nacelles vibrando
         // con la carga; pods flotando lento.
@@ -172,7 +173,7 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
         poseStack.popPose();
 
         if (phase == WarshipEntity.PHASE_BEAM || phase == WarshipEntity.PHASE_OVERLOAD) {
-            renderBeam(entity, entityYaw, partialTick, hoverOff, poseStack, buffer,
+            renderBeam(entity, partialTick, hoverOff, poseStack, buffer,
                     phase == WarshipEntity.PHASE_OVERLOAD);
         }
 
@@ -185,18 +186,17 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }
 
-    private void renderBeam(WarshipEntity entity, float entityYaw, float partialTick, Vec3 hoverOff,
+    private void renderBeam(WarshipEntity entity, float partialTick, Vec3 hoverOff,
                             PoseStack poseStack, MultiBufferSource buffer, boolean overload) {
         Vec3 target = entity.getBeamTarget();
         if (target.lengthSqr() < 1.0E-4) {
             return; // aún sin objetivo sincronizado
         }
         // Espacio local del render (poseStack en la posición de la entidad).
-        // El haz nace en la BOCA del cañón animado: pivote (0,8,-6)/16 con el
-        // drift aplicado + 0.875 bl (largo del cañón) en la dirección de tiro.
+        // El haz nace en la BOCA del cañón animado: pivote del TUBO (0,-0.125,0)
+        // con el drift aplicado + 0.875 bl (largo del tubo) hacia el objetivo.
         Vec3 entityPos = entity.getPosition(partialTick);
-        float yawRad = entityYaw * Mth.DEG_TO_RAD;
-        Vec3 pivotLocal = hoverOff.add(-Mth.sin(yawRad) * 0.375D, -0.5D, Mth.cos(yawRad) * 0.375D);
+        Vec3 pivotLocal = hoverOff.add(0.0D, -0.125D, 0.0D);
         Vec3 end = target.subtract(entityPos);
         Vec3 aimDir = end.subtract(pivotLocal).normalize();
         Vec3 start = pivotLocal.add(aimDir.scale(0.875D));

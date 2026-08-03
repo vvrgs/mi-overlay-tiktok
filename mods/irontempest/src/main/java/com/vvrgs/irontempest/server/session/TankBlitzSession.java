@@ -145,7 +145,14 @@ public final class TankBlitzSession extends WarSession {
                 tickHunt();
             }
             case FIRE -> {
-                trackTarget(target);
+                if (this.shotsFired < SHOT_SCRIPT.length) {
+                    trackTarget(target);
+                } else {
+                    // Guion completo: mira apagada de forma ESTABLE (sin esto,
+                    // trackTarget flickea aiming con un jugador orbitando y el
+                    // latch de lanzahumos del cliente se dispara en falso).
+                    this.tank.setAiming(false);
+                }
                 tickFire(target);
             }
             case LEAVE -> tickLeave();

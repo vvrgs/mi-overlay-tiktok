@@ -300,24 +300,33 @@ def paint_face(mat, face, hw, seed, model):
         _brushed(col, seed, 0.08)
         _chips(col, seed, 0.03); _edge_wear(col, seed, 0.25); _ao_soft(col)
     elif mat == "track":
-        col = _base((h, w), (44, 42, 40), 0.10, 3, seed)
-        # PERÍODO LÓGICO 3 (el scroll fake de la oruga depende de él): en HD las
-        # barras engordan a SS px pero el paso sigue siendo 3 unidades de modelo.
-        if w >= h:  # caras largas: barras de rodadura verticales
-            for x in range(0, w, 3 * SS):
-                col[:, x:x + SS, :3] *= 0.55
-                if x + 2 * SS <= w:
-                    col[:, x + SS:x + 2 * SS, :3] *= 1.25
+        # Caras largas: el detalle completo (ruido+barra+barro) se pinta en UNA
+        # tira de EXACTAMENTE 3·SS px y se tesela → la textura es 3-periódica en
+        # u y el scroll sawtooth de la cinta wrappea SIN shimmer. AO/desgaste
+        # solo en el eje v (los bordes u romperían la periodicidad).
+        if w >= h:
+            period = 3 * SS
+            strip = _base((h, period), (44, 42, 40), 0.10, 3, seed)
+            strip[:, 0:SS, :3] *= 0.55       # barra de rodadura
+            strip[:, SS:2 * SS, :3] *= 1.25  # brillo tras la barra
+            n3 = value_noise(h, period, max(2, 2 * SS), seed + 555, 2)
+            bias = np.linspace(0.0, 1.0, h)[:, None]
+            mud = (n3 * bias) > 0.55
+            strip[:, :, :3][mud] = strip[:, :, :3][mud] * 0.4 + np.array([84, 68, 46]) * 0.6
+            reps = w // period + 1
+            col = np.tile(strip, (1, reps, 1))[:, :w, :].copy()
+            col[0:SS, :, :3] *= 0.82
+            col[h - SS:h, :, :3] *= 0.72
         else:
+            col = _base((h, w), (44, 42, 40), 0.10, 3, seed)
             for y in range(0, h, 3 * SS):
                 col[y:y + SS, :, :3] *= 0.55
-        # Barro seco salpicado en la mitad inferior + brillo de rodadura.
-        n3 = value_noise(h, w, 3 * SS, seed + 555, 2)
-        bias = np.linspace(0.0, 1.0, h)[:, None]
-        mud = (n3 * bias) > 0.55
-        col[:, :, :3][mud] = col[:, :, :3][mud] * 0.4 + np.array([84, 68, 46]) * 0.6
-        _edge_wear(col, seed, 0.4)
-        _ao_soft(col)
+            n3 = value_noise(h, w, 3 * SS, seed + 555, 2)
+            bias = np.linspace(0.0, 1.0, h)[:, None]
+            mud = (n3 * bias) > 0.55
+            col[:, :, :3][mud] = col[:, :, :3][mud] * 0.4 + np.array([84, 68, 46]) * 0.6
+            _edge_wear(col, seed, 0.4)
+            _ao_soft(col)
     elif mat == "wheel":
         col = _base((h, w), (58, 60, 56), 0.08, 3, seed)
         yy, xx = np.mgrid[0:h, 0:w]

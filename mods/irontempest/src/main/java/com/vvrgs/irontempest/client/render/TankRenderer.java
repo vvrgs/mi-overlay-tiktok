@@ -163,8 +163,10 @@ public class TankRenderer extends EntityRenderer<TankEntity> {
         float speedFactor = Mth.clamp(speed / 0.055F, 0.0F, 1.0F);
         boolean moving = speed > 0.005F;
         for (int i = 0; i < this.wheels.length; i++) {
-            this.wheels[i].xRot = moving ? wheelRot
-                    : (engine ? Mth.sin(time * 0.9F + i) * 0.02F : 0.0F);
+            // SIEMPRE desde el ángulo acumulado (sin snap al parar); la
+            // vibración de ralentí se SUMA cuando está quieto con motor.
+            this.wheels[i].xRot = wheelRot
+                    + (engine && !moving ? Mth.sin(time * 0.9F + i) * 0.02F : 0.0F);
             this.wheels[i].y = this.wheelBaseY[i]
                     + Mth.sin(wheelRot * 0.9F + i * 1.7F) * 0.35F * speedFactor;
         }
