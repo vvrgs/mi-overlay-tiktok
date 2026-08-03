@@ -30,9 +30,13 @@ public class TankEntity extends Entity {
             SynchedEntityData.defineId(TankEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> DATA_ENGINE =
             SynchedEntityData.defineId(TankEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> DATA_DRIVE =
+            SynchedEntityData.defineId(TankEntity.class, EntityDataSerializers.FLOAT);
 
     private int sessionId = -1;
-    /** Velocidad de avance ordenada por la sesión (bloques/tick, solo server). */
+    /** Velocidad de avance ORDENADA por la sesión (bloques/tick, solo server). */
+    private double driveTarget;
+    /** Velocidad real tras la rampa de aceleración/frenado (solo server). */
     private double driveSpeed;
 
     // Estado SOLO cliente para interpolación/retroceso.
@@ -40,6 +44,28 @@ public class TankEntity extends Entity {
     public float barrelPitchO;
     private int lastFireSeq;
     private int clientFireGameTick = Integer.MIN_VALUE;
+
+    // Interpolación de red estilo Boat: sin ella, el yaw (cuantizado a ~1.4°
+    // por el byte del packet) haría el giro de casco a saltos visibles.
+    private int lerpSteps;
+    private double lerpX;
+    private double lerpY;
+    private double lerpZ;
+    private float lerpYRot;
+
+    // Animación cliente v6: distancia REAL acumulada para ruedas y orugas
+    // (con diferencial por lado al girar), aceleración suavizada para el
+    // cabeceo del casco y estado del escaneo de cúpula / retirada.
+    public float wheelRot;
+    public float wheelRotO;
+    public float beltL;
+    public float beltLO;
+    public float beltR;
+    public float beltRO;
+    public float accelSmooth;
+    public float scanAmp;
+    public int leaveStart = -1;
+    private float driveO;
 
     public TankEntity(EntityType<? extends TankEntity> type, Level level) {
         super(type, level);
@@ -87,9 +113,14 @@ public class TankEntity extends Entity {
         this.entityData.set(DATA_FIRE_SEQ, this.entityData.get(DATA_FIRE_SEQ) + 1);
     }
 
-    /** Server: orden de avance de la sesión (0 = detenido). */
+    /** Server: orden de avance de la sesión (0 = detenido); la rampa hace el resto. */
     public void setDriveSpeed(double speed) {
-        this.driveSpeed = speed;
+        this.driveTarget = speed;
+    }
+
+    /** Cliente: velocidad de avance real sincronizada (cabeceo, sonido de motor). */
+    public float getDriveSpeed() {
+        return this.entityData.get(DATA_DRIVE);
     }
 
     /** Velocidad horizontal real de este tick (útil en cliente vía posiciones). */
@@ -132,12 +163,40 @@ public class TankEntity extends Entity {
         super.tick();
 
         if (this.level().isClientSide) {
+            if (this.lerpSteps > 0) {
+                double nx = getX() + (this.lerpX - getX()) / this.lerpSteps;
+                double ny = getY() + (this.lerpY - getY()) / this.lerpSteps;
+                double nz = getZ() + (this.lerpZ - getZ()) / this.lerpSteps;
+                setYRot(getYRot() + Mth.wrapDegrees(this.lerpYRot - getYRot()) / this.lerpSteps);
+                setPos(nx, ny, nz);
+                this.lerpSteps--;
+            }
             this.turretYawO = getTurretYaw();
             this.barrelPitchO = getBarrelPitch();
             int seq = this.entityData.get(DATA_FIRE_SEQ);
             if (seq != this.lastFireSeq) {
                 this.lastFireSeq = seq;
                 this.clientFireGameTick = this.tickCount;
+            }
+            // v6: ruedas/orugas por distancia REAL (patinar contra un muro se ve),
+            // diferencial de orugas al girar (pivot-turn) y cabeceo por aceleración.
+            this.wheelRotO = this.wheelRot;
+            this.beltLO = this.beltL;
+            this.beltRO = this.beltR;
+            float dist = (float) horizontalSpeed() * 16.0F; // unidades de modelo
+            float yawRate = Mth.wrapDegrees(getYRot() - this.yRotO) * Mth.DEG_TO_RAD;
+            float diffTrack = yawRate * 1.22F * 16.0F;
+            this.wheelRot += dist / 3.5F; // radio de rueda 3.5 u
+            this.beltL += dist + diffTrack;
+            this.beltR += dist - diffTrack;
+            float driveNow = getDriveSpeed();
+            this.accelSmooth += ((driveNow - this.driveO) - this.accelSmooth) * 0.25F;
+            this.driveO = driveNow;
+            this.scanAmp += ((isAiming() ? 0.0F : 1.0F) - this.scanAmp) * 0.05F;
+            // Retirada detectada con datos ya sincronizados: guion de 5 disparos
+            // completo y la mira apagada → los lanzahumos se yerguen.
+            if (this.leaveStart < 0 && this.lastFireSeq >= 5 && !isAiming()) {
+                this.leaveStart = this.tickCount;
             }
             clientAmbient();
             // turretYawO se actualiza ANTES de leer el nuevo valor sincronizado:
@@ -150,10 +209,23 @@ public class TankEntity extends Entity {
             return;
         }
 
+        // FÍSICA: rampa de aceleración/frenado — el tanque arranca y frena con
+        // masa (acel ~0.7 s, freno ~0.45 s), nunca on/off instantáneo.
+        double rate = this.driveTarget > this.driveSpeed ? 0.0040D : 0.0065D;
+        double diff = this.driveTarget - this.driveSpeed;
+        if (diff > rate) {
+            this.driveSpeed += rate;
+        } else if (diff < -rate) {
+            this.driveSpeed -= rate;
+        } else {
+            this.driveSpeed = this.driveTarget;
+        }
+        this.entityData.set(DATA_DRIVE, (float) this.driveSpeed);
+
         // Gravedad + colisión (caída del drop-pod) + avance ordenado por la sesión.
         if (!onGround()) {
             setDeltaMovement(getDeltaMovement().add(0.0D, -0.08D, 0.0D));
-        } else if (this.driveSpeed > 0.0D) {
+        } else if (this.driveSpeed > 1.0E-3D) {
             float yaw = getYRot() * Mth.DEG_TO_RAD;
             setDeltaMovement(-Mth.sin(yaw) * this.driveSpeed, -0.08D, Mth.cos(yaw) * this.driveSpeed);
         } else {
@@ -211,6 +283,17 @@ public class TankEntity extends Entity {
         this.entityData.define(DATA_FIRE_SEQ, 0);
         this.entityData.define(DATA_AIMING, false);
         this.entityData.define(DATA_ENGINE, false);
+        this.entityData.define(DATA_DRIVE, 0.0F);
+    }
+
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot,
+                       int steps, boolean teleport) {
+        this.lerpX = x;
+        this.lerpY = y;
+        this.lerpZ = z;
+        this.lerpYRot = yRot;
+        this.lerpSteps = 3;
     }
 
     @Override

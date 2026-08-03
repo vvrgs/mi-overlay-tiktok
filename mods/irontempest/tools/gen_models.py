@@ -8,9 +8,14 @@ Emite:
 Convención: unidades de modelo vanilla (16 u = 1 bloque), +Y hacia abajo,
 frente del vehículo = -Z, suelo en y=24 para vehículos terrestres.
 """
-import os, math, json
+import os, math, zlib
 import numpy as np
 from PIL import Image
+
+# Supersampling ACTUAL (por-spec, fijado por paint()): el atlas lógico (UVs,
+# texOffs, LayerDefinition) NO cambia — solo el lienzo de píxeles es size*SS.
+# Los painters leen SS para que el detalle escale (grosores, pasos, ruido).
+SS = 1
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JAVA_DIR = os.path.join(ROOT, "src/main/java/com/vvrgs/irontempest/client/model/geom")
@@ -30,20 +35,44 @@ FONT = {
     "R": ["111","101","111","110","101"], "S": ["111","100","111","001","111"],
     "T": ["111","010","010","010","010"], "V": ["101","101","101","101","010"],
     "-": ["000","000","111","000","000"],
+    "6": ["111","100","111","101","111"],
+    "8": ["111","101","111","101","111"], "B": ["110","101","110","101","110"],
+    "C": ["111","100","100","100","111"], "D": ["110","101","101","101","110"],
+    "F": ["111","100","111","100","100"], "H": ["101","101","111","101","101"],
+    "K": ["101","110","100","110","101"], "L": ["100","100","100","100","111"],
+    "U": ["101","101","101","101","111"], "W": ["101","101","111","111","101"],
+    "X": ["101","101","010","101","101"], "Y": ["101","101","010","010","010"],
+    "Z": ["111","001","010","100","111"],
 }
+
+# Estencils premium: estrella táctica y triángulo de eyección/peligro.
+STAR = [
+    "000010000",
+    "000111000",
+    "001111100",
+    "111111111",
+    "011111110",
+    "001111100",
+    "011101110",
+    "110000011",
+]
+TRI = ["00100", "01110", "11111"]
+
+def draw_bitmap(arr, x, y, rows, color, scale=1):
+    h, w = arr.shape[:2]
+    for r, row in enumerate(rows):
+        for c, bit in enumerate(row):
+            if bit == "1":
+                ys, xs = y + r * scale, x + c * scale
+                if 0 <= ys and ys + scale <= h and 0 <= xs and xs + scale <= w:
+                    arr[ys:ys + scale, xs:xs + scale, :3] = color
+                    arr[ys:ys + scale, xs:xs + scale, 3] = 255
 
 def draw_text(arr, x, y, text, color, scale=1):
     for ch in text:
         g = FONT.get(ch)
-        if g is None:
-            x += 4 * scale
-            continue
-        for r, row in enumerate(g):
-            for c, bit in enumerate(row):
-                if bit == "1":
-                    ys, xs = y + r * scale, x + c * scale
-                    arr[ys:ys + scale, xs:xs + scale, :3] = color
-                    arr[ys:ys + scale, xs:xs + scale, 3] = 255
+        if g is not None:
+            draw_bitmap(arr, x, y, g, color, scale)
         x += 4 * scale
 
 # ---------------------------------------------------------------- value noise
@@ -66,20 +95,34 @@ def value_noise(h, w, scale, seed, octaves=2):
     return out / total
 
 # ---------------------------------------------------------------- painters
+# Todos los painters leen el SS global: los grosores/pasos están en unidades
+# LÓGICAS y se multiplican por SS para conservar la escala visual en HD.
 def _base(rect_shape, color, noise_amt, scale, seed):
     h, w = rect_shape
-    n = value_noise(h, w, scale, seed) - 0.5
+    n = value_noise(h, w, scale * SS, seed) - 0.5
     col = np.zeros((h, w, 4))
     for i in range(3):
         col[:, :, i] = np.clip(color[i] + n * 255 * noise_amt, 0, 255)
     col[:, :, 3] = 255
     return col
 
-def _ao_border(col):
+def _ao_soft(col):
+    """AO horneada suave: sombra asimétrica (más abajo) con falloff smoothstep."""
     h, w = col.shape[:2]
-    if h >= 3 and w >= 3:
-        col[0, :, :3] *= 0.82; col[-1, :, :3] *= 0.72
-        col[:, 0, :3] *= 0.85; col[:, -1, :3] *= 0.85
+    r = max(1, 2 * SS)
+    if h < 2 * r + 1 or w < 2 * r + 1:
+        if h >= 3 and w >= 3:  # caras diminutas: borde clásico de 1 px
+            col[0, :, :3] *= 0.82; col[-1, :, :3] *= 0.72
+            col[:, 0, :3] *= 0.85; col[:, -1, :3] *= 0.85
+        return col
+    yy = np.arange(h, dtype=float)[:, None]
+    xx = np.arange(w, dtype=float)[None, :]
+    dt = _smoothstep(0.0, r, yy)
+    db = _smoothstep(0.0, r, (h - 1) - yy)
+    dl = _smoothstep(0.0, r, xx)
+    dr = _smoothstep(0.0, r, (w - 1) - xx)
+    shade = (0.84 + 0.16 * dt) * (0.68 + 0.32 * db) * (0.86 + 0.14 * dl) * (0.86 + 0.14 * dr)
+    col[:, :, :3] *= shade[:, :, None]
     return col
 
 def _vgrad(col, top=1.06, bottom=0.78):
@@ -89,20 +132,60 @@ def _vgrad(col, top=1.06, bottom=0.78):
     return col
 
 def _rivets(col, spacing=6, color_mul=1.35, seed=1):
+    """Remaches como domos: brillo arriba, sombra abajo (tamaño SS)."""
     h, w = col.shape[:2]
-    for y in range(2, h - 1, spacing):
-        for x in range(2, w - 1, spacing):
-            col[y, x, :3] = np.clip(col[y, x, :3] * color_mul, 0, 255)
-            if y + 1 < h:
-                col[y + 1, x, :3] *= 0.8
+    sp = spacing * SS
+    r = max(1, SS)
+    for y in range(2 * SS, h - 2 * r, sp):
+        for x in range(2 * SS, w - r, sp):
+            col[y:y + r, x:x + r, :3] = np.clip(col[y:y + r, x:x + r, :3] * color_mul, 0, 255)
+            col[y + r:y + 2 * r, x:x + r, :3] *= 0.8
     return col
 
-def _panel_lines(col, step_y=8, step_x=10, dark=0.86):
+def _panel_lines(col, step_y=8, step_x=10, dark=0.86, seed=0):
+    """Paneles BISELADOS (línea oscura + línea clara) con rejilla pseudoaleatoria
+    y remaches en las intersecciones — se lee como chapa real, no como rejilla."""
     h, w = col.shape[:2]
-    for y in range(step_y, h, step_y):
-        col[y, :, :3] *= dark
-    for x in range(step_x, w, step_x):
-        col[:, x, :3] *= dark
+    rng = np.random.default_rng(seed * 7 + 5)
+    light = 1.0 + (1.0 - dark) * 0.6
+    ys = []
+    y = step_y * SS
+    while y < h - SS:
+        ys.append(y)
+        y += max(SS * 2, int(step_y * SS * (0.75 + rng.random() * 0.6)))
+    xs = []
+    x = step_x * SS
+    while x < w - SS:
+        xs.append(x)
+        x += max(SS * 2, int(step_x * SS * (0.75 + rng.random() * 0.6)))
+    for y in ys:
+        col[y:y + SS, :, :3] *= dark
+        if y + 2 * SS <= h:
+            col[y + SS:y + 2 * SS, :, :3] = np.clip(col[y + SS:y + 2 * SS, :, :3] * light, 0, 255)
+    for x in xs:
+        col[:, x:x + SS, :3] *= dark
+        if x + 2 * SS <= w:
+            col[:, x + SS:x + 2 * SS, :3] = np.clip(col[:, x + SS:x + 2 * SS, :3] * light, 0, 255)
+    for y in ys:
+        for x in xs:
+            if y - SS >= 0 and x - SS >= 0:
+                col[y - SS:y, x - SS:x, :3] = np.clip(col[y - SS:y, x - SS:x, :3] * 1.3, 0, 255)
+    return col
+
+def _brushed(col, seed, strength=0.10):
+    """Metal cepillado: vetas anisotrópicas a lo largo del eje mayor de la cara."""
+    h, w = col.shape[:2]
+    if h < 3 or w < 3:
+        return col
+    if w >= h:
+        n = value_noise(h, 1, max(2, 2 * SS), seed + 808, 2)
+        n = np.repeat(n, w, axis=1)
+    else:
+        n = value_noise(1, w, max(2, 2 * SS), seed + 808, 2)
+        n = np.repeat(n, h, axis=0)
+    jit = value_noise(h, w, max(2, SS), seed + 809, 1)
+    band = (n - 0.5) * 2.0 * strength + (jit - 0.5) * strength * 0.5
+    col[:, :, :3] = np.clip(col[:, :, :3] * (1.0 + band[:, :, None]), 0, 255)
     return col
 
 # ---------------------------------------------------------------- weathering v2
@@ -113,27 +196,37 @@ def _smoothstep(edge0, edge1, x):
 def _edge_wear(col, seed, amount=0.35):
     """Metal claro asomando en bordes/aristas donde la pintura se desgasta."""
     h, w = col.shape[:2]
-    if h < 4 or w < 4:
+    if h < 4 * SS or w < 4 * SS:
         return col
     rng = np.random.default_rng(seed * 31 + 7)
-    n = value_noise(h, w, 3, seed + 991, 2)
+    n = value_noise(h, w, 3 * SS, seed + 991, 2)
     border = np.zeros((h, w), dtype=bool)
-    border[0, :] = border[-1, :] = True
-    border[:, 0] = border[:, -1] = True
+    t = max(1, SS)
+    border[:t, :] = border[-t:, :] = True
+    border[:, :t] = border[:, -t:] = True
     wear = border & (n > 1.0 - amount * 0.55)
     col[:, :, :3][wear] = np.array([148, 150, 152]) + rng.normal(0, 8, (wear.sum(), 3))
     return col
 
 def _rust(col, seed, amount=0.12):
-    """Manchas de óxido concentradas en la mitad inferior."""
+    """Óxido multi-escala: mancha grande + picado fino + borde oscurecido."""
     h, w = col.shape[:2]
-    if h < 5:
+    if h < 5 * SS:
         return col
-    n = value_noise(h, w, 3, seed + 1234, 3)
+    big = value_noise(h, w, 6 * SS, seed + 1234, 2)
+    fine = value_noise(h, w, max(2, 2 * SS), seed + 4321, 2)
     bias = np.linspace(0.0, 1.0, h)[:, None]  # más abajo, más óxido
-    mask = (n * (0.4 + 0.6 * bias)) > (1.0 - amount)
+    mask = (big * (0.4 + 0.6 * bias)) > (1.0 - amount)
+    pit = mask & (fine > 0.62)
+    rim = np.zeros_like(mask)
+    for dy in (-SS, 0, SS):
+        for dx in (-SS, 0, SS):
+            rim |= np.roll(np.roll(mask, dy, 0), dx, 1)
+    rim &= ~mask
     tint = np.array([96, 52, 30])
     col[:, :, :3][mask] = col[:, :, :3][mask] * 0.35 + tint * 0.65
+    col[:, :, :3][pit] = col[:, :, :3][pit] * 0.5 + np.array([60, 30, 18]) * 0.5
+    col[:, :, :3][rim] *= 0.82
     return col
 
 def _dirt_gradient(col, strength=0.22):
@@ -147,28 +240,28 @@ def _dirt_gradient(col, strength=0.22):
 def _streaks(col, seed, amount=0.5):
     """Chorretones verticales de lluvia/hollín desde el borde superior."""
     h, w = col.shape[:2]
-    if h < 6 or w < 4:
+    if h < 6 * SS or w < 4 * SS:
         return col
     rng = np.random.default_rng(seed * 17 + 3)
-    for _ in range(max(1, int(w * amount / 6))):
-        x = rng.integers(1, w - 1)
-        length = rng.integers(h // 3, h - 1)
-        fade = np.linspace(0.78, 1.0, length)[:, None]
-        col[0:length, x, :3] = col[0:length, x, :3] * fade
+    for _ in range(max(1, int(w * amount / (6 * SS)))):
+        x = int(rng.integers(1, max(2, w - SS)))
+        length = int(rng.integers(h // 3, h - 1))
+        fade = np.linspace(0.78, 1.0, length)[:, None, None]
+        col[0:length, x:x + SS, :3] = col[0:length, x:x + SS, :3] * fade
     return col
 
 def _chips(col, seed, amount=0.05):
-    """Pintura saltada: mota oscura con centro de metal brillante."""
+    """Pintura saltada: mota oscura con centro de metal brillante (tamaño SS)."""
     h, w = col.shape[:2]
-    if h < 4 or w < 4:
+    if h < 4 * SS or w < 4 * SS:
         return col
     rng = np.random.default_rng(seed * 13 + 29)
-    n_chips = int(h * w * amount / 12)
+    n_chips = int(h * w * amount / (12 * SS * SS))
     for _ in range(n_chips):
-        y, x = rng.integers(1, h - 1), rng.integers(1, w - 1)
-        col[y, x, :3] *= 0.45
+        y, x = int(rng.integers(1, h - SS)), int(rng.integers(1, w - SS))
+        col[y:y + SS, x:x + SS, :3] *= 0.45
         if rng.random() < 0.5:
-            col[y, x, :3] = (150, 152, 155)
+            col[y:y + SS, x:x + SS, :3] = (150, 152, 155)
     return col
 
 def _weather_armor(col, face, seed):
@@ -201,26 +294,30 @@ def paint_face(mat, face, hw, seed, model):
             col[:, :, :3] = np.clip(col[:, :, :3] * 1.12, 0, 255)
         _rivets(col, 7, seed=seed)
         _weather_armor(col, face, seed)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "metal_dark":
         col = _base((h, w), (52, 54, 58), 0.08, 4, seed); _vgrad(col)
-        _chips(col, seed, 0.03); _edge_wear(col, seed, 0.25); _ao_border(col)
+        _brushed(col, seed, 0.08)
+        _chips(col, seed, 0.03); _edge_wear(col, seed, 0.25); _ao_soft(col)
     elif mat == "track":
         col = _base((h, w), (44, 42, 40), 0.10, 3, seed)
+        # PERÍODO LÓGICO 3 (el scroll fake de la oruga depende de él): en HD las
+        # barras engordan a SS px pero el paso sigue siendo 3 unidades de modelo.
         if w >= h:  # caras largas: barras de rodadura verticales
-            for x in range(0, w, 3):
-                col[:, x, :3] *= 0.55
-                if x + 1 < w: col[:, x + 1, :3] *= 1.25
+            for x in range(0, w, 3 * SS):
+                col[:, x:x + SS, :3] *= 0.55
+                if x + 2 * SS <= w:
+                    col[:, x + SS:x + 2 * SS, :3] *= 1.25
         else:
-            for y in range(0, h, 3):
-                col[y, :, :3] *= 0.55
+            for y in range(0, h, 3 * SS):
+                col[y:y + SS, :, :3] *= 0.55
         # Barro seco salpicado en la mitad inferior + brillo de rodadura.
-        n3 = value_noise(h, w, 3, seed + 555, 2)
+        n3 = value_noise(h, w, 3 * SS, seed + 555, 2)
         bias = np.linspace(0.0, 1.0, h)[:, None]
         mud = (n3 * bias) > 0.55
         col[:, :, :3][mud] = col[:, :, :3][mud] * 0.4 + np.array([84, 68, 46]) * 0.6
         _edge_wear(col, seed, 0.4)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "wheel":
         col = _base((h, w), (58, 60, 56), 0.08, 3, seed)
         yy, xx = np.mgrid[0:h, 0:w]
@@ -231,62 +328,70 @@ def paint_face(mat, face, hw, seed, model):
         col[:, :, 3] = 255
     elif mat == "skirt":
         col = _base((h, w), (74, 82, 55), 0.12, 4, seed)
-        for x in range(0, w, 8): col[:, x, :3] *= 0.8
+        for x in range(0, w, 8 * SS):
+            col[:, x:x + SS, :3] *= 0.8
         _vgrad(col, 1.0, 0.7)
         _weather_armor(col, "side1", seed)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "barrel":
         col = _base((h, w), (40, 42, 46), 0.06, 3, seed); _vgrad(col, 1.1, 0.85)
-        if face in ("side1", "side2", "up", "down") and w > 12:
-            col[:, 2:4, :3] = (200, 200, 195)   # anillos de derribo
-            col[:, 5:7, :3] = (200, 200, 195)
-            col[:, w // 2:w // 2 + 4, :3] *= 0.8  # funda térmica
-        _ao_border(col)
+        _brushed(col, seed, 0.09)
+        if face in ("side1", "side2", "up", "down") and w > 12 * SS:
+            col[:, 2 * SS:4 * SS, :3] = (200, 200, 195)   # anillos de derribo
+            col[:, 5 * SS:7 * SS, :3] = (200, 200, 195)
+            col[:, w // 2:w // 2 + 4 * SS, :3] *= 0.8  # funda térmica
+        _ao_soft(col)
     elif mat == "glass_glow":
         col = _base((h, w), (255, 244, 180), 0.04, 2, seed)
         glow = col.copy()
     elif mat == "drum":
         col = _base((h, w), (72, 78, 52), 0.08, 3, seed)
-        if w > 6:
-            col[:, w // 3, :3] *= 0.7; col[:, 2 * w // 3, :3] *= 0.7
-        _ao_border(col)
+        if w > 6 * SS:
+            col[:, w // 3:w // 3 + SS, :3] *= 0.7
+            col[:, 2 * w // 3:2 * w // 3 + SS, :3] *= 0.7
+        _ao_soft(col)
     elif mat == "missile_body":
         col = _base((h, w), (198, 200, 204), 0.05, 5, seed)
-        _panel_lines(col, 8, 10, 0.92)
+        _panel_lines(col, 8, 10, 0.92, seed)
         # Remaches finos a lo largo de las líneas de panel + quemado leve de cola.
         _rivets(col, 8, 1.15, seed)
-        if w > 16:
+        if w > 16 * SS:
             burn = _smoothstep(0.75, 1.0, np.linspace(0.0, 1.0, w))[None, :, None]
             col[:, :, :3] = col[:, :, :3] * (1 - burn * 0.35)
-        _vgrad(col, 1.05, 0.88); _ao_border(col)
+        _vgrad(col, 1.05, 0.88); _ao_soft(col)
     elif mat == "nose":
-        col = _base((h, w), (48, 50, 56), 0.05, 3, seed); _ao_border(col)
+        col = _base((h, w), (48, 50, 56), 0.05, 3, seed)
+        _brushed(col, seed, 0.07); _ao_soft(col)
     elif mat == "fin":
         col = _base((h, w), (170, 172, 178), 0.06, 3, seed)
-        col[0:1, :, :3] = (200, 60, 50)  # borde de ataque rojo
-        _ao_border(col)
+        col[0:SS, :, :3] = (200, 60, 50)  # borde de ataque rojo
+        _ao_soft(col)
     elif mat == "nozzle":
-        col = _base((h, w), (60, 56, 52), 0.10, 2, seed); _ao_border(col)
+        col = _base((h, w), (60, 56, 52), 0.10, 2, seed); _ao_soft(col)
     elif mat == "nozzle_glow":
         col = _base((h, w), (255, 160, 70), 0.06, 2, seed)
         glow = col.copy()
     elif mat == "rocket_body":
         col = _base((h, w), (96, 104, 70), 0.08, 3, seed)
-        if h > 6: col[1:3, :, :3] = (208, 172, 60)  # banda de ojiva
-        _ao_border(col)
+        if h > 6 * SS:
+            col[SS:3 * SS, :, :3] = (208, 172, 60)  # banda de ojiva
+        _ao_soft(col)
     elif mat == "ship_hull":
         col = _base((h, w), (58, 66, 82), 0.07, 6, seed)
-        _panel_lines(col, 6, 8, 0.88)
+        _panel_lines(col, 6, 8, 0.88, seed)
         # Sub-paneles aleatorios con valor distinto (casco por placas).
-        n2 = value_noise(h, w, 6, seed + 5)
+        n2 = value_noise(h, w, 6 * SS, seed + 5)
         col[:, :, :3][n2 > 0.72] *= 1.15
         col[:, :, :3][n2 < 0.25] *= 0.88
         # Quemaduras de reentrada/micrometeoritos: motas oscuras dispersas.
         _chips(col, seed, 0.03)
         _streaks(col, seed, 0.25)
-        _vgrad(col, 1.05, 0.85); _ao_border(col)
+        _vgrad(col, 1.05, 0.85); _ao_soft(col)
     elif mat == "ship_dark":
-        col = _base((h, w), (36, 40, 52), 0.06, 4, seed); _panel_lines(col, 5, 7, 0.85); _ao_border(col)
+        col = _base((h, w), (36, 40, 52), 0.06, 4, seed)
+        _panel_lines(col, 5, 7, 0.85, seed)
+        _brushed(col, seed, 0.05)
+        _ao_soft(col)
     elif mat == "engine_glow":
         yy, xx = np.mgrid[0:h, 0:w]
         cy, cx = (h - 1) / 2, (w - 1) / 2
@@ -300,92 +405,121 @@ def paint_face(mat, face, hw, seed, model):
         glow = col.copy()
     elif mat == "window_glow":
         col = _base((h, w), (40, 46, 60), 0.05, 3, seed)
-        if h >= 3:
-            col[h // 3, :, :3] = (150, 230, 255)
-            if w > 4:
-                for x in range(0, w, 3): col[h // 3, x, :3] = (40, 46, 60)
+        if h >= 3 * SS:
+            row = h // 3
+            col[row:row + SS, :, :3] = (150, 230, 255)
+            if w > 4 * SS:
+                for x in range(0, w, 3 * SS):
+                    col[row:row + SS, x:x + SS, :3] = (40, 46, 60)
         glow = np.zeros((h, w, 4))
         mask = (col[:, :, 2] > 200)
         glow[mask] = col[mask]
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "brass":
         col = _base((h, w), (168, 132, 62), 0.08, 2, seed)
-        if w > 4: col[:, -2:, :3] = (150, 90, 50)  # banda de forzamiento
-        _ao_border(col)
+        _brushed(col, seed, 0.12)
+        if w > 4 * SS:
+            col[:, -2 * SS:, :3] = (150, 90, 50)  # banda de forzamiento
+        _ao_soft(col)
     elif mat == "era":
         # Ladrillo de blindaje reactivo: placa con correas en X y tornillos.
         col = _base((h, w), (66, 76, 50), 0.06, 2, seed)
-        if h >= 4 and w >= 4:
+        if h >= 4 * SS and w >= 4 * SS:
+            m = np.zeros((h, w), dtype=bool)
             for i in range(min(h, w)):
                 y1 = int(i * (h - 1) / max(1, min(h, w) - 1))
                 x1 = int(i * (w - 1) / max(1, min(h, w) - 1))
-                col[y1, x1, :3] *= 0.7
-                col[h - 1 - y1, x1, :3] *= 0.7
-            col[0, 0, :3] = col[0, -1, :3] = col[-1, 0, :3] = col[-1, -1, :3] = (140, 142, 138)
+                m[y1:min(h, y1 + SS), x1:min(w, x1 + SS)] = True
+                y2 = h - 1 - y1
+                m[max(0, y2 - SS + 1):y2 + 1, x1:min(w, x1 + SS)] = True
+            col[:, :, :3][m] *= 0.7
+            for cy, cx in ((0, 0), (0, w - SS), (h - SS, 0), (h - SS, w - SS)):
+                col[cy:cy + SS, cx:cx + SS, :3] = (140, 142, 138)
         _chips(col, seed, 0.04)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "grille":
         col = _base((h, w), (40, 42, 44), 0.05, 2, seed)
-        step = 2
+        step = 2 * SS
         if w >= h:
             for x in range(0, w, step):
-                col[:, x, :3] *= 0.45
+                col[:, x:x + SS, :3] *= 0.45
         else:
             for y in range(0, h, step):
-                col[y, :, :3] *= 0.45
-        _ao_border(col)
+                col[y:y + SS, :, :3] *= 0.45
+        _ao_soft(col)
     elif mat == "glass_dark":
         col = _base((h, w), (28, 36, 44), 0.04, 2, seed)
-        if h >= 2 and w >= 2:
-            col[0, :, :3] = np.clip(col[0, :, :3] * 1.9, 0, 255)  # reflejo superior
-        _ao_border(col)
+        if h >= 2 * SS and w >= 2 * SS:
+            col[0:SS, :, :3] = np.clip(col[0:SS, :, :3] * 1.9, 0, 255)  # reflejo superior
+        _ao_soft(col)
     elif mat == "rubber":
         col = _base((h, w), (30, 30, 32), 0.06, 2, seed)
         _dirt_gradient(col, 0.3)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "cable":
         col = _base((h, w), (46, 44, 40), 0.10, 1, seed)
-        if w >= 4:
-            for x in range(0, w, 2):
-                col[:, x, :3] *= 0.7  # trenzado
-        _ao_border(col)
+        if w >= 4 * SS:
+            for x in range(0, w, 2 * SS):
+                col[:, x:x + SS, :3] *= 0.7  # trenzado
+        _ao_soft(col)
     elif mat == "can":
         col = _base((h, w), (88, 96, 62), 0.07, 2, seed)
-        if h >= 5 and w >= 5:
+        if h >= 5 * SS and w >= 5 * SS:
             cy, cx2 = h // 2, w // 2
             r2 = min(h, w) // 3
+            m = np.zeros((h, w), dtype=bool)
             for i in range(-r2, r2 + 1):  # estampado en X del bidón
-                if 0 <= cy + i < h and 0 <= cx2 + i < w:
-                    col[cy + i, cx2 + i, :3] *= 0.75
-                if 0 <= cy + i < h and 0 <= cx2 - i < w:
-                    col[cy + i, cx2 - i, :3] *= 0.75
+                if 0 <= cy + i < h - SS + 1 and 0 <= cx2 + i < w - SS + 1:
+                    m[cy + i:cy + i + SS, cx2 + i:cx2 + i + SS] = True
+                if 0 <= cy + i < h - SS + 1 and 0 <= cx2 - i < w - SS + 1:
+                    m[cy + i:cy + i + SS, cx2 - i:cx2 - i + SS] = True
+            col[:, :, :3][m] *= 0.75
         _chips(col, seed, 0.05)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "hazard":
         # Franjas diagonales amarillas/negras.
         col = np.zeros((h, w, 4))
         yy2, xx2 = np.mgrid[0:h, 0:w]
-        stripe = ((yy2 + xx2) // 3) % 2 == 0
+        stripe = ((yy2 + xx2) // (3 * SS)) % 2 == 0
         col[:, :, :3][stripe] = (208, 172, 60)
         col[:, :, :3][~stripe] = (34, 34, 36)
         col[:, :, 3] = 255
         _dirt_gradient(col, 0.15)
-        _ao_border(col)
+        _ao_soft(col)
     elif mat == "missile_tiny":
         col = _base((h, w), (176, 178, 182), 0.05, 2, seed)
-        if w >= 6:
-            col[:, 0:2, :3] = (190, 55, 45)  # punta roja
-        _ao_border(col)
+        if w >= 6 * SS:
+            col[:, 0:2 * SS, :3] = (190, 55, 45)  # punta roja
+        _ao_soft(col)
+    elif mat == "sensor_glow":
+        # Punta de sensor del misil: rojo encendido (emisivo).
+        col = _base((h, w), (225, 60, 50), 0.05, 2, seed)
+        glow = col.copy()
+    elif mat == "tail_glow":
+        # Luces traseras del tanque: rojo intenso (emisivo).
+        col = _base((h, w), (210, 40, 35), 0.05, 2, seed)
+        glow = col.copy()
     else:
         col = _base((h, w), (120, 120, 120), 0.05, 3, seed)
-    # decals específicos
-    if model == "tank" and mat == "camo" and face in ("side1", "side2") and w >= 20 and h >= 7:
-        draw_text(col, w // 2 - 3, h // 2 - 2, "07", (230, 228, 220))
-    if model == "cruise_missile" and mat == "missile_body" and face in ("side1", "side2", "up") and w >= 34:
-        col[:, 4:7, :3] = (190, 55, 45)  # banda roja
-        draw_text(col, 10, max(0, h // 2 - 2), "VRGS-1", (40, 40, 44))
-    if model == "warship" and mat == "ship_hull" and face in ("side1", "side2") and w >= 40 and h >= 8:
-        draw_text(col, 6, h // 2 - 2, "TEMPEST", (140, 200, 230))
+    # decals específicos (guards en píxeles REALES: los umbrales lógicos ×SS)
+    if model == "tank" and mat == "camo" and face in ("side1", "side2") and w >= 20 * SS and h >= 7 * SS:
+        draw_text(col, w // 2 - 3 * SS, h // 2 - 2 * SS, "07", (230, 228, 220), SS)
+        if w >= 34 * SS and h >= 12 * SS:
+            draw_bitmap(col, w // 2 + 8 * SS, h // 2 - 3 * SS, STAR, (200, 60, 50), SS)
+    if model == "tank" and mat == "camo" and face == "up" and w >= 20 * SS and h >= 20 * SS:
+        # Triángulos de eyección junto a las escotillas.
+        draw_bitmap(col, 3 * SS, 3 * SS, TRI, (208, 172, 60), SS)
+        draw_bitmap(col, w - 8 * SS, 3 * SS, TRI, (208, 172, 60), SS)
+    if model == "cruise_missile" and mat == "missile_body" and face in ("side1", "side2", "up") and w >= 34 * SS:
+        col[:, 4 * SS:7 * SS, :3] = (190, 55, 45)  # banda roja
+        draw_text(col, 10 * SS, max(0, h // 2 - 2 * SS), "VRGS-1", (40, 40, 44), SS)
+        draw_bitmap(col, w - 10 * SS, max(0, h // 2 - SS), TRI, (208, 172, 60), SS)
+    if model == "warship" and mat == "ship_hull" and face in ("side1", "side2") and w >= 40 * SS and h >= 8 * SS:
+        draw_text(col, 6 * SS, h // 2 - 2 * SS, "TEMPEST", (140, 200, 230), SS)
+    if model == "warship" and mat == "ship_hull" and face == "up" and w >= 30 * SS and h >= 14 * SS:
+        # Marcas de cubierta en las alas: numeral + NO STEP.
+        draw_text(col, 3 * SS, 3 * SS, "IT-77", (140, 200, 230), SS)
+        draw_text(col, 3 * SS, h - 9 * SS, "NO STEP", (208, 172, 60), SS)
     return col, glow
 
 # ---------------------------------------------------------------- specs
@@ -397,7 +531,7 @@ def C(o, s, mat):
 
 SPECS = {
     "tank": {
-        "tex": "tank", "tex_size": 512, "glow": True,
+        "tex": "tank", "tex_size": 512, "ss": 2, "glow": True,
         "parts": [
             P("hull", (0, 24, 0), [
                 C((-13, -17, -28), (26, 9, 56), "camo"),
@@ -418,6 +552,8 @@ SPECS = {
                 C((14, -15.5, 29), (11, 1, 4), "rubber"),    # guardabarros RR
                 C((13.2, -13, -6), (2, 4, 14), "metal_dark"),# caja de herramientas
                 C((-13.8, -15, -20), (1, 1, 34), "cable"),   # cable de remolque
+                C((-12, -16, 27.5), (2, 1, 1), "tail_glow"), # luz trasera L
+                C((10, -16, 27.5), (2, 1, 1), "tail_glow"),  # luz trasera R
             ]),
             P("cans", (-14, 8, 18), [
                 C((-1.5, -3, -3), (3, 6, 4), "can"),
@@ -450,7 +586,6 @@ SPECS = {
             P("drum_r", (8, 6, 30), [C((-3, -3, 0), (6, 6, 8), "drum")]),
             P("drum_r_x", (8, 6, 30), [C((-3, -3, 0), (6, 6, 8), "drum")], rot=(0, 0, 45)),
             P("track_l", (0, 24, 0), [
-                C((14, -13, -30), (11, 13, 60), "track"),
                 C((25, -15, -26), (1, 7, 52), "skirt"),
                 C((15, -11, -33), (9, 9, 3), "metal_dark"),   # rueda motriz
                 C((15, -10, 28), (9, 9, 3), "metal_dark"),    # rueda tensora
@@ -462,13 +597,15 @@ SPECS = {
                 C((25.4, -16, 4), (1, 2, 2), "metal_dark"),
                 C((25.4, -16, 16), (1, 2, 2), "metal_dark"),
             ]),
+            # Cinta de oruga en parte PROPIA: el renderer la desplaza en Z para
+            # el scroll fake (el material track es periódico cada 3 unidades).
+            P("belt_l", (0, 24, 0), [C((14, -13, -30), (11, 13, 60), "track")], parent="track_l_rel"),
             P("wheel_l0", (19.5, 18, -22), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_l_rel"),
             P("wheel_l1", (19.5, 18, -11), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_l_rel"),
             P("wheel_l2", (19.5, 18, 0), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_l_rel"),
             P("wheel_l3", (19.5, 18, 11), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_l_rel"),
             P("wheel_l4", (19.5, 18, 22), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_l_rel"),
             P("track_r", (0, 24, 0), [
-                C((-25, -13, -30), (11, 13, 60), "track"),
                 C((-26, -15, -26), (1, 7, 52), "skirt"),
                 C((-24, -11, -33), (9, 9, 3), "metal_dark"),
                 C((-24, -10, 28), (9, 9, 3), "metal_dark"),
@@ -480,6 +617,7 @@ SPECS = {
                 C((-26.4, -16, 4), (1, 2, 2), "metal_dark"),
                 C((-26.4, -16, 16), (1, 2, 2), "metal_dark"),
             ]),
+            P("belt_r", (0, 24, 0), [C((-25, -13, -30), (11, 13, 60), "track")], parent="track_r_rel"),
             P("wheel_r0", (-19.5, 18, -22), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_r_rel"),
             P("wheel_r1", (-19.5, 18, -11), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_r_rel"),
             P("wheel_r2", (-19.5, 18, 0), [C((-3.5, -3.5, -1.5), (7, 7, 3), "wheel")], parent="track_r_rel"),
@@ -542,7 +680,7 @@ SPECS = {
         ],
     },
     "cruise_missile": {
-        "tex": "cruise_missile", "tex_size": 256, "glow": False,
+        "tex": "cruise_missile", "tex_size": 256, "ss": 4, "glow": True,
         "parts": [
             P("body", (0, 0, 0), [
                 C((-3, -3, -22), (6, 6, 40), "missile_body"),
@@ -561,7 +699,7 @@ SPECS = {
             P("nose", (0, 0, -22), [
                 C((-2.5, -2.5, -5), (5, 5, 5), "missile_body"),
                 C((-1.5, -1.5, -9), (3, 3, 4), "nose"),
-                C((-0.5, -0.5, -12), (1, 1, 3), "nose"),
+                C((-0.5, -0.5, -12), (1, 1, 3), "sensor_glow"),
             ]),
             P("fin0", (0, 0, 14), [C((-0.5, -10, 0), (1, 10, 5), "fin")]),
             P("fin1", (0, 0, 14), [C((-0.5, -10, 0), (1, 10, 5), "fin")], rot=(0, 0, 90)),
@@ -578,7 +716,7 @@ SPECS = {
         ],
     },
     "mlrs_rocket": {
-        "tex": "mlrs_rocket", "tex_size": 64, "glow": False,
+        "tex": "mlrs_rocket", "tex_size": 64, "ss": 4, "glow": True,
         "parts": [
             P("body", (0, 0, 0), [
                 C((-1.5, -1.5, -7), (3, 3, 14), "rocket_body"),
@@ -593,11 +731,11 @@ SPECS = {
             P("rfin1", (0, 0, 4), [C((-0.5, -4, 0), (1, 4, 3), "fin")], rot=(0, 0, 90)),
             P("rfin2", (0, 0, 4), [C((-0.5, -4, 0), (1, 4, 3), "fin")], rot=(0, 0, 180)),
             P("rfin3", (0, 0, 4), [C((-0.5, -4, 0), (1, 4, 3), "fin")], rot=(0, 0, 270)),
-            P("rnozzle", (0, 0, 7), [C((-1, -1, 0), (2, 2, 2), "nozzle")]),
+            P("rnozzle", (0, 0, 7), [C((-1, -1, 0), (2, 2, 2), "nozzle_glow")]),
         ],
     },
     "warship": {
-        "tex": "warship", "tex_size": 512, "glow": True,
+        "tex": "warship", "tex_size": 512, "ss": 2, "glow": True,
         "parts": [
             P("hull", (0, 0, 0), [
                 C((-14, -6, -30), (28, 14, 60), "ship_hull"),
@@ -695,7 +833,7 @@ SPECS = {
         ],
     },
     "tank_shell": {
-        "tex": "tank_shell", "tex_size": 32, "glow": False,
+        "tex": "tank_shell", "tex_size": 32, "ss": 4, "glow": False,
         "parts": [
             P("shell", (0, 0, 0), [
                 C((-1, -1, -3), (2, 2, 7), "brass"),
@@ -740,11 +878,99 @@ def face_rects(u, v, w, h, d):
         "back":  (u + d + w + d, v + d, w, h),
     }
 
+def _face_projection(face, A, B):
+    """Proyección del cubo B sobre el plano de una cara del cubo A (misma parte).
+    Devuelve (gap, (u0,u1), (v0,v1)) en unidades LÓGICAS relativas al rect de la
+    cara, o None si B no está delante. Los ejes u/v y sus espejos replican
+    exactamente el mapeo de render_preview (orden de esquinas por cara)."""
+    ax, ay, az, aw, ah, ad = A
+    bx, by, bz, bw, bh, bd = B
+    if face == "front":      # z = az, normal -Z ; u=x-ax, v=y-ay
+        if not bz < az:
+            return None
+        gap = max(0.0, az - (bz + bd))
+        u0, u1 = bx - ax, bx + bw - ax
+        v0, v1 = by - ay, by + bh - ay
+    elif face == "back":     # z = az+ad, normal +Z ; u espejado en x
+        if not bz + bd > az + ad:
+            return None
+        gap = max(0.0, bz - (az + ad))
+        u0, u1 = (ax + aw) - (bx + bw), (ax + aw) - bx
+        v0, v1 = by - ay, by + bh - ay
+    elif face == "up":       # y = ay, normal -Y ; v espejado en z
+        if not by < ay:
+            return None
+        gap = max(0.0, ay - (by + bh))
+        u0, u1 = bx - ax, bx + bw - ax
+        v0, v1 = (az + ad) - (bz + bd), (az + ad) - bz
+    elif face == "down":     # y = ay+ah, normal +Y
+        if not by + bh > ay + ah:
+            return None
+        gap = max(0.0, by - (ay + ah))
+        u0, u1 = bx - ax, bx + bw - ax
+        v0, v1 = bz - az, bz + bd - az
+    elif face == "side1":    # x = ax, normal -X ; u espejado en z
+        if not bx < ax:
+            return None
+        gap = max(0.0, ax - (bx + bw))
+        u0, u1 = (az + ad) - (bz + bd), (az + ad) - bz
+        v0, v1 = by - ay, by + bh - ay
+    else:                    # side2: x = ax+aw, normal +X
+        if not bx + bw > ax + aw:
+            return None
+        gap = max(0.0, bx - (ax + aw))
+        u0, u1 = bz - az, bz + bd - az
+        v0, v1 = by - ay, by + bh - ay
+    if gap > 2.0:
+        return None
+    return gap, (u0, u1), (v0, v1)
+
+def _contact_ao(spec, tex):
+    """AO de CONTACTO horneada: cada cubo proyecta sombra suave sobre las caras
+    de sus vecinos de la misma parte (ERA sobre camo, greebles sobre el casco…).
+    Solo albedo — el glow no recibe sombra."""
+    ss = spec.get("ss", 1)
+    for part in spec["parts"]:
+        cubes = part["cubes"]
+        if len(cubes) < 2:
+            continue
+        for a in cubes:
+            ax, ay, az = a["o"]
+            aw2, ah2, ad2 = a["s"]
+            wi, hi, di = int(math.ceil(aw2)), int(math.ceil(ah2)), int(math.ceil(ad2))
+            u, v = a["uv"]
+            for face, (fx, fy, fw, fh) in face_rects(u, v, wi, hi, di).items():
+                if fw <= 0 or fh <= 0:
+                    continue
+                for b in cubes:
+                    if b is a:
+                        continue
+                    proj = _face_projection(face, (ax, ay, az, aw2, ah2, ad2),
+                                            (b["o"][0], b["o"][1], b["o"][2],
+                                             b["s"][0], b["s"][1], b["s"][2]))
+                    if proj is None:
+                        continue
+                    gap, (u0, u1), (v0, v1) = proj
+                    strength = 0.35 * (1.0 - (gap / 2.0) * (gap / 2.0) * (3 - 2 * (gap / 2.0)))
+                    if strength <= 0.02:
+                        continue
+                    hpx, wpx = fh * ss, fw * ss
+                    uu = np.arange(wpx, dtype=float)[None, :] / ss
+                    vv = np.arange(hpx, dtype=float)[:, None] / ss
+                    du = np.maximum(np.maximum(u0 - uu, uu - u1), 0.0)
+                    dv = np.maximum(np.maximum(v0 - vv, vv - v1), 0.0)
+                    dist = np.sqrt(du * du + dv * dv)
+                    fade = 1.0 - _smoothstep(0.0, 3.0, dist)
+                    shade = 1.0 - strength * fade
+                    tex[fy * ss:fy * ss + hpx, fx * ss:fx * ss + wpx, :3] *= shade[:, :, None]
+
 def paint(spec, model_name):
+    global SS
+    SS = spec.get("ss", 1)
     size = spec["tex_size"]
-    tex = np.zeros((size, size, 4))
-    glow_tex = np.zeros((size, size, 4)) if spec["glow"] else None
-    seed = 0
+    px = size * SS
+    tex = np.zeros((px, px, 4))
+    glow_tex = np.zeros((px, px, 4)) if spec["glow"] else None
     for part in spec["parts"]:
         for cube in part["cubes"]:
             w, h, d = [int(math.ceil(x)) for x in cube["s"]]
@@ -752,11 +978,15 @@ def paint(spec, model_name):
             for face, (fx, fy, fw, fh) in face_rects(u, v, w, h, d).items():
                 if fw <= 0 or fh <= 0:
                     continue
-                seed += 1
-                col, glow = paint_face(cube["mat"], face, (fh, fw), seed, model_name)
-                tex[fy:fy + fh, fx:fx + fw] = col
+                # Seed ESTABLE por contenido: añadir/reordenar cubos re-pinta
+                # solo lo suyo, no re-aleatoriza el modelo entero.
+                key = f"{model_name}|{part['name']}|{cube['mat']}|{cube['o']}|{cube['s']}|{face}"
+                seed = zlib.crc32(key.encode()) & 0x7FFFFFFF
+                col, glow = paint_face(cube["mat"], face, (fh * SS, fw * SS), seed, model_name)
+                tex[fy * SS:(fy + fh) * SS, fx * SS:(fx + fw) * SS] = col
                 if glow is not None and glow_tex is not None:
-                    glow_tex[fy:fy + fh, fx:fx + fw] = glow
+                    glow_tex[fy * SS:(fy + fh) * SS, fx * SS:(fx + fw) * SS] = glow
+    _contact_ao(spec, tex)
     return tex, glow_tex
 
 def save_png(arr, path):

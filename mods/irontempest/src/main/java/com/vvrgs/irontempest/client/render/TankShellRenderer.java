@@ -50,10 +50,15 @@ public class TankShellRenderer extends EntityRenderer<TankShellEntity> {
          */
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F + yaw));
         poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
 
+        // Spin de rayado (rifling) SOLO sobre el modelo: el trazador queda
+        // fuera del push/pop y no marea (la cruz aditiva es simétrica).
+        float time = entity.tickCount + partialTick;
+        poseStack.pushPose();
+        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F + time * 55.0F));
         VertexConsumer main = buffer.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         this.root.render(poseStack, main, packedLight, OverlayTexture.NO_OVERLAY);
+        poseStack.popPose();
 
         renderTracer(poseStack, buffer);
         poseStack.popPose();

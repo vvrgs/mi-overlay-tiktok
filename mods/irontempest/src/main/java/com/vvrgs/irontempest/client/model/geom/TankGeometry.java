@@ -32,7 +32,9 @@ public final class TankGeometry {
                 .texOffs(474, 192).addBox(-25.0000F, -15.5000F, 29.0000F, 11.0000F, 1.0000F, 4.0000F)
                 .texOffs(0, 200).addBox(14.0000F, -15.5000F, 29.0000F, 11.0000F, 1.0000F, 4.0000F)
                 .texOffs(249, 134).addBox(13.2000F, -13.0000F, -6.0000F, 2.0000F, 4.0000F, 14.0000F)
-                .texOffs(412, 74).addBox(-13.8000F, -15.0000F, -20.0000F, 1.0000F, 1.0000F, 34.0000F),
+                .texOffs(412, 74).addBox(-13.8000F, -15.0000F, -20.0000F, 1.0000F, 1.0000F, 34.0000F)
+                .texOffs(280, 200).addBox(-12.0000F, -16.0000F, 27.5000F, 2.0000F, 1.0000F, 1.0000F)
+                .texOffs(287, 200).addBox(10.0000F, -16.0000F, 27.5000F, 2.0000F, 1.0000F, 1.0000F),
                 PartPose.offset(0.0000F, 24.0000F, 0.0000F));
         PartDefinition p_cans = root.addOrReplaceChild("cans",
                 CubeListBuilder.create()
@@ -94,7 +96,6 @@ public final class TankGeometry {
                 PartPose.offsetAndRotation(8.0000F, 6.0000F, 30.0000F, 0.0000F, 0.0000F, 0.7854F));
         PartDefinition p_track_l = root.addOrReplaceChild("track_l",
                 CubeListBuilder.create()
-                .texOffs(0, 0).addBox(14.0000F, -13.0000F, -30.0000F, 11.0000F, 13.0000F, 60.0000F)
                 .texOffs(0, 74).addBox(25.0000F, -15.0000F, -26.0000F, 1.0000F, 7.0000F, 52.0000F)
                 .texOffs(73, 168).addBox(15.0000F, -11.0000F, -33.0000F, 9.0000F, 9.0000F, 3.0000F)
                 .texOffs(98, 168).addBox(15.0000F, -10.0000F, 28.0000F, 9.0000F, 9.0000F, 3.0000F)
@@ -106,6 +107,10 @@ public final class TankGeometry {
                 .texOffs(136, 200).addBox(25.4000F, -16.0000F, 4.0000F, 1.0000F, 2.0000F, 2.0000F)
                 .texOffs(143, 200).addBox(25.4000F, -16.0000F, 16.0000F, 1.0000F, 2.0000F, 2.0000F),
                 PartPose.offset(0.0000F, 24.0000F, 0.0000F));
+        PartDefinition p_belt_l = p_track_l.addOrReplaceChild("belt_l",
+                CubeListBuilder.create()
+                .texOffs(0, 0).addBox(14.0000F, -13.0000F, -30.0000F, 11.0000F, 13.0000F, 60.0000F),
+                PartPose.offset(0.0000F, 0.0000F, 0.0000F));
         PartDefinition p_wheel_l0 = p_track_l.addOrReplaceChild("wheel_l0",
                 CubeListBuilder.create()
                 .texOffs(257, 168).addBox(-3.5000F, -3.5000F, -1.5000F, 7.0000F, 7.0000F, 3.0000F),
@@ -128,7 +133,6 @@ public final class TankGeometry {
                 PartPose.offset(19.5000F, -6.0000F, 22.0000F));
         PartDefinition p_track_r = root.addOrReplaceChild("track_r",
                 CubeListBuilder.create()
-                .texOffs(143, 0).addBox(-25.0000F, -13.0000F, -30.0000F, 11.0000F, 13.0000F, 60.0000F)
                 .texOffs(107, 74).addBox(-26.0000F, -15.0000F, -26.0000F, 1.0000F, 7.0000F, 52.0000F)
                 .texOffs(123, 168).addBox(-24.0000F, -11.0000F, -33.0000F, 9.0000F, 9.0000F, 3.0000F)
                 .texOffs(148, 168).addBox(-24.0000F, -10.0000F, 28.0000F, 9.0000F, 9.0000F, 3.0000F)
@@ -140,6 +144,10 @@ public final class TankGeometry {
                 .texOffs(164, 200).addBox(-26.4000F, -16.0000F, 4.0000F, 1.0000F, 2.0000F, 2.0000F)
                 .texOffs(171, 200).addBox(-26.4000F, -16.0000F, 16.0000F, 1.0000F, 2.0000F, 2.0000F),
                 PartPose.offset(0.0000F, 24.0000F, 0.0000F));
+        PartDefinition p_belt_r = p_track_r.addOrReplaceChild("belt_r",
+                CubeListBuilder.create()
+                .texOffs(143, 0).addBox(-25.0000F, -13.0000F, -30.0000F, 11.0000F, 13.0000F, 60.0000F),
+                PartPose.offset(0.0000F, 0.0000F, 0.0000F));
         PartDefinition p_wheel_r0 = p_track_r.addOrReplaceChild("wheel_r0",
                 CubeListBuilder.create()
                 .texOffs(362, 168).addBox(-3.5000F, -3.5000F, -1.5000F, 7.0000F, 7.0000F, 3.0000F),
@@ -198,8 +206,8 @@ public final class TankGeometry {
                 CubeListBuilder.create()
                 .texOffs(231, 181).addBox(-3.5000F, -2.0000F, -3.5000F, 7.0000F, 2.0000F, 7.0000F)
                 .texOffs(295, 192).addBox(-2.5000F, -3.0000F, -2.5000F, 5.0000F, 1.0000F, 5.0000F)
-                .texOffs(280, 200).addBox(-1.0000F, -1.6000F, -4.2000F, 2.0000F, 1.0000F, 1.0000F)
-                .texOffs(287, 200).addBox(-1.0000F, -1.6000F, 3.2000F, 2.0000F, 1.0000F, 1.0000F)
+                .texOffs(294, 200).addBox(-1.0000F, -1.6000F, -4.2000F, 2.0000F, 1.0000F, 1.0000F)
+                .texOffs(301, 200).addBox(-1.0000F, -1.6000F, 3.2000F, 2.0000F, 1.0000F, 1.0000F)
                 .texOffs(266, 200).addBox(-4.2000F, -1.6000F, -1.0000F, 1.0000F, 1.0000F, 2.0000F)
                 .texOffs(273, 200).addBox(3.2000F, -1.6000F, -1.0000F, 1.0000F, 1.0000F, 2.0000F),
                 PartPose.offset(5.0000F, -14.0000F, 8.0000F));

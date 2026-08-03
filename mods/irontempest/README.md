@@ -80,6 +80,34 @@ otros mods:
 - `clientFx.fxDensity` (0.25–2.0): baja el ruido de partículas propio sin
   recompilar si tu overlay ya satura la pantalla.
 
+## Movimiento y aspecto premium (v6)
+
+**Física con masa**: el tanque acelera y frena en rampa (nada de on/off), gira
+el casco hacia ti mientras caza (la torreta contra-rota y no pierde la
+puntería) y su posición/yaw se interpolan en cliente (suave, sin saltos). El
+misil se LADEA en las curvas (banking real derivado del giro).
+
+**Animaciones de modelo**: ruedas rodando por distancia real (patinan contra
+un muro), orugas con scroll y diferencial al girar, suspensión por rueda,
+cabeceo al acelerar/frenar, cúpula y ametralladora escaneando el horizonte,
+lanzahumos que se yerguen al retirarse, beacon rojo parpadeante; la nave
+deriva en lissajous con el haz SOLDADO a la boca del cañón, que ahora APUNTA
+de verdad al objetivo (IK) y gira más rápido cuanto más cargado está, alas
+flexando, estrobos de punta de ala; aletas del misil deflectando + flutter
+terminal + chuffing de tobera; cohetes con spin axial y precesión; obuses con
+spin de rayado.
+
+**Texturas HD 1024** (tanque/nave/misil; cohete 256, obús 128): el atlas
+lógico no cambia (UVs intactos) — solo el lienzo se supersamplea. Painters
+premium: AO suave + AO de CONTACTO entre piezas (los ladrillos ERA proyectan
+sombra sobre el camo), paneles biselados con remaches en las intersecciones,
+óxido multi-escala, metal cepillado, y decals nuevos (estrella táctica,
+numerales, triángulos de eyección, NO STEP en las alas).
+
+**Glow ampliado**: tobera y sensor de nariz del misil (flicker de afterburner
+en el picado), tobera del cohete, luces traseras del tanque. Regenerable todo
+con `python3 tools/gen_models.py`.
+
 ## Build (en tu máquina Windows)
 
 Requisitos: JDK 17 (el `gradlew` descarga Gradle 8.1.1 y Forge solo).

@@ -25,12 +25,13 @@ def rot_matrix(rx, ry, rz):
     return Rz @ Ry @ Rx
 
 
-def build_model(spec):
+def build_model(spec, model_name="preview"):
     """Devuelve lista de (tri_verts[3,3] en bloques Y-arriba, uv[3,2], glow_flag)
     por cada triángulo del modelo, con texturas ya asignadas."""
     gm.pack(spec)
-    tex, glow_tex = gm.paint(spec, "preview")
-    size = spec["tex_size"]
+    tex, glow_tex = gm.paint(spec, model_name)
+    ss = spec.get("ss", 1)
+    size = spec["tex_size"] * ss  # píxeles REALES del lienzo (atlas lógico × SS)
     parts = {p["name"]: p for p in spec["parts"]}
 
     def chain(part):
@@ -88,10 +89,11 @@ def build_model(spec):
                 if fw <= 0 or fh <= 0:
                     continue
                 quad = pts[idx]
-                uvq = np.array([[fx, fy], [fx + fw, fy], [fx + fw, fy + fh], [fx, fy + fh]], dtype=float)
+                uvq = np.array([[fx, fy], [fx + fw, fy], [fx + fw, fy + fh], [fx, fy + fh]],
+                               dtype=float) * ss
                 glow = False
                 if glow_tex is not None:
-                    reg = glow_tex[fy:fy + fh, fx:fx + fw]
+                    reg = glow_tex[fy * ss:(fy + fh) * ss, fx * ss:(fx + fw) * ss]
                     glow = reg[..., 3].max() > 40
                 for a, b_, cc in [(0, 1, 2), (0, 2, 3)]:
                     tris.append((quad[[a, b_, cc]].copy(), uvq[[a, b_, cc]].copy(), glow))
@@ -124,8 +126,10 @@ def render(tris, tex, glow_tex, tex_size, cam_yaw, cam_pitch, dist, W=720, H=560
     light2 = np.array([-0.6, 0.2, -0.75]); light2 /= np.linalg.norm(light2)
 
     def to_view(p):
-        # modelo (Y abajo, unidades) → mundo (bloques, Y arriba)
-        q = np.array([p[0], -(p[1] - (ground_y if ground_y is not None else 0.0)), p[2]]) / 16.0
+        # modelo (Y abajo, unidades) → mundo (bloques, Y arriba). Negar X ADEMÁS
+        # de Y replica el ZP(180) del juego (rotación propia, no espejo): los
+        # decals se leen exactamente como en el juego.
+        q = np.array([-p[0], -(p[1] - (ground_y if ground_y is not None else 0.0)), p[2]]) / 16.0
         rel = q - cam_pos
         return np.array([rel @ right, rel @ up, rel @ fwd])
 
@@ -201,7 +205,7 @@ def save(img, name):
 
 def main():
     # TANQUE: turntable GIF + beauty shot
-    tris, tex, glow, size = build_model(gm.SPECS["tank"])
+    tris, tex, glow, size = build_model(gm.SPECS["tank"], "tank")
     frames = []
     for k in range(24):
         img = render(tris, tex, glow, size, cam_yaw=k * 15 + 30, cam_pitch=18, dist=7.2,
@@ -215,7 +219,7 @@ def main():
                 ground_y=24, center=(0, 1.0, 0), W=960, H=640), "tank_beauty.png")
 
     # NAVE: beauty shot con haz compuesto
-    tris, tex, glow, size = build_model(gm.SPECS["warship"])
+    tris, tex, glow, size = build_model(gm.SPECS["warship"], "warship")
     img = render(tris, tex, glow, size, cam_yaw=140, cam_pitch=-12, dist=13.5,
                  ground_y=0, center=(0, -0.4, 0.6), W=960, H=720)
     # Haz orbital compuesto (usando la dirección visual del cañón ventral)
@@ -242,10 +246,10 @@ def main():
                 ground_y=0, center=(0, 0, 0.6), W=960, H=640), "warship_beauty.png")
 
     # MISIL y COHETE
-    tris, tex, glow, size = build_model(gm.SPECS["cruise_missile"])
+    tris, tex, glow, size = build_model(gm.SPECS["cruise_missile"], "cruise_missile")
     save(render(tris, tex, glow, size, cam_yaw=115, cam_pitch=15, dist=5.2,
                 ground_y=0, center=(0, 0, -0.2), W=960, H=480), "missile_beauty.png")
-    tris, tex, glow, size = build_model(gm.SPECS["mlrs_rocket"])
+    tris, tex, glow, size = build_model(gm.SPECS["mlrs_rocket"], "mlrs_rocket")
     save(render(tris, tex, glow, size, cam_yaw=120, cam_pitch=18, dist=2.6,
                 ground_y=0, center=(0, 0, 0), W=720, H=420), "rocket_beauty.png")
 

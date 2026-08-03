@@ -29,6 +29,8 @@ public final class TankBlitzSession extends WarSession {
     private enum Phase { DROP, HUNT, FIRE, LEAVE }
 
     private static final float TRAVERSE_RATE = 2.2F;
+    /** Giro de casco: la mitad del traverse de torreta — el chasis se lee pesado. */
+    private static final float HULL_TURN_RATE = 1.1F;
     private static final float SHELL_SPEED = 3.2F;
     private static final double SHELL_GRAVITY = 0.02D;
     /** Guion de disparos: ticks relativos al inicio de FIRE (3 + doble de clímax). */
@@ -219,6 +221,15 @@ public final class TankBlitzSession extends WarSession {
         // El tanque AVANZA hacia el jugador mientras caza (orugas + polvo en
         // cliente), y frena a distancia de tiro o al agotar la fase de avance.
         ServerPlayer target = target();
+        // FÍSICA: el casco GIRA hacia el objetivo (solo en HUNT; en FIRE queda
+        // fijo como plataforma de tiro). La torreta es yaw absoluto y el
+        // renderer resta el yaw del casco: contra-rota sola, puntería intacta.
+        if (target != null) {
+            float hullDiff = Mth.wrapDegrees(
+                    yawTowards(this.tank.position(), target.position()) - this.tank.getYRot());
+            this.tank.setYRot(this.tank.getYRot()
+                    + Mth.clamp(hullDiff, -HULL_TURN_RATE, HULL_TURN_RATE));
+        }
         boolean advance = target != null
                 && phaseAge() < 70
                 && this.tank.position().distanceTo(target.position()) > 14.0D;

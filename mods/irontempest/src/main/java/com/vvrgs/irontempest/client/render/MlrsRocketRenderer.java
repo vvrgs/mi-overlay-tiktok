@@ -15,11 +15,16 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
-/** Cohete MLRS: modelo simple orientado por la velocidad. */
+/** Cohete MLRS: orientado por velocidad + SPIN axial con wobble de precesión
+ *  (el borde de ataque rojo de las aletas hace el giro legible) + tobera glow. */
 public class MlrsRocketRenderer extends EntityRenderer<MlrsRocketEntity> {
 
     private static final ResourceLocation TEXTURE =
             new ResourceLocation(IronTempest.MODID, "textures/entity/mlrs_rocket.png");
+    private static final ResourceLocation GLOW_TEXTURE =
+            new ResourceLocation(IronTempest.MODID, "textures/entity/mlrs_rocket_glow.png");
+    /** Lightmap fullbright (mismo valor que usa EyesLayer vanilla). */
+    private static final int FULL_BRIGHT = 15728640;
 
     private final ModelPart root;
 
@@ -34,17 +39,25 @@ public class MlrsRocketRenderer extends EntityRenderer<MlrsRocketEntity> {
                        MultiBufferSource buffer, int packedLight) {
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+        float time = entity.tickCount + partialTick;
+        // Desfase por entidad: una salva entera no gira sincronizada.
+        float ph = (entity.getId() & 15) * 0.4F;
 
         poseStack.pushPose();
         // Misma convención que TankShellRenderer: yaw de proyectil
         // (atan2(vx,vz)) => YP(180+yaw); pitch positivo=arriba => XP(+pitch);
-        // ZP(180) por la autoría +Y-abajo.
+        // ZP(180) por la autoría +Y-abajo. Wobble ANTES del spin (precesión).
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F + yaw));
         poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
+        poseStack.mulPose(Axis.XP.rotationDegrees(Mth.sin(time * 0.7F + ph) * 1.2F));
+        poseStack.mulPose(Axis.YP.rotationDegrees(Mth.cos(time * 0.7F + ph) * 1.2F));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F + time * 30.0F));
 
         VertexConsumer main = buffer.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         this.root.render(poseStack, main, packedLight, OverlayTexture.NO_OVERLAY);
+        // Tobera al rojo: emisiva permanente (el motor siempre está a tope).
+        VertexConsumer glow = buffer.getBuffer(ModRenderTypes.glow(GLOW_TEXTURE));
+        this.root.render(poseStack, glow, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
 
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);

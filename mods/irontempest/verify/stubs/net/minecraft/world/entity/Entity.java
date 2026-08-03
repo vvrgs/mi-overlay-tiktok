@@ -32,6 +32,7 @@ public abstract class Entity {
     public Vec3 getPosition(float partialTicks) { throw new UnsupportedOperationException(); }
     public void setPos(double x, double y, double z) {}
     public void setPos(Vec3 pos) {}
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps, boolean teleport) {}
     // Posición del tick anterior (API real 1.20.1: campos públicos xo/yo/zo y xOld/yOld/zOld)
     public double xo;
     public double yo;

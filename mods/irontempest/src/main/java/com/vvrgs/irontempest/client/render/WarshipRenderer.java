@@ -38,6 +38,23 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
     private static final float WARP_TICKS = 8.0F;
 
     private final ModelPart root;
+    private final ModelPart cannon;
+    private final ModelPart cannonBarrel;
+    private final ModelPart wingL;
+    private final ModelPart wingR;
+    private final ModelPart nacelleL;
+    private final ModelPart nacelleR;
+    private final ModelPart podL;
+    private final ModelPart podR;
+
+    // Poses base (ModelParts compartidos: posiciones mutadas se restauran).
+    private final float wingLBaseZRot;
+    private final float wingRBaseZRot;
+    private final float nacelleLBaseZ;
+    private final float nacelleRBaseZ;
+    private final float podLBaseY;
+    private final float podRBaseY;
+
     /**
      * Tick en el que cada entidad entró en WARP_OUT, detectado en render.
      * Claves débiles: las entradas se liberan cuando la entidad se descarta.
@@ -48,6 +65,20 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
         super(context);
         this.shadowRadius = 0.0F;
         this.root = context.bakeLayer(ModModelLayers.WARSHIP);
+        this.cannon = this.root.getChild("cannon");
+        this.cannonBarrel = this.cannon.getChild("cannon_barrel");
+        this.wingL = this.root.getChild("wing_l");
+        this.wingR = this.root.getChild("wing_r");
+        this.nacelleL = this.root.getChild("nacelle_l");
+        this.nacelleR = this.root.getChild("nacelle_r");
+        this.podL = this.root.getChild("pod_l");
+        this.podR = this.root.getChild("pod_r");
+        this.wingLBaseZRot = this.wingL.zRot;
+        this.wingRBaseZRot = this.wingR.zRot;
+        this.nacelleLBaseZ = this.nacelleL.z;
+        this.nacelleRBaseZ = this.nacelleR.z;
+        this.podLBaseY = this.podL.y;
+        this.podRBaseY = this.podR.y;
     }
 
     @Override
@@ -56,11 +87,16 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
         float time = entity.tickCount + partialTick;
         byte phase = entity.getPhase();
 
+        // Drift lissajous COMPARTIDO entre el modelo y el origen del haz: la
+        // nave deriva sutilmente y el haz sigue soldado a la boca del cañón.
+        Vec3 hoverOff = new Vec3(Mth.sin(time * 0.021F) * 0.05F,
+                Mth.sin(time * 0.06F) * 0.15F, Mth.sin(time * 0.033F) * 0.05F);
+
         poseStack.pushPose();
         // Hover: bob senoidal + roll suave. La nave flota (root en y=0 del
         // modelo = centro de la entidad); mismo flip ZP(180) que el tanque
         // por la autoría +Y-abajo, sin offset de suelo.
-        poseStack.translate(0.0, Mth.sin(time * 0.06F) * 0.15F, 0.0);
+        poseStack.translate(hoverOff.x, hoverOff.y, hoverOff.z);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - entityYaw));
         poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(Mth.sin(time * 0.04F) * 1.2F));
@@ -83,6 +119,41 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
             poseStack.scale(sx, syz, syz);
         }
 
+        // IK del cañón hacia el beamTarget sincronizado. Mundo→modelo con la
+        // convención YP(180−yaw)·ZP(180): mx=dx·cos+dz·sin, my=−dy,
+        // mz=dx·sin−dz·cos (verificado contra cannonEmitter()).
+        float charge = entity.getCharge();
+        Vec3 beamTarget = entity.getBeamTarget();
+        if (beamTarget.lengthSqr() > 1.0E-4D) {
+            float yawRad = entityYaw * Mth.DEG_TO_RAD;
+            Vec3 pivotWorld = entity.getPosition(partialTick).add(hoverOff)
+                    .add(-Mth.sin(yawRad) * 0.375D, -0.5D, Mth.cos(yawRad) * 0.375D);
+            Vec3 d = beamTarget.subtract(pivotWorld);
+            double mx = d.x * Mth.cos(yawRad) + d.z * Mth.sin(yawRad);
+            double my = -d.y;
+            double mz = d.x * Mth.sin(yawRad) - d.z * Mth.cos(yawRad);
+            this.cannon.yRot = (float) Math.atan2(mx, mz);
+            // El cañón del modelo apunta +Y (recto abajo): la elevación es la
+            // desviación de la vertical, limitada a ~34°.
+            this.cannonBarrel.xRot = (float) Math.min(0.60D,
+                    Math.atan2(Math.sqrt(mx * mx + mz * mz), my));
+        } else {
+            this.cannon.yRot = 0.0F;
+            this.cannonBarrel.xRot = 0.0F;
+        }
+        // Giro del emisor acelerando con la carga (el azimut vive en cannon.yRot).
+        this.cannonBarrel.yRot = time * (0.05F + 0.5F * charge);
+
+        // Alas flexando a contrafase del bob (lag de masa); nacelles vibrando
+        // con la carga; pods flotando lento.
+        float flex = Mth.cos(time * 0.06F) * 0.02F;
+        this.wingL.zRot = this.wingLBaseZRot + flex;
+        this.wingR.zRot = this.wingRBaseZRot - flex;
+        this.nacelleL.z = this.nacelleLBaseZ + Mth.sin(time * 0.9F) * 0.2F * charge;
+        this.nacelleR.z = this.nacelleRBaseZ + Mth.sin(time * 0.9F + 3.1416F) * 0.2F * charge;
+        this.podL.y = this.podLBaseY + Mth.sin(time * 0.13F) * 0.3F;
+        this.podR.y = this.podRBaseY + Mth.sin(time * 0.13F + 1.7F) * 0.3F;
+
         VertexConsumer main = buffer.getBuffer(RenderType.entityCutoutNoCull(TEXTURE));
         this.root.render(poseStack, main, packedLight, OverlayTexture.NO_OVERLAY);
 
@@ -90,29 +161,45 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
         // brillo" (eyes no permite modular alpha por vértice de forma útil).
         VertexConsumer glow = buffer.getBuffer(ModRenderTypes.glow(GLOW_TEXTURE));
         this.root.render(poseStack, glow, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-        if (entity.getCharge() > 0.5F) {
+        if (charge > 0.5F) {
             this.root.render(poseStack, glow, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
         }
+        // Restaurar posiciones mutadas (rotaciones se escriben en absoluto).
+        this.nacelleL.z = this.nacelleLBaseZ;
+        this.nacelleR.z = this.nacelleRBaseZ;
+        this.podL.y = this.podLBaseY;
+        this.podR.y = this.podRBaseY;
         poseStack.popPose();
 
         if (phase == WarshipEntity.PHASE_BEAM || phase == WarshipEntity.PHASE_OVERLOAD) {
-            renderBeam(entity, partialTick, poseStack, buffer,
+            renderBeam(entity, entityYaw, partialTick, hoverOff, poseStack, buffer,
                     phase == WarshipEntity.PHASE_OVERLOAD);
+        }
+
+        // Estrobos de punta de ala: doble flash blanco cada 24 gt.
+        long gt = entity.level().getGameTime();
+        if (gt % 24L < 2L) {
+            renderStrobes(entity, entityYaw, hoverOff, poseStack, buffer);
         }
 
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }
 
-    private void renderBeam(WarshipEntity entity, float partialTick, PoseStack poseStack,
-                            MultiBufferSource buffer, boolean overload) {
+    private void renderBeam(WarshipEntity entity, float entityYaw, float partialTick, Vec3 hoverOff,
+                            PoseStack poseStack, MultiBufferSource buffer, boolean overload) {
         Vec3 target = entity.getBeamTarget();
         if (target.lengthSqr() < 1.0E-4) {
             return; // aún sin objetivo sincronizado
         }
         // Espacio local del render (poseStack en la posición de la entidad).
+        // El haz nace en la BOCA del cañón animado: pivote (0,8,-6)/16 con el
+        // drift aplicado + 0.875 bl (largo del cañón) en la dirección de tiro.
         Vec3 entityPos = entity.getPosition(partialTick);
-        Vec3 start = entity.cannonEmitter().subtract(entityPos);
+        float yawRad = entityYaw * Mth.DEG_TO_RAD;
+        Vec3 pivotLocal = hoverOff.add(-Mth.sin(yawRad) * 0.375D, -0.5D, Mth.cos(yawRad) * 0.375D);
         Vec3 end = target.subtract(entityPos);
+        Vec3 aimDir = end.subtract(pivotLocal).normalize();
+        Vec3 start = pivotLocal.add(aimDir.scale(0.875D));
         Vec3 delta = end.subtract(start);
         double length = delta.length();
         if (length < 0.01) {
@@ -174,6 +261,22 @@ public class WarshipRenderer extends EntityRenderer<WarshipEntity> {
             vc.vertex(pose, (float) b.x, (float) b.y, (float) b.z).color(red, green, blue, alpha).uv(1.0F, v0).endVertex();
             vc.vertex(pose, (float) c.x, (float) c.y, (float) c.z).color(red, green, blue, alpha).uv(1.0F, v1).endVertex();
             vc.vertex(pose, (float) d.x, (float) d.y, (float) d.z).color(red, green, blue, alpha).uv(0.0F, v1).endVertex();
+        }
+    }
+
+    /** Estrobos blancos en las puntas de ala (billboard hacia cámara). */
+    private void renderStrobes(WarshipEntity entity, float entityYaw, Vec3 hoverOff,
+                               PoseStack poseStack, MultiBufferSource buffer) {
+        float yawR = entityYaw * Mth.DEG_TO_RAD;
+        Vec3 right = new Vec3(Mth.cos(yawR), 0.0D, Mth.sin(yawR));
+        VertexConsumer add = buffer.getBuffer(ModRenderTypes.ADDITIVE_QUADS);
+        for (int s = -1; s <= 1; s += 2) {
+            Vec3 p = hoverOff.add(right.scale(2.4D * s)).add(0.0D, 0.5D, 0.0D);
+            poseStack.pushPose();
+            poseStack.translate(p.x, p.y, p.z);
+            poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
+            flatQuad(add, poseStack.last().pose(), 0.14F, 255, 255, 255, 230);
+            poseStack.popPose();
         }
     }
 
