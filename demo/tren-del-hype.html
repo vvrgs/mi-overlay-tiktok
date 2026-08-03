@@ -1,0 +1,517 @@
+<title>Tren del Hype — overlay demo</title>
+<style>
+:root{
+  --night:#05070F; --panel:#10121D; --line:#232640; --ink:#EEF1FA; --dim:#8B90AC;
+  --cyan:#22E5DB; --gold:#FFC24B; --danger:#FF3355; --violet:#B96BFF;
+  --lvl:#22E5DB; /* color del nivel actual, lo mueve JS */
+  --speed:0s;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
+html,body{background:#03040A}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+.bar h1{font-size:13px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.bar h1 b{color:var(--cyan)}
+#sndBtn{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+
+/* ============ ESCENA (el futuro overlay por URL) ============ */
+.stage{position:relative;height:clamp(440px,58dvh,640px);margin:0 10px;border-radius:20px;overflow:hidden;
+  background:linear-gradient(180deg,#060814 0%,#0A0E22 55%,#070A18 100%);border:1px solid #1c2038;isolation:isolate}
+.stage.shake{animation:shake .45s linear}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-5px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(4px,3px)}}
+#bg,#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#bg{z-index:1}#fx{z-index:6}
+
+/* vía */
+.track{position:absolute;left:0;right:0;bottom:56px;height:5px;z-index:2;
+  background:linear-gradient(90deg,#2A2F4E,#3A4066,#2A2F4E);box-shadow:0 3px 0 #141830,0 -1px 0 #4a5178}
+
+/* ---------- el tren ---------- */
+.train{position:absolute;bottom:61px;right:14px;z-index:4;display:flex;align-items:flex-end;gap:9px}
+.train.rolling{animation:bob 0.55s ease-in-out infinite}
+@keyframes bob{0%,100%{margin-bottom:0}50%{margin-bottom:2.5px}}
+
+.loco{position:relative;width:148px;height:86px;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--lvl) 45%,transparent))}
+.loco .body{position:absolute;left:0;bottom:16px;width:148px;height:44px;border-radius:10px 22px 6px 6px;
+  background:linear-gradient(180deg,#3A415F 0%,#232842 55%,#151A30 100%);
+  border:1px solid #4A5178;border-bottom-color:#0e1226}
+.loco .body::after{content:"";position:absolute;left:6px;right:6px;top:7px;height:3px;border-radius:2px;
+  background:var(--lvl);opacity:.9;box-shadow:0 0 8px var(--lvl)}
+.loco .cab{position:absolute;left:4px;bottom:58px;width:52px;height:34px;border-radius:8px 8px 0 0;
+  background:linear-gradient(180deg,#434B6E,#252A47);border:1px solid #4A5178}
+.loco .win{position:absolute;left:12px;bottom:66px;width:26px;height:16px;border-radius:4px;
+  background:linear-gradient(180deg,#BFF7F3,#3ec9c2);box-shadow:0 0 10px rgba(60,220,210,.6)}
+.loco .chim{position:absolute;left:106px;bottom:58px;width:16px;height:22px;border-radius:3px 3px 0 0;
+  background:linear-gradient(180deg,#4A5178,#232842);border:1px solid #565f8f}
+.loco .nose{position:absolute;right:-7px;bottom:18px;width:14px;height:30px;border-radius:0 12px 12px 0;
+  background:linear-gradient(90deg,#232842,#3A415F)}
+.loco .lamp{position:absolute;right:-4px;bottom:30px;width:9px;height:9px;border-radius:50%;
+  background:#FFF2C4;box-shadow:0 0 12px 3px rgba(255,235,170,.9)}
+.beam{position:absolute;right:-118px;bottom:12px;width:120px;height:48px;z-index:-1;
+  background:linear-gradient(90deg,rgba(255,240,190,.32),transparent 80%);
+  clip-path:polygon(0 42%,0 58%,100% 100%,100% 0);opacity:0;transition:opacity .5s}
+.train.rolling .beam{opacity:1}
+.flame{position:absolute;left:-26px;bottom:18px;width:30px;height:26px;opacity:0;transition:opacity .2s;
+  background:radial-gradient(60% 100% at 100% 50%,#FFE39B 0%,#FF8A3D 45%,rgba(254,44,85,.6) 75%,transparent 100%);
+  filter:blur(1px)}
+.flame.on{opacity:1;animation:flick .12s infinite alternate}
+@keyframes flick{from{transform:scaleX(1)}to{transform:scaleX(1.35)}}
+.wheel{position:absolute;bottom:0;width:22px;height:22px;border-radius:50%;
+  background:conic-gradient(#727CA8 0 25%,#2A2F4E 0 50%,#727CA8 0 75%,#2A2F4E 0);
+  border:3px solid #454D74;animation:spin var(--speed,0s) linear infinite}
+.wheel.w1{left:14px}.wheel.w2{left:62px}.wheel.w3{left:106px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.wagon{position:relative;width:78px;height:58px;animation:couple .45s cubic-bezier(.2,1.3,.4,1)}
+@keyframes couple{from{transform:translateX(-70px);opacity:0}60%{transform:translateX(6px)}to{transform:none;opacity:1}}
+.wagon .wbody{position:absolute;left:0;bottom:16px;width:78px;height:34px;border-radius:7px;
+  background:linear-gradient(180deg,#2E3453 0%,#1B2038 60%,#12162A 100%);border:1px solid #454D74}
+.wagon .wbody b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:900;color:var(--lvl);text-shadow:0 0 8px var(--lvl)}
+.wagon .wbody::after{content:"";position:absolute;left:5px;right:5px;bottom:5px;height:2px;background:var(--lvl);opacity:.65;border-radius:2px}
+.wagon .wheel{width:17px;height:17px;border-width:2px}
+.wagon .wheel.a{left:9px}.wagon .wheel.b{left:50px}
+.morechip{align-self:center;margin-bottom:26px;background:rgba(10,12,26,.8);border:1px solid var(--line);
+  border-radius:999px;padding:3px 9px;font-size:11px;font-weight:900;color:var(--dim)}
+
+/* ---------- HUD ---------- */
+.hud{position:absolute;top:10px;left:10px;right:10px;z-index:8;display:flex;flex-direction:column;gap:8px}
+.hudrow{display:flex;align-items:center;gap:8px}
+.lvlbadge{display:flex;align-items:baseline;gap:7px;background:rgba(8,10,22,.82);border:1px solid var(--lvl);
+  border-radius:12px;padding:7px 12px;box-shadow:0 0 18px color-mix(in srgb,var(--lvl) 35%,transparent)}
+.lvlbadge .nv{font-size:20px;font-weight:900;font-style:italic;color:var(--lvl);letter-spacing:.02em}
+.lvlbadge .nm{font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+.pts{margin-left:auto;background:rgba(8,10,22,.82);border:1px solid var(--line);border-radius:12px;
+  padding:7px 12px;font-size:14px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+.fusewrap{background:rgba(8,10,22,.82);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.fuselbl{display:flex;justify-content:space-between;font-size:10px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+.fuselbl #ftime{color:var(--ink);font-variant-numeric:tabular-nums;font-size:12px}
+.fuse{height:8px;border-radius:99px;background:#171B30;overflow:hidden}
+.ffill{height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,var(--lvl),#fff8);transition:width .12s linear}
+.rail{height:6px;border-radius:99px;background:#171B30;overflow:hidden;margin-top:6px}
+.rfill{height:100%;width:0%;border-radius:99px;background:var(--gold);transition:width .5s cubic-bezier(.2,.9,.3,1)}
+.raillbl{font-size:10px;color:var(--dim);margin-top:4px;text-align:right;font-variant-numeric:tabular-nums}
+.stage.danger .fuselbl #ftime{color:var(--danger);font-weight:900}
+.stage.danger .ffill{background:var(--danger)}
+.stage.danger .fusewrap{border-color:var(--danger);animation:dpulse .5s infinite}
+@keyframes dpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,51,85,0)}50%{box-shadow:0 0 16px 2px rgba(255,51,85,.5)}}
+
+/* alarma */
+.vignette{position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0;transition:opacity .3s;
+  box-shadow:inset 0 0 70px 24px rgba(255,51,85,.55)}
+.stage.danger .vignette{opacity:1;animation:vpulse .6s infinite}
+@keyframes vpulse{0%,100%{opacity:.55}50%{opacity:1}}
+.feedme{position:absolute;left:0;right:0;top:38%;z-index:9;text-align:center;pointer-events:none;
+  font-size:21px;font-weight:900;font-style:italic;letter-spacing:.06em;color:var(--danger);
+  text-shadow:0 0 18px rgba(255,51,85,.8);animation:vpulse .5s infinite}
+
+/* tripulación */
+.crew{position:absolute;left:10px;bottom:10px;z-index:8;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.mq{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2c230b,#141425);
+  border:1px solid var(--gold);border-radius:999px;padding:4px 11px;font-size:11px;font-weight:900}
+.mq .c{color:var(--gold);font-variant-numeric:tabular-nums}
+.rc{background:rgba(8,10,22,.75);border:1px solid var(--line);border-radius:999px;padding:3px 9px;
+  font-size:10px;color:var(--dim);animation:rcin .3s}
+.rc b{color:var(--ink)}.rc .c{color:var(--gold);font-weight:800}
+@keyframes rcin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+
+/* sello de nivel */
+.stamp{position:absolute;inset:0;z-index:11;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:none;background:radial-gradient(60% 50% at 50% 45%,color-mix(in srgb,var(--lvl) 22%,transparent),transparent 75%)}
+.stamp .big{font-size:56px;font-weight:900;font-style:italic;letter-spacing:.03em;color:var(--lvl);
+  text-shadow:0 0 30px var(--lvl);animation:stampin .55s cubic-bezier(.15,1.6,.35,1)}
+.stamp .sub{font-size:14px;font-weight:900;letter-spacing:.34em;text-transform:uppercase;margin-top:2px;animation:stampin .55s .07s cubic-bezier(.15,1.6,.35,1) backwards}
+@keyframes stampin{from{transform:scale(2.6);opacity:0;filter:blur(6px)}to{transform:scale(1);opacity:1;filter:blur(0)}}
+
+/* estación (idle) */
+.idle{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:12%;gap:10px}
+.sign{background:rgba(8,10,22,.85);border:1px solid var(--line);border-radius:14px;padding:14px 24px;text-align:center;
+  box-shadow:0 0 30px rgba(34,229,219,.12)}
+.sign .s1{font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--dim);font-weight:800}
+.sign .s2{font-size:26px;font-weight:900;font-style:italic;letter-spacing:.04em;margin-top:3px;
+  background:linear-gradient(90deg,var(--cyan),#9ff5ef 50%,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.idlehint{font-size:12px;color:var(--dim);animation:hintpulse 2s infinite}
+@keyframes hintpulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+/* resumen final */
+.summary{position:absolute;inset:0;z-index:12;display:flex;align-items:center;justify-content:center;background:rgba(3,4,10,.82)}
+.sumcard{width:82%;max-width:320px;background:linear-gradient(180deg,#141830,#0C0F20);border:1px solid var(--lvl);
+  border-radius:18px;padding:20px 18px;text-align:center;box-shadow:0 0 40px color-mix(in srgb,var(--lvl) 35%,transparent);
+  animation:stampin .5s cubic-bezier(.15,1.4,.35,1)}
+.sumcard .t{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);font-weight:800}
+.sumcard .lv{font-size:40px;font-weight:900;font-style:italic;color:var(--lvl);text-shadow:0 0 24px var(--lvl);margin:4px 0 0}
+.sumcard .ln{font-size:13px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;margin-bottom:12px}
+.sumrow{display:flex;justify-content:space-between;font-size:12px;padding:7px 4px;border-top:1px solid #1e2340}
+.sumrow .k{color:var(--dim)}.sumrow .v{font-weight:800;font-variant-numeric:tabular-nums}
+.sumrow .v.g{color:var(--gold)}
+#again{margin-top:14px;width:100%;background:var(--lvl);border:0;border-radius:12px;padding:11px;
+  font-size:14px;font-weight:900;color:#07131c;cursor:pointer}
+
+/* ============ ARNÉS DE PRUEBA (no irá en el overlay) ============ */
+.tray{padding:10px 10px 4px}
+.senders{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.senders label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg button{background:none;border:0;color:var(--dim);font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--cyan);color:#062320}
+#myName{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:12px;width:86px;font-weight:700}
+#resetBtn{margin-left:auto;background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer}
+.hint{font-size:11px;color:var(--dim);margin:2px 2px 8px}
+.gifts{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin}
+.gift{flex:0 0 auto;width:76px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:10px 6px;text-align:center;cursor:pointer;transition:transform .12s;user-select:none}
+.gift:active{transform:scale(.92)}
+.gift .e{font-size:26px;display:block}
+.gift .n{font-size:10px;font-weight:700;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gift .p{font-size:11px;color:var(--gold);font-weight:900;margin-top:2px;font-variant-numeric:tabular-nums}
+.gift.t4{border-color:#3d3260;background:linear-gradient(180deg,#181231,var(--panel))}
+
+.legend{margin:6px 10px 30px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.legend h2{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.legend p{font-size:12px;color:var(--dim);line-height:1.55;max-width:62ch}
+.legend p+p{margin-top:6px}
+.legend code{background:#1b1f38;border-radius:5px;padding:1px 6px;font-size:11px;color:var(--gold)}
+@media (prefers-reduced-motion: reduce){
+  .stage.shake,.train.rolling{animation:none}
+  .wheel{animation:none}
+}
+</style>
+
+<div class="app">
+  <div class="bar">
+    <h1>🚂 Tren del <b>Hype</b> · overlay demo</h1>
+    <button id="sndBtn">🔊 Sonido</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="bg"></canvas>
+    <div class="track"></div>
+
+    <div class="train" id="train">
+      <!-- vagones se insertan aquí -->
+      <div class="loco" id="loco">
+        <div class="beam"></div>
+        <div class="flame" id="flame"></div>
+        <div class="cab"></div><div class="win"></div>
+        <div class="body"></div>
+        <div class="chim" id="chim"></div>
+        <div class="nose"></div><div class="lamp"></div>
+        <div class="wheel w1"></div><div class="wheel w2"></div><div class="wheel w3"></div>
+      </div>
+    </div>
+
+    <canvas id="fx"></canvas>
+    <div class="vignette"></div>
+
+    <div class="hud" id="hud" hidden>
+      <div class="hudrow">
+        <div class="lvlbadge"><span class="nv" id="nv">NV 1</span><span class="nm" id="nm">ENCENDIDO</span></div>
+        <div class="pts" id="pts">0 pts</div>
+      </div>
+      <div class="fusewrap">
+        <div class="fuselbl"><span>⏳ El tren se apaga en</span><span id="ftime">30.0 s</span></div>
+        <div class="fuse"><div class="ffill" id="ffill"></div></div>
+        <div class="rail"><div class="rfill" id="rfill"></div></div>
+        <div class="raillbl" id="raillbl"></div>
+      </div>
+    </div>
+
+    <div class="feedme" id="feedme" hidden>¡ALIMENTA EL TREN! 🔥</div>
+
+    <div class="crew" id="crew" hidden>
+      <div class="mq" id="mq"></div>
+      <div id="recents"></div>
+    </div>
+
+    <div class="stamp" id="stamp" hidden>
+      <div class="big" id="stampBig"></div><div class="sub" id="stampSub"></div>
+    </div>
+
+    <div class="idle" id="idle">
+      <div class="sign"><div class="s1">Estación</div><div class="s2">TREN DEL HYPE</div></div>
+      <div class="idlehint">El primer regalo enciende la locomotora 🚂</div>
+    </div>
+
+    <div class="summary" id="summary" hidden></div>
+  </div>
+
+  <div class="tray">
+    <div class="senders">
+      <label>Enviar como</label>
+      <div class="seg">
+        <button id="asMe" class="on">Yo</button>
+        <button id="asRnd">Viewer aleatorio</button>
+      </div>
+      <input id="myName" value="Luis" maxlength="12" aria-label="Tu nombre">
+      <button id="resetBtn">↺ Reiniciar</button>
+    </div>
+    <p class="hint">Toca un regalo: enciende el tren, suma puntos y reinicia sus 30 segundos 👇</p>
+    <div class="gifts" id="gifts"></div>
+  </div>
+
+  <div class="legend">
+    <h2>Cómo funciona</h2>
+    <p>Cada regalo suma sus coins como puntos y <code>reinicia el contador de 30 s</code>. Si nadie regala, el tren se apaga y muestra el resumen. Los niveles enganchan vagones y cambian el color del tren: Encendido → A todo vapor → Expreso → Bala → Supersónico → Cohete → Leyenda → <code>MÍTICO</code>. Regalos de <code>1,000+</code> coins activan el TURBO.</p>
+    <p>El mayor gifter es el <code>👑 Maquinista</code> — su nombre viaja con el tren toda la ronda.</p>
+    <p>En tu live real: el tren arrancaría cuando <code>2+ personas distintas</code> regalan en poco tiempo (aquí arranca al primer toque para que pruebes). Esta escena está pensada para montarse después como <code>overlay por URL</code>: la pantalla de arriba será la fuente del navegador y los regalos llegarán por eventos de tu app en vez de la bandeja.</p>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const fmt=n=>new Intl.NumberFormat('es-MX').format(n);
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- niveles ---------- */
+const LEVELS=[
+  {n:'ENCENDIDO',    c:'#22E5DB', need:0},
+  {n:'A TODO VAPOR', c:'#3DDC84', need:150},
+  {n:'EXPRESO',      c:'#FFC24B', need:600},
+  {n:'BALA',         c:'#FF8A3D', need:1800},
+  {n:'SUPERSÓNICO',  c:'#FE2C55', need:5000},
+  {n:'COHETE',       c:'#B96BFF', need:12000},
+  {n:'LEYENDA',      c:'#FFE39B', need:30000},
+  {n:'MÍTICO',       c:'#7DF9FF', need:70000},
+];
+const FUSE_MS=30000, DANGER_MS=10000, MAX_WAGONS=3;
+
+/* ---------- regalos reales ---------- */
+const GIFTS=[
+  {n:'Rosa',e:'🌹',c:1},{n:'Corazoncito',e:'🫰',c:5},{n:'Perfume',e:'🧴',c:20},
+  {n:'Dona',e:'🍩',c:30},{n:'Grulla',e:'🕊️',c:99},{n:'Corgi',e:'🐕',c:299},
+  {n:'Money Gun',e:'💸',c:500},{n:'Galaxia',e:'🌌',c:1000},{n:'Moto',e:'🏍️',c:2988},
+  {n:'Interestelar',e:'🚀',c:10000},{n:'León',e:'🦁',c:29999},{n:'Universe',e:'🪐',c:44999},
+];
+GIFTS.forEach(g=>{
+  const b=document.createElement('div');
+  b.className='gift'+(g.c>=1000?' t4':'');
+  b.innerHTML=`<span class="e">${g.e}</span><div class="n">${g.n}</div><div class="p">🪙 ${fmt(g.c)}</div>`;
+  b.addEventListener('click',()=>sendGift(g));
+  $('gifts').appendChild(b);
+});
+
+/* ---------- remitente ---------- */
+const POOL=['Karla','Marta','Leo','Dana','Rex','Vale','Milo','Sofi'];
+let asMe=true;
+$('asMe').onclick=()=>{asMe=true;$('asMe').classList.add('on');$('asRnd').classList.remove('on')};
+$('asRnd').onclick=()=>{asMe=false;$('asRnd').classList.add('on');$('asMe').classList.remove('on')};
+const sender=()=>asMe?($('myName').value.trim()||'Tú'):POOL[Math.floor(Math.random()*POOL.length)];
+
+/* ---------- sonido sintetizado ---------- */
+let AC=null,sndOn=true;
+$('sndBtn').onclick=()=>{sndOn=!sndOn;$('sndBtn').textContent=sndOn?'🔊 Sonido':'🔇 Sin sonido'};
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f,t,dur,type,vol,glideTo){const a=ac();if(!a||!sndOn)return;
+  const o=a.createOscillator(),g=a.createGain();o.type=type||'sine';
+  o.frequency.setValueAtTime(f,a.currentTime+t);
+  if(glideTo)o.frequency.exponentialRampToValueAtTime(glideTo,a.currentTime+t+dur);
+  g.gain.setValueAtTime(vol||.1,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+t+dur);
+  o.connect(g).connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+dur+.03)}
+let noiseBuf=null;
+function noise(t,dur,vol){const a=ac();if(!a||!sndOn)return;
+  if(!noiseBuf){noiseBuf=a.createBuffer(1,a.sampleRate*.3,a.sampleRate);
+    const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  const s=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();
+  s.buffer=noiseBuf;f.type='lowpass';f.frequency.value=900;
+  g.gain.setValueAtTime(vol,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+t+dur);
+  s.connect(f).connect(g).connect(a.destination);s.start(a.currentTime+t);s.stop(a.currentTime+t+dur+.02)}
+const sWhistle=()=>{tone(620,0,.5,'sine',.12,540);tone(930,0,.5,'sine',.09,810)};
+const sClank=()=>{noise(0,.12,.22);tone(180,0,.1,'square',.12)};
+const sFanfare=()=>{[523,659,784,1047].forEach((f,i)=>tone(f,i*.09,.24,'square',.07))};
+const sMythic=()=>{[392,523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,i*.1,.32,'sawtooth',.05))};
+const sAlarm=()=>{tone(880,0,.09,'square',.09);tone(880,.14,.09,'square',.09)};
+const sPop=()=>tone(700,0,.07,'triangle',.09);
+let chugTimer=null;
+function chug(on){clearInterval(chugTimer);chugTimer=null;
+  if(on)chugTimer=setInterval(()=>{if(T.on)noise(0,.07,.05+Math.min(.06,T.lvl*.012))},Math.max(140,420-T.lvl*40))}
+
+/* ---------- estado del tren (antes del canvas: el loop lo lee) ---------- */
+const T={on:false,pts:0,lvl:1,deadline:0,started:0,contrib:{},danger:false};
+window.T=T; /* accesible para pruebas / integración */
+
+/* ---------- canvas: paralaje + partículas ---------- */
+const bg=$('bg'),bx=bg.getContext('2d'),fx=$('fx'),fc=fx.getContext('2d');
+let W=0,H=0,stars=[],P=[];
+function fit(){const r=$('stage').getBoundingClientRect();W=bg.width=fx.width=r.width;H=bg.height=fx.height=r.height;
+  stars=Array.from({length:70},()=>({x:Math.random()*W,y:Math.random()*H*.7,z:.25+Math.random()*.75}))}
+fit();addEventListener('resize',fit);
+let speed=0,speedTarget=0;
+function chimPos(){const s=$('stage').getBoundingClientRect(),c=$('chim').getBoundingClientRect();
+  return{x:c.left-s.left+c.width/2,y:c.top-s.top}}
+function puff(n,big){const p=chimPos();
+  for(let i=0;i<(REDUCED?1:n);i++)P.push({t:'smoke',x:p.x+(Math.random()-.5)*6,y:p.y,vx:-.5-speed*.5+(Math.random()-.5),
+    vy:-1.2-Math.random(),s:big?9:5,g:.012,l:70+Math.random()*40,mx:big?26:15})}
+function embers(n){const s=$('stage').getBoundingClientRect(),t=$('train').getBoundingClientRect();
+  const x=t.left-s.left+t.width*.7,y=H-58;
+  for(let i=0;i<(REDUCED?2:n);i++)P.push({t:'ember',x:x+(Math.random()-.5)*60,y,vx:-1.5-speed-Math.random()*2,
+    vy:-Math.random()*1.6,g:.06,s:1.5+Math.random()*2,l:40+Math.random()*30})}
+function burst(x,y,color,n){for(let i=0;i<(REDUCED?10:n);i++)P.push({t:'rect',x,y,vx:(Math.random()-.5)*8,
+  vy:-Math.random()*7-2,g:.2,s:3+Math.random()*4,c:color,l:60+Math.random()*30,rot:Math.random()*6})}
+function confetti(colors,n){for(let i=0;i<(REDUCED?15:n);i++)P.push({t:'rect',x:Math.random()*W,y:-10-Math.random()*H*.4,
+  vx:(Math.random()-.5)*1.4,vy:2.2+Math.random()*2.6,g:.02,s:4+Math.random()*5,
+  c:colors[Math.floor(Math.random()*colors.length)],l:160,rot:Math.random()*6})}
+let smokeAcc=0;
+(function loop(){
+  speed+=(speedTarget-speed)*.04;
+  /* fondo */
+  bx.clearRect(0,0,W,H);
+  bx.fillStyle='#9BA6D8';
+  for(const s of stars){s.x-=speed*s.z*1.4;if(s.x<-4)s.x=W+4;
+    bx.globalAlpha=.25+s.z*.45;bx.fillRect(s.x,s.y,s.z<.6?1.4:2.2,s.z<.6?1.4:2.2)}
+  bx.globalAlpha=1;
+  if(speed>1.4&&!REDUCED){ /* líneas de velocidad */
+    bx.strokeStyle='rgba(120,150,255,.14)';bx.lineWidth=1.5;
+    for(let i=0;i<5;i++){const y=Math.random()*H*.8,len=30+speed*22;
+      bx.beginPath();bx.moveTo(Math.random()*W,y);bx.lineTo(Math.random()*W-len,y);bx.stroke()}}
+  /* durmientes de la vía */
+  bx.fillStyle='#1A1E36';const off=(performance.now()*speed*.06)%26;
+  for(let x=-off;x<W;x+=26)bx.fillRect(x,H-54,4,8);
+  /* humo continuo */
+  if(T.on){smokeAcc+=speed*.05+.03;if(smokeAcc>1){smokeAcc=0;puff(1,false)}
+    if(speed>2.4&&Math.random()<.3)embers(1)}
+  /* partículas frontales */
+  fc.clearRect(0,0,W,H);
+  P=P.filter(p=>p.l>0&&p.y<H+30);
+  for(const p of P){p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.l--;
+    if(p.t==='smoke'){p.s=Math.min(p.mx,p.s+.28);
+      fc.globalAlpha=Math.min(.4,p.l/120);fc.fillStyle='#B9C2E6';
+      fc.beginPath();fc.arc(p.x,p.y,p.s,0,7);fc.fill()}
+    else if(p.t==='ember'){fc.globalAlpha=Math.min(1,p.l/25);fc.fillStyle=Math.random()<.5?'#FFC24B':'#FF8A3D';
+      fc.beginPath();fc.arc(p.x,p.y,p.s,0,7);fc.fill()}
+    else{fc.globalAlpha=Math.min(1,p.l/40);fc.save();fc.translate(p.x,p.y);fc.rotate(p.rot+=.08);
+      fc.fillStyle=p.c;fc.fillRect(-p.s/2,-p.s/2,p.s,p.s*.7);fc.restore()}}
+  fc.globalAlpha=1;
+  requestAnimationFrame(loop)})();
+
+/* ---------- helpers de estado ---------- */
+function setLevelColor(){document.documentElement.style.setProperty('--lvl',LEVELS[T.lvl-1].c)}
+function setSpeed(){speedTarget=T.on?(.8+T.lvl*.55):0;
+  document.documentElement.style.setProperty('--speed',T.on?(1.3/Math.max(.3,speedTarget)).toFixed(2)+'s':'0s');
+  chug(T.on)}
+function shake(){if(REDUCED)return;const s=$('stage');s.classList.remove('shake');void s.offsetWidth;s.classList.add('shake')}
+
+function renderHUD(){
+  $('nv').textContent='NV '+T.lvl;$('nm').textContent=LEVELS[T.lvl-1].n;
+  $('pts').textContent=fmt(T.pts)+' pts';
+  if(T.lvl<LEVELS.length){
+    const base=LEVELS[T.lvl-1].need,next=LEVELS[T.lvl].need;
+    $('rfill').style.width=Math.min(100,Math.round((T.pts-base)/(next-base)*100))+'%';
+    $('raillbl').textContent='faltan '+fmt(Math.max(0,next-T.pts))+' pts para '+LEVELS[T.lvl].n;
+  }else{$('rfill').style.width='100%';$('raillbl').textContent='¡NIVEL MÁXIMO!'}
+  const top=Object.entries(T.contrib).sort((a,b)=>b[1]-a[1])[0];
+  if(top){$('mq').innerHTML=`👑 Maquinista: <b>${top[0]}</b> <span class="c">🪙 ${fmt(top[1])}</span>`;$('crew').hidden=false}
+}
+function addRecent(user,g){
+  const r=$('recents'),d=document.createElement('div');d.className='rc';
+  d.innerHTML=`${g.e} <b>${user}</b> <span class="c">+${fmt(g.c)}</span>`;
+  r.prepend(d);while(r.children.length>3)r.lastChild.remove();
+  setTimeout(()=>{if(d.parentElement)d.remove()},4200);
+}
+
+async function stamp(big,sub){
+  $('stampBig').textContent=big;$('stampSub').textContent=sub;
+  $('stamp').hidden=false;await wait(1500);$('stamp').hidden=true;
+}
+let wagonCount=0;
+function addWagon(){
+  wagonCount++;
+  const train=$('train');
+  if(wagonCount>MAX_WAGONS){
+    let chip=train.querySelector('.morechip');
+    if(!chip){chip=document.createElement('div');chip.className='morechip';train.prepend(chip)}
+    chip.textContent='+'+(wagonCount-MAX_WAGONS);
+    return;
+  }
+  const w=document.createElement('div');w.className='wagon';
+  w.innerHTML=`<div class="wbody"><b>${wagonCount+1}</b></div><div class="wheel a"></div><div class="wheel b"></div>`;
+  const chip=train.querySelector('.morechip');
+  train.insertBefore(w,chip?chip.nextSibling:train.firstChild);
+}
+async function levelUp(gained){
+  const lv=LEVELS[T.lvl-1];
+  setLevelColor();setSpeed();sClank();shake();
+  for(let i=0;i<gained;i++)addWagon();
+  (T.lvl>=LEVELS.length?sMythic:sFanfare)();
+  const t=$('train').getBoundingClientRect(),s=$('stage').getBoundingClientRect();
+  burst(t.left-s.left+t.width/2,t.top-s.top+20,lv.c,50);
+  puff(6,true);
+  stamp('NIVEL '+T.lvl,lv.n);
+  if(T.lvl>=LEVELS.length)confetti(['#7DF9FF','#FFE39B','#FFFFFF'],80);
+}
+
+function startTrain(){
+  T.on=true;T.pts=0;T.lvl=1;T.contrib={};T.started=Date.now();T.deadline=Date.now()+FUSE_MS;
+  $('idle').hidden=true;$('summary').hidden=true;$('hud').hidden=false;
+  $('train').classList.add('rolling');
+  document.querySelectorAll('.wagon,.morechip').forEach(e=>e.remove());
+  wagonCount=0;
+  setLevelColor();setSpeed();sWhistle();puff(8,true);shake();
+  stamp('¡TREN EN MARCHA!','que no se apague');
+}
+function turbo(){
+  $('flame').classList.add('on');sWhistle();shake();embers(REDUCED?4:26);
+  setTimeout(()=>$('flame').classList.remove('on'),2200);
+}
+function endTrain(){
+  T.on=false;T.danger=false;chug(false);speedTarget=0;
+  document.documentElement.style.setProperty('--speed','0s');
+  $('stage').classList.remove('danger');$('feedme').hidden=true;$('hud').hidden=true;$('crew').hidden=true;
+  $('train').classList.remove('rolling');
+  const lv=LEVELS[T.lvl-1],dur=Math.round((Date.now()-T.started)/1000);
+  const rank=Object.entries(T.contrib).sort((a,b)=>b[1]-a[1]);
+  const rows=rank.slice(0,3).map((r,i)=>`<div class="sumrow"><span class="k">${['🥇','🥈','🥉'][i]} ${r[0]}</span><span class="v g">🪙 ${fmt(r[1])}</span></div>`).join('');
+  $('summary').innerHTML=`<div class="sumcard">
+    <div class="t">El tren llegó a</div>
+    <div class="lv">NIVEL ${T.lvl}</div><div class="ln">${lv.n}</div>
+    <div class="sumrow"><span class="k">Puntos totales</span><span class="v g">🪙 ${fmt(T.pts)}</span></div>
+    <div class="sumrow"><span class="k">Duración</span><span class="v">${dur} s</span></div>
+    ${rows}
+    <button id="again">🚂 Volver a la estación</button></div>`;
+  $('summary').hidden=false;
+  if(T.lvl>=4)confetti([lv.c,'#FFC24B','#FFFFFF'],70);
+  sWhistle();
+  $('again').onclick=()=>{$('summary').hidden=true;$('idle').hidden=false};
+}
+$('resetBtn').onclick=()=>{T.on=false;chug(false);speedTarget=0;
+  document.documentElement.style.setProperty('--speed','0s');
+  $('stage').classList.remove('danger');$('feedme').hidden=true;$('hud').hidden=true;$('crew').hidden=true;
+  $('summary').hidden=true;$('stamp').hidden=true;$('idle').hidden=false;
+  $('train').classList.remove('rolling');
+  document.querySelectorAll('.wagon,.morechip').forEach(e=>e.remove());wagonCount=0};
+
+/* reloj del tren */
+let lastAlarm=0;
+setInterval(()=>{
+  if(!T.on)return;
+  const left=T.deadline-Date.now();
+  if(left<=0){endTrain();return}
+  $('ftime').textContent=(left/1000).toFixed(1)+' s';
+  $('ffill').style.width=(left/FUSE_MS*100)+'%';
+  const danger=left<=DANGER_MS;
+  if(danger!==T.danger){T.danger=danger;
+    $('stage').classList.toggle('danger',danger);$('feedme').hidden=!danger}
+  if(danger&&Date.now()-lastAlarm>1000){lastAlarm=Date.now();sAlarm()}
+},100);
+
+/* ---------- entrada de regalos (aquí se conectarán los eventos reales) ---------- */
+function sendGift(g){
+  ac();
+  const user=sender();
+  if(!T.on)startTrain();
+  T.deadline=Date.now()+FUSE_MS;
+  T.pts+=g.c;T.contrib[user]=(T.contrib[user]||0)+g.c;
+  sPop();addRecent(user,g);puff(2,g.c>=100);
+  if(g.c>=1000)turbo();
+  let gained=0;
+  while(T.lvl<LEVELS.length&&T.pts>=LEVELS[T.lvl].need){T.lvl++;gained++}
+  if(gained)levelUp(gained);
+  renderHUD();
+}
+renderHUD();
+</script>
