@@ -23,6 +23,7 @@ public abstract class Entity {
     public void tick() {}
     public void discard() {}
     public void remove(RemovalReason reason) {}
+    public void setRemoved(RemovalReason reason) {}
     public boolean isRemoved() { return false; }
     public Vec3 getDeltaMovement() { throw new UnsupportedOperationException(); }
     public void setDeltaMovement(Vec3 motion) {}

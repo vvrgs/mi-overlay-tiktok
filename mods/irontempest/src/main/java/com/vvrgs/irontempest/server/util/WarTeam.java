@@ -35,7 +35,7 @@ public final class WarTeam {
         server.getScoreboard().addPlayerToTeam(entity.getStringUUID(), ensure(server));
     }
 
-    /** Limpieza de la membresía (llamar desde remove() de la entidad). */
+    /** Limpieza de la membresía (llamar desde setRemoved() de la entidad). */
     public static void leave(Entity entity) {
         MinecraftServer server = entity.level().getServer();
         if (server == null) {
@@ -47,6 +47,18 @@ public final class WarTeam {
         // (plugins de scoreboard de Mohist pueden haberlo movido).
         if (team != null && scoreboard.getPlayersTeam(entity.getStringUUID()) == team) {
             scoreboard.removePlayerFromTeam(entity.getStringUUID(), team);
+        }
+    }
+
+    /** Purga TOTAL del equipo (arranque y parada del servidor): barre las
+     *  membresías huérfanas que un crash o una descarga de chunk hayan dejado
+     *  persistidas en scoreboard.dat — sin esto crecen entre lives para
+     *  siempre y vanilla manda la lista completa a cada jugador que entra. */
+    public static void purge(MinecraftServer server) {
+        ServerScoreboard scoreboard = server.getScoreboard();
+        PlayerTeam team = scoreboard.getPlayerTeam(TEAM_NAME);
+        if (team != null) {
+            scoreboard.removePlayerTeam(team); // ensure() lo recrea bajo demanda
         }
     }
 

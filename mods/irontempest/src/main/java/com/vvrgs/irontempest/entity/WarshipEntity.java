@@ -152,13 +152,14 @@ public class WarshipEntity extends Entity {
         return false;
     }
 
-    /** La membresía del equipo de glow vive en scoreboard.dat: limpiar SIEMPRE. */
+    /** setRemoved y NO remove(): la descarga de chunks llama setRemoved
+     *  directamente y dejaría la membresía huérfana en scoreboard.dat. */
     @Override
-    public void remove(RemovalReason reason) {
+    public void setRemoved(RemovalReason reason) {
         if (!this.level().isClientSide) {
             com.vvrgs.irontempest.server.util.WarTeam.leave(this);
         }
-        super.remove(reason);
+        super.setRemoved(reason);
     }
 
     @Override

@@ -47,6 +47,11 @@ public final class Announcer {
         return bar;
     }
 
+    /** Logout del jugador: podar su cooldown del mapa. */
+    public static void removeFor(UUID player) {
+        LAST_TITLE.remove(player);
+    }
+
     /** Limpieza en parada de servidor (mapa de cooldowns entre mundos). */
     public static void clearAll() {
         LAST_TITLE.clear();

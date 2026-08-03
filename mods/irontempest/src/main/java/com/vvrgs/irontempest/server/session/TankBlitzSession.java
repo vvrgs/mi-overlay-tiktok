@@ -38,7 +38,9 @@ public final class TankBlitzSession extends WarSession {
 
     private Phase phase = Phase.DROP;
     private int phaseStart;
-    private int lastShotAge = Integer.MIN_VALUE;
+    // -1000 y NO Integer.MIN_VALUE: "age - lastShotAge" desbordaría a negativo
+    // y el anti-ráfaga bloquearía el primer disparo para siempre.
+    private int lastShotAge = -1000;
     private TankEntity tank;
     private float turretYaw;
     private int alignedTicks;
@@ -282,16 +284,19 @@ public final class TankBlitzSession extends WarSession {
 
     // ------------------------------------------------------------ LEAVE
     private void tickLeave() {
+        // Level del TANQUE: un TP durante LEAVE (guard en onTargetRelocated)
+        // deja el tanque en el mundo viejo — los FX de retirada van allí.
+        ServerLevel lvl = this.tank.level() instanceof ServerLevel sl ? sl : this.level;
         this.tank.setAiming(false);
         if (phaseAge() == SMOKE_AT) {
             // Lanzadores de humo de la torreta: cortina blanca.
-            ModNetwork.fx(this.level, FxType.SILO_VENT, this.tank.position().add(0.0D, 1.5D, 0.0D), 2.2F);
+            ModNetwork.fx(lvl, FxType.SILO_VENT, this.tank.position().add(0.0D, 1.5D, 0.0D), 2.2F);
         }
         if (phaseAge() >= LEAVE_DELAY + SMOKE_AT) {
             Vec3 pos = this.tank.position().add(0.0D, 1.0D, 0.0D);
-            ModNetwork.fx(this.level, FxType.EXPLOSION_LARGE, pos, new Vec3(0.0D, 1.0D, 0.0D), 1.1F);
-            ModNetwork.fx(this.level, FxType.DEBRIS_RAIN, pos, 3.0F);
-            this.level.playSound(null, pos.x, pos.y, pos.z,
+            ModNetwork.fx(lvl, FxType.EXPLOSION_LARGE, pos, new Vec3(0.0D, 1.0D, 0.0D), 1.1F);
+            ModNetwork.fx(lvl, FxType.DEBRIS_RAIN, pos, 3.0F);
+            lvl.playSound(null, pos.x, pos.y, pos.z,
                     ModSounds.DEBRIS_CLANK.get(), SoundSource.HOSTILE, 1.6F, 0.9F);
             this.tank.discard();
             end("complete");

@@ -136,14 +136,15 @@ public abstract class AbstractWarProjectile extends Entity {
     @Override
     protected void defineSynchedData() {}
 
-    /** La membresía del equipo de glow vive en scoreboard.dat: limpiar SIEMPRE
+    /** setRemoved y NO remove(): la descarga de chunks llama setRemoved
+     *  directamente y dejaría la membresía huérfana en scoreboard.dat
      *  (no-op seguro para proyectiles que nunca se unieron, p. ej. cohetes). */
     @Override
-    public void remove(RemovalReason reason) {
+    public void setRemoved(RemovalReason reason) {
         if (!this.level().isClientSide) {
             com.vvrgs.irontempest.server.util.WarTeam.leave(this);
         }
-        super.remove(reason);
+        super.setRemoved(reason);
     }
 
     @Override

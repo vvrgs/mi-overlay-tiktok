@@ -181,19 +181,23 @@ public final class ExecutionSession extends WarSession {
     }
 
     private void climax() {
+        // Level de la NAVE, no de la sesión: si un TP re-ancló la sesión durante
+        // la ventana del clímax (guard en onTargetRelocated), anchor y nave
+        // siguen en el mundo viejo — detonar allí, jamás en coords cruzadas.
+        ServerLevel lvl = this.ship.level() instanceof ServerLevel sl ? sl : this.level;
         this.ship.setPhase(WarshipEntity.PHASE_OVERLOAD);
         Vec3 pos = this.anchor;
-        ModNetwork.fx(this.level, FxType.OVERLOAD_PULSE, pos, 2.8F);
-        this.level.playSound(null, pos.x, pos.y, pos.z,
+        ModNetwork.fx(lvl, FxType.OVERLOAD_PULSE, pos, 2.8F);
+        lvl.playSound(null, pos.x, pos.y, pos.z,
                 ModSounds.EXPLOSION_NEAR.get(), SoundSource.HOSTILE, 3.5F, 0.75F);
-        TerrainSculptor.crater(this.level, BlockPos.containing(pos),
+        TerrainSculptor.crater(lvl, BlockPos.containing(pos),
                 WarConfig.craterRadius(6), true);
-        DamageUtil.strikeDamage(this.level, pos, 4.0D, 12.0D, 40.0F,
+        DamageUtil.strikeDamage(lvl, pos, 4.0D, 12.0D, 40.0F,
                 ModDamage.SHOCKWAVE, this.ship);
-        DamageUtil.blastImpulse(this.level, pos, 12.0D, 2.5D);
-        SustainedDamage.zone(this.level, pos, 7.0D, 8.0D, 6.0F, ModDamage.NAPALM, true);
-        ModNetwork.fx(this.level, FxType.WARP_OUT, this.ship.position(), 2.0F);
-        this.level.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
+        DamageUtil.blastImpulse(lvl, pos, 12.0D, 2.5D);
+        SustainedDamage.zone(lvl, pos, 7.0D, 8.0D, 6.0F, ModDamage.NAPALM, true);
+        ModNetwork.fx(lvl, FxType.WARP_OUT, this.ship.position(), 2.0F);
+        lvl.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
                 ModSounds.WARP_OUT.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
         this.ship.setPhase(WarshipEntity.PHASE_WARP_OUT);
     }

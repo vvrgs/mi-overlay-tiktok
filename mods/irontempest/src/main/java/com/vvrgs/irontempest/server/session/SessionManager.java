@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -287,10 +288,20 @@ public final class SessionManager {
         processPending(event.getServer());
     }
 
+    /** Arranque: purgar el equipo de glow — un crash o una descarga de chunk
+     *  previos pudieron dejar membresías huérfanas persistidas en scoreboard.dat. */
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        com.vvrgs.irontempest.server.util.WarTeam.purge(event.getServer());
+    }
+
     /** Hook 1/3: parada del servidor. */
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         int n = stopAll();
+        // Barrido final del equipo: los obuses en vuelo no los rastrea ninguna
+        // sesión y su auto-descarte necesita un tick que ya no llega.
+        com.vvrgs.irontempest.server.util.WarTeam.purge(event.getServer());
         ultraActive = false;
         // El tick loop ya no volverá a purgar: soltar TODO aquí para no retener
         // el ServerLevel del mundo cerrado entre mundos (servidor integrado).
@@ -311,6 +322,7 @@ public final class SessionManager {
         PENDING.removeIf(p -> p.playerId().equals(id));
         com.vvrgs.irontempest.server.util.SustainedDamage.removeFor(id);
         com.vvrgs.irontempest.server.util.TotemShredder.removeFor(id);
+        com.vvrgs.irontempest.server.util.Announcer.removeFor(id);
     }
 
     /** Hook 3/3: muerte del objetivo. */

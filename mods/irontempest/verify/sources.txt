@@ -218,6 +218,7 @@ verify/stubs/net/minecraftforge/event/entity/EntityJoinLevelEvent.java
 verify/stubs/net/minecraftforge/event/entity/living/LivingDeathEvent.java
 verify/stubs/net/minecraftforge/event/entity/player/PlayerEvent.java
 verify/stubs/net/minecraftforge/event/level/LevelEvent.java
+verify/stubs/net/minecraftforge/event/server/ServerStartedEvent.java
 verify/stubs/net/minecraftforge/event/server/ServerStoppingEvent.java
 verify/stubs/net/minecraftforge/eventbus/api/Event.java
 verify/stubs/net/minecraftforge/eventbus/api/IEventBus.java

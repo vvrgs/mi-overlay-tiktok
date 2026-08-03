@@ -26,7 +26,8 @@ public final class CruiseMissileSession extends WarSession {
     private static final int T_LAUNCH = 20;
     private static final int SILO_DIST = 45;
 
-    private final Vec3 siloPos;
+    /** MUTABLE: un TP pre-lanzamiento recoloca el silo en el mundo nuevo. */
+    private Vec3 siloPos;
     private CruiseMissileEntity missile;
     private boolean impacted;
     private int impactAge = -1;
@@ -48,7 +49,20 @@ public final class CruiseMissileSession extends WarSession {
      *  resuelve el guiado global con re-adquisición en crucero). */
     @Override
     protected void onTargetRelocated(ServerLevel newLevel, ServerPlayer target) {
-        if (this.impacted || this.age <= T_LAUNCH) {
+        if (this.impacted) {
+            return;
+        }
+        if (this.age <= T_LAUNCH) {
+            // Pre-lanzamiento: el silo debe recalcularse en el mundo NUEVO —
+            // el heightmap viejo puede quedar dentro de roca (Nether) o sobre
+            // el vacío (End) y el misil nacería enterrado o flotando.
+            double bearing = newLevel.random.nextDouble() * Math.PI * 2.0D;
+            double sx = target.getX() + Math.cos(bearing) * SILO_DIST;
+            double sz = target.getZ() + Math.sin(bearing) * SILO_DIST;
+            int sy = newLevel.getHeight(Heightmap.Types.MOTION_BLOCKING,
+                    (int) Math.floor(sx), (int) Math.floor(sz));
+            this.siloPos = new Vec3(sx, sy, sz);
+            ModNetwork.fx(newLevel, FxType.SILO_VENT, this.siloPos, 1.0F);
             return;
         }
         if (this.missile != null && !this.missile.isRemoved()

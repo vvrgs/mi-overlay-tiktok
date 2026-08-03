@@ -86,6 +86,10 @@ public abstract class WarSession {
         }
         if (target != null) {
             maybeRelocate(target);
+            if (this.ended) {
+                return; // el re-anclaje pudo terminar la sesión: NO revivir la
+                        // bossbar (quedaría pegada) ni tickear una sesión muerta
+            }
             if (this.bossBar != null) {
                 this.bossBar.addPlayer(target); // idempotente; re-engancha tras TP
             }

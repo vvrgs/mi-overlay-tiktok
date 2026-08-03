@@ -147,8 +147,11 @@ public final class OrbitalStrikeSession extends WarSession {
         }
         if (this.age == T_OUT) {
             this.ship.setPhase(WarshipEntity.PHASE_WARP_OUT);
-            ModNetwork.fx(this.level, FxType.WARP_OUT, this.ship.position(), 2.0F);
-            this.level.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
+            // Level de la NAVE: un TP con age>=T_OUT (guard) la deja en el
+            // mundo viejo — el warp-out se ve allí, no en coords cruzadas.
+            ServerLevel lvl = this.ship.level() instanceof ServerLevel sl ? sl : this.level;
+            ModNetwork.fx(lvl, FxType.WARP_OUT, this.ship.position(), 2.0F);
+            lvl.playSound(null, this.ship.getX(), this.ship.getY(), this.ship.getZ(),
                     ModSounds.WARP_OUT.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
         }
         if (this.age >= T_END) {
