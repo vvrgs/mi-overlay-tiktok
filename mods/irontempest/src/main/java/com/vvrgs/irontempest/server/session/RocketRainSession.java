@@ -2,8 +2,12 @@ package com.vvrgs.irontempest.server.session;
 
 import com.vvrgs.irontempest.config.WarConfig;
 import com.vvrgs.irontempest.entity.MlrsRocketEntity;
+import com.vvrgs.irontempest.net.FxType;
+import com.vvrgs.irontempest.net.ModNetwork;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -48,6 +52,11 @@ public final class RocketRainSession extends WarSession {
             this.lastSpawnAge = this.age;
             spawnRocket(target);
         }
+        // Contador de cola en actionbar cada 2 s: sin títulos (spameable).
+        if (this.pending > 0 && this.age % 40 == 0) {
+            Announcer.actionbar(target,
+                    Component.translatable("irontempest.actionbar.rockets", this.pending));
+        }
         if (this.pending == 0 && this.age - this.lastSpawnAge > DRAIN_GRACE) {
             end("drained");
         }
@@ -64,6 +73,9 @@ public final class RocketRainSession extends WarSession {
         Vec3 spawn = impact.add(this.level.random.nextGaussian() * 4.0D,
                 30.0D + this.level.random.nextDouble() * 10.0D,
                 this.level.random.nextGaussian() * 4.0D);
+
+        // Telegraph: retícula en el punto de impacto ~1 s antes de que caiga.
+        ModNetwork.fx(this.level, FxType.TARGET_MARKER, impact.add(0.0D, 0.1D, 0.0D), 1.0F);
 
         MlrsRocketEntity rocket = ModEntities.MLRS_ROCKET.get().create(this.level);
         if (rocket == null) {

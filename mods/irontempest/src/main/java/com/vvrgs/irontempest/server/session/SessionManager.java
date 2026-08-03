@@ -145,6 +145,7 @@ public final class SessionManager {
         TerrainSculptor.clearAll();
         com.vvrgs.irontempest.server.util.SustainedDamage.clearAll();
         com.vvrgs.irontempest.server.util.TotemShredder.clearAll();
+        com.vvrgs.irontempest.server.util.Announcer.clearAll();
         return n;
     }
 

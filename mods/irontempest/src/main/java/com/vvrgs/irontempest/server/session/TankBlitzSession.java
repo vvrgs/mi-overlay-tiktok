@@ -6,6 +6,10 @@ import com.vvrgs.irontempest.net.FxType;
 import com.vvrgs.irontempest.net.ModNetwork;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
+import com.vvrgs.irontempest.server.util.WarTeam;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -42,8 +46,25 @@ public final class TankBlitzSession extends WarSession {
 
     TankBlitzSession(ServerLevel level, ServerPlayer target) {
         super(level, target, 'C', "tankblitz");
+        this.bossBar = Announcer.bar(Component.translatable("irontempest.bar.tankblitz"),
+                BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.NOTCHED_6);
+        Announcer.title(target, Component.translatable("irontempest.title.tankblitz"),
+                Component.translatable("irontempest.subtitle.tankblitz"));
         spawnTank(target);
         SessionManager.broadcastStarted(level, "tankblitz", this.targetName);
+    }
+
+    /** Re-anclaje: el tanque re-cae en drop-pod junto al jugador (End incluido). */
+    @Override
+    protected void onTargetRelocated(ServerLevel newLevel, ServerPlayer target) {
+        if (this.phase == Phase.LEAVE) {
+            return;
+        }
+        if (this.tank != null && !this.tank.isRemoved()) {
+            this.tank.discard();
+        }
+        spawnTank(target);
+        enterPhase(Phase.DROP);
     }
 
     @Override
@@ -52,10 +73,25 @@ public final class TankBlitzSession extends WarSession {
     }
 
     private void spawnTank(ServerPlayer target) {
-        double bearing = this.level.random.nextDouble() * Math.PI * 2.0D;
-        double tx = target.getX() + Math.cos(bearing) * 25.0D;
-        double tz = target.getZ() + Math.sin(bearing) * 25.0D;
-        int ty = this.level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(tx), (int) Math.floor(tz));
+        // Guard de vacío (End): probar varios rumbos hasta encontrar suelo real.
+        double tx = 0.0D;
+        double tz = 0.0D;
+        int ty = Integer.MIN_VALUE;
+        for (int attempt = 0; attempt < 5; attempt++) {
+            double bearing = this.level.random.nextDouble() * Math.PI * 2.0D;
+            double dist = attempt < 4 ? 25.0D : 8.0D; // último intento: pegado al jugador
+            tx = target.getX() + Math.cos(bearing) * dist;
+            tz = target.getZ() + Math.sin(bearing) * dist;
+            ty = this.level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(tx), (int) Math.floor(tz));
+            if (ty > this.level.getMinBuildHeight() + 1) {
+                break;
+            }
+            ty = Integer.MIN_VALUE;
+        }
+        if (ty == Integer.MIN_VALUE) {
+            end("no_ground"); // el jugador flota sobre el vacío puro
+            return;
+        }
 
         TankEntity t = ModEntities.WAR_TANK.get().create(this.level);
         if (t == null) {
@@ -69,6 +105,7 @@ public final class TankBlitzSession extends WarSession {
         this.turretYaw = yaw;
         t.setTurretYaw(yaw);
         this.level.addFreshEntity(t);
+        WarTeam.join(t); // contorno rojo: visible entre el caos
         this.tank = t;
         // Klaxon de aviso sobre el objetivo: algo cae del cielo.
         this.level.playSound(null, target.getX(), target.getY(), target.getZ(),
@@ -87,6 +124,15 @@ public final class TankBlitzSession extends WarSession {
         if (this.tank == null || this.tank.isRemoved()) {
             end("tank_lost");
             return;
+        }
+        if (this.bossBar != null) {
+            float p = switch (this.phase) {
+                case DROP -> 0.10F;
+                case HUNT -> 0.25F;
+                case FIRE -> 0.35F + this.shotsFired * 0.12F;
+                case LEAVE -> 1.0F;
+            };
+            this.bossBar.setProgress(Math.min(1.0F, p));
         }
         switch (this.phase) {
             case DROP -> tickDrop();
@@ -179,6 +225,11 @@ public final class TankBlitzSession extends WarSession {
         if (this.alignedTicks >= 25 || phaseAge() >= 130) {
             this.tank.setDriveSpeed(0.0D);
             enterPhase(Phase.FIRE);
+            // Tras un re-anclaje a mitad de guion: no esperar hitos ya superados.
+            if (this.shotsFired > 0) {
+                this.phaseStart = this.age
+                        - SHOT_SCRIPT[Math.min(this.shotsFired, SHOT_SCRIPT.length - 1)];
+            }
         }
     }
 
@@ -212,6 +263,11 @@ public final class TankBlitzSession extends WarSession {
                 ModSounds.CANNON_FIRE.get(), SoundSource.HOSTILE, 2.5F,
                 0.95F + this.level.random.nextFloat() * 0.1F);
 
+        // Telegraph: retícula donde va a caer el obús (~0.6 s de aviso).
+        if (target != null) {
+            ModNetwork.fx(this.level, FxType.TARGET_MARKER,
+                    leadPoint(target).add(0.0D, -1.0D, 0.0D), 0.8F);
+        }
         TankShellEntity shell = ModEntities.TANK_SHELL.get().create(this.level);
         if (shell == null) {
             return;
@@ -221,6 +277,7 @@ public final class TankBlitzSession extends WarSession {
         shell.setDeltaMovement(dir.scale(SHELL_SPEED));
         shell.alignToVelocity();
         this.level.addFreshEntity(shell);
+        WarTeam.join(shell);
     }
 
     // ------------------------------------------------------------ LEAVE

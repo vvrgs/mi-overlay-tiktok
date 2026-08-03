@@ -5,6 +5,10 @@ import com.vvrgs.irontempest.net.FxType;
 import com.vvrgs.irontempest.net.ModNetwork;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
+import com.vvrgs.irontempest.server.util.WarTeam;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -34,6 +38,42 @@ public final class CruiseMissileSession extends WarSession {
         double sz = target.getZ() + Math.sin(bearing) * SILO_DIST;
         int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(sx), (int) Math.floor(sz));
         this.siloPos = new Vec3(sx, sy, sz);
+        this.bossBar = Announcer.bar(Component.translatable("irontempest.bar.cruisemissile"),
+                BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.PROGRESS);
+        Announcer.title(target, Component.translatable("irontempest.title.cruisemissile"),
+                Component.translatable("irontempest.subtitle.cruisemissile"));
+    }
+
+    /** Re-anclaje: solo si CAMBIÓ de dimensión (los saltos intra-dim los
+     *  resuelve el guiado global con re-adquisición en crucero). */
+    @Override
+    protected void onTargetRelocated(ServerLevel newLevel, ServerPlayer target) {
+        if (this.impacted || this.age <= T_LAUNCH) {
+            return;
+        }
+        if (this.missile != null && !this.missile.isRemoved()
+                && this.missile.level() == newLevel) {
+            return;
+        }
+        if (this.missile != null && !this.missile.isRemoved()) {
+            this.missile.discard();
+        }
+        double angle = newLevel.random.nextDouble() * Math.PI * 2.0D;
+        Vec3 pos = target.position().add(Math.cos(angle) * 24.0D, 22.0D, Math.sin(angle) * 24.0D);
+        CruiseMissileEntity m = ModEntities.CRUISE_MISSILE.get().create(newLevel);
+        if (m == null) {
+            end("relocate_failed");
+            return;
+        }
+        m.setPos(pos.x, pos.y, pos.z);
+        m.launch(this.targetId, this.id);
+        m.startInCruise();
+        m.setDeltaMovement(target.position().subtract(pos).normalize().scale(1.6D));
+        m.alignToVelocity();
+        newLevel.addFreshEntity(m);
+        WarTeam.join(m);
+        this.missile = m;
+        ModNetwork.fx(newLevel, FxType.WARP_IN, pos, 1.0F);
     }
 
     @Override
@@ -55,6 +95,17 @@ public final class CruiseMissileSession extends WarSession {
         if (this.impacted && this.age - this.impactAge > 40) {
             end("impact_settled");
         }
+        if (this.bossBar != null) {
+            this.bossBar.setProgress(this.impacted ? 1.0F : Math.min(0.95F, this.age / 380.0F));
+        }
+        // Cuenta atrás de impacto en actionbar durante la fase terminal.
+        if (target != null && this.missile != null && !this.missile.isRemoved()
+                && this.missile.getPhase() == CruiseMissileEntity.PHASE_TERMINAL
+                && this.age % 10 == 0) {
+            int eta = (int) Math.ceil(this.missile.position().distanceTo(target.position()) / 38.0D);
+            Announcer.actionbar(target,
+                    Component.translatable("irontempest.actionbar.impact_in", Math.max(1, eta)));
+        }
         // El misil murió sin avisar (timeout del proyectil, chunk descargado…)
         if (this.age > T_LAUNCH && !this.impacted
                 && (this.missile == null || this.missile.isRemoved())) {
@@ -72,6 +123,7 @@ public final class CruiseMissileSession extends WarSession {
         m.launch(target.getUUID(), this.id);
         m.alignToVelocity();
         this.level.addFreshEntity(m);
+        WarTeam.join(m);
         this.missile = m;
         this.level.playSound(null, this.siloPos.x, this.siloPos.y, this.siloPos.z,
                 ModSounds.MISSILE_LAUNCH.get(), SoundSource.HOSTILE, 3.5F, 1.0F);

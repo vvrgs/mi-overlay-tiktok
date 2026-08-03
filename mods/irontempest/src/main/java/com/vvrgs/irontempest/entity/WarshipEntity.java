@@ -152,6 +152,15 @@ public class WarshipEntity extends Entity {
         return false;
     }
 
+    /** La membresía del equipo de glow vive en scoreboard.dat: limpiar SIEMPRE. */
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!this.level().isClientSide) {
+            com.vvrgs.irontempest.server.util.WarTeam.leave(this);
+        }
+        super.remove(reason);
+    }
+
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}
 

@@ -40,6 +40,11 @@ public final class FxDirector {
     private static final int MAX_QUEUE = 4000;
     private static final Random RNG = new Random();
 
+    /** Multiplicador de densidad config (fxDensity): se aplica en los helpers de conteo. */
+    private static int density(int n) {
+        return Math.max(1, (int) Math.round(n * com.vvrgs.irontempest.config.WarConfig.FX_DENSITY.get()));
+    }
+
     // ------------------------------------------------------------ entrada
     public static void handlePacket(ClientboundFxPacket pkt) {
         ClientLevel level = Minecraft.getInstance().level;
@@ -67,6 +72,7 @@ public final class FxDirector {
             case SCORCH -> scorch(level, pos);
             case SILO_VENT -> siloVent(level, pos, s);
             case DEBRIS_RAIN -> debrisRain(level, pos, s);
+            case TARGET_MARKER -> targetMarker(level, pos, s);
             case TOTEM_POP -> totemPop(level, pos);
             case SHAKE_ONLY -> ScreenShake.addTrauma(s, pos);
         }
@@ -313,6 +319,25 @@ public final class FxDirector {
     }
 
     /** Suelo ardiendo de las zonas de daño sostenido (scale = radio/3). */
+    /**
+     * Retícula de impacto (telegraph): anillo fijo pulsante + motas ascendentes
+     * durante ~scale segundos. Distintivo: NO se parece a ninguna explosión.
+     */
+    private static void targetMarker(ClientLevel level, Vec3 pos, float seconds) {
+        int pulses = Math.max(2, (int) (seconds * 4.0F));
+        for (int i = 0; i < pulses; i++) {
+            schedule(1 + i * 5, () -> {
+                spawn(level, ModParticles.SHOCKWAVE.get(), pos.add(0.0D, 0.12D, 0.0D), 1, 0.0D, 0.35D);
+                for (int k = 0; k < 6; k++) {
+                    double angle = k / 6.0D * Math.PI * 2.0D;
+                    particle(level, ModParticles.CHARGE_MOTE.get(),
+                            pos.add(Math.cos(angle) * 1.4D, 0.15D, Math.sin(angle) * 1.4D),
+                            0.0D, 0.10D, 0.0D);
+                }
+            });
+        }
+    }
+
     /** Pop de tótem: anillo dorado + corona de chispas — puntúa cada rotura. */
     private static void totemPop(ClientLevel level, Vec3 pos) {
         spawn(level, ModParticles.SHOCKWAVE.get(), pos, 1, 0.0D, 0.45D);
@@ -393,6 +418,7 @@ public final class FxDirector {
     }
 
     private static void sparksRadial(ClientLevel level, Vec3 pos, int n, double speed, double upBias) {
+        n = density(n);
         for (int i = 0; i < n; i++) {
             Vec3 v = randomDir().add(0.0D, upBias, 0.0D).normalize()
                     .scale(speed * (0.5D + RNG.nextDouble() * 0.8D));
@@ -401,6 +427,7 @@ public final class FxDirector {
     }
 
     private static void fireballCluster(ClientLevel level, Vec3 pos, int n, double speed) {
+        n = density(n);
         for (int i = 0; i < n; i++) {
             Vec3 v = randomDir().scale(speed * (0.4D + RNG.nextDouble()));
             particle(level, ModParticles.FIREBALL.get(),
@@ -410,6 +437,7 @@ public final class FxDirector {
     }
 
     private static void debrisBurst(ClientLevel level, Vec3 pos, int n, double speed) {
+        n = density(n);
         for (int i = 0; i < n; i++) {
             Vec3 v = randomDir().scale(speed * (0.4D + RNG.nextDouble()));
             particle(level, ModParticles.DEBRIS.get(), pos, v.x, Math.abs(v.y) + 0.3D, v.z);
@@ -417,6 +445,7 @@ public final class FxDirector {
     }
 
     private static void embersBurst(ClientLevel level, Vec3 pos, int n, double speed) {
+        n = density(n);
         for (int i = 0; i < n; i++) {
             Vec3 v = randomDir().scale(speed * (0.3D + RNG.nextDouble()));
             particle(level, ModParticles.EMBER.get(), pos, v.x, Math.abs(v.y) * 0.8D + 0.1D, v.z);
@@ -431,7 +460,8 @@ public final class FxDirector {
         }
     }
 
-    private static void smokeColumn(ClientLevel level, Vec3 pos, int n, double rise, boolean dark) {
+    private static void smokeColumn(ClientLevel level, Vec3 pos, int nIn, double rise, boolean dark) {
+        int n = density(nIn);
         // Convención SmokeParticle: ySpeed < 0.02 → humo negro de explosión;
         // >= 0.02 → gris claro (polvo/vapor). La subida real la pone la partícula.
         for (int i = 0; i < n; i++) {

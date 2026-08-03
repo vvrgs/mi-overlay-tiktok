@@ -22,6 +22,7 @@ public abstract class Entity {
     public Level level() { throw new UnsupportedOperationException(); }
     public void tick() {}
     public void discard() {}
+    public void remove(RemovalReason reason) {}
     public boolean isRemoved() { return false; }
     public Vec3 getDeltaMovement() { throw new UnsupportedOperationException(); }
     public void setDeltaMovement(Vec3 motion) {}
@@ -61,6 +62,10 @@ public abstract class Entity {
     public boolean isPushable() { return false; }
     public boolean shouldBeSaved() { return true; }
     public UUID getUUID() { throw new UnsupportedOperationException(); }
+    public String getStringUUID() { throw new UnsupportedOperationException(); }
+    public void setGlowingTag(boolean glowing) {}
+
+    public enum RemovalReason { KILLED, DISCARDED, UNLOADED_TO_CHUNK, UNLOADED_WITH_PLAYER, CHANGED_DIMENSION }
     public int getId() { return 0; }
     public float getBbHeight() { return 0.0F; }
     public float getBbWidth() { return 0.0F; }

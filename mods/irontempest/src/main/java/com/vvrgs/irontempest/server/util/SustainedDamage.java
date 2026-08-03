@@ -155,13 +155,20 @@ public final class SustainedDamage {
         // reentra en AFFLICTIONS dentro de este mismo tick.
         for (Affliction a : new ArrayList<>(AFFLICTIONS)) {
             a.ticksLeft -= PULSE_INTERVAL;
-            Entity e = a.level.getEntity(a.target);
+            // Resolución GLOBAL anti-TP: los jugadores se buscan por playerlist
+            // (siguen ardiendo aunque un plugin los mande al End); el resto de
+            // entidades, por su level original.
+            Entity e = a.level.getServer().getPlayerList().getPlayer(a.target);
+            if (e == null) {
+                e = a.level.getEntity(a.target);
+            }
             if (a.ticksLeft <= 0 || !(e instanceof LivingEntity living) || !living.isAlive()) {
                 a.expired = true;
                 continue;
             }
+            ServerLevel actual = living.level() instanceof ServerLevel sl ? sl : a.level;
             if (mult > 0.0F) {
-                living.hurt(ModDamage.source(a.level, WarConfig.sustainedType(a.type), null),
+                living.hurt(ModDamage.source(actual, WarConfig.sustainedType(a.type), null),
                         a.pulseDamage * mult);
                 if (a.fire) {
                     living.setSecondsOnFire(2);

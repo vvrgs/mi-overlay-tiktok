@@ -52,6 +52,34 @@ y su `session end` correspondiente. Sin stacktraces = verde.
 - El tótem SIEMPRE puede salvar (jamás `bypasses_invulnerability`): el show es
   exactamente verlos reventar.
 
+## Presentación y seguimiento (v5)
+
+**Los ataques TE PERSIGUEN.** Si otro plugin te teletransporta (al End, al
+cielo, o una explosión te desplaza >48 bloques), la sesión detecta el salto y
+se muda contigo: el tanque re-dropea a tu lado, la nave orbital re-warpea
+conservando fase y carga, el misil reaparece en crucero sobre ti y la
+trituradora de tótems sigue devorando en la dimensión que sea. Anti-thrash:
+si un plugin te rebota entre mundos sin parar, la sesión se corta sola
+(`target_unstable`) en vez de spamear entidades. Config:
+`streamer.followAcrossDimensions` (default `true`).
+
+**Cada ataque se anuncia solo** — legible incluso con el spam de FX de tus
+otros mods:
+- **Título+subtítulo** al objetivo al arrancar (misil rojo, tanque naranja,
+  orbital cian, ejecución dorada). Anti-pisado: máx 1 título cada 3 s; el
+  resto degrada a actionbar.
+- **Bossbar por sesión** con progreso real: misil (ETA), tanque (munición por
+  fases), orbital (carga → tiempo de haz restante), ejecución (morada, pantalla
+  oscurecida, tótems devorados en vivo), armagedón (timeline completo).
+- **Actionbar**: cuenta atrás de impacto del misil, contador de tótems
+  restantes en cada pop, aviso "¡SAL DE LA ZONA DEL HAZ!", cola de cohetes.
+- **Contorno rojo brillante** (glow a través de paredes) en tanque, naves y
+  misiles vía equipo de scoreboard — sabes QUÉ te ataca aunque no lo veas.
+- **Retículas de impacto (telegraphs)**: anillo dorado pulsante en el suelo
+  ~1-2 s antes de cada cohete, obús y picado terminal del misil.
+- `clientFx.fxDensity` (0.25–2.0): baja el ruido de partículas propio sin
+  recompilar si tu overlay ya satura la pantalla.
+
 ## Build (en tu máquina Windows)
 
 Requisitos: JDK 17 (el `gradlew` descarga Gradle 8.1.1 y Forge solo).

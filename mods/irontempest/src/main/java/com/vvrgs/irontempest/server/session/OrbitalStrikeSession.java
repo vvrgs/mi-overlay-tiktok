@@ -7,10 +7,14 @@ import com.vvrgs.irontempest.net.ModNetwork;
 import com.vvrgs.irontempest.registry.ModDamage;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
 import com.vvrgs.irontempest.server.util.DamageUtil;
 import com.vvrgs.irontempest.server.util.SustainedDamage;
 import com.vvrgs.irontempest.server.util.TerrainSculptor;
+import com.vvrgs.irontempest.server.util.WarTeam;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -43,7 +47,11 @@ public final class OrbitalStrikeSession extends WarSession {
 
     OrbitalStrikeSession(ServerLevel level, ServerPlayer target) {
         super(level, target, 'C', "orbitalstrike");
-        spawnShip(target);
+        this.bossBar = Announcer.bar(Component.translatable("irontempest.bar.orbitalstrike"),
+                BossEvent.BossBarColor.BLUE, BossEvent.BossBarOverlay.PROGRESS);
+        Announcer.title(target, Component.translatable("irontempest.title.orbitalstrike"),
+                Component.translatable("irontempest.subtitle.orbitalstrike"));
+        spawnShip(target, WarshipEntity.PHASE_WARP_IN, 0.0F);
         SessionManager.broadcastStarted(level, "orbitalstrike", this.targetName);
     }
 
@@ -52,7 +60,7 @@ public final class OrbitalStrikeSession extends WarSession {
         return 400;
     }
 
-    private void spawnShip(ServerPlayer target) {
+    private void spawnShip(ServerPlayer target, byte phase, float charge) {
         double bearing = this.level.random.nextDouble() * Math.PI * 2.0D;
         Vec3 pos = target.position().add(Math.cos(bearing) * 6.0D, 38.0D, Math.sin(bearing) * 6.0D);
 
@@ -64,7 +72,12 @@ public final class OrbitalStrikeSession extends WarSession {
         s.setPos(pos.x, pos.y, pos.z);
         s.setSessionId(this.id);
         s.setYRot((float) (Mth.atan2(-(target.getX() - pos.x), target.getZ() - pos.z) * Mth.RAD_TO_DEG));
+        // Estado ANTES de addFreshEntity: el primer snapshot de synched data ya
+        // viaja con la fase correcta (clave en el re-warp a mitad de haz).
+        s.setPhase(phase);
+        s.setCharge(charge);
         this.level.addFreshEntity(s);
+        WarTeam.join(s);
         this.ship = s;
 
         // El haz nace 12 bloques por detrás del jugador y lo caza.
@@ -75,11 +88,41 @@ public final class OrbitalStrikeSession extends WarSession {
                 ModSounds.WARP_IN.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
     }
 
+    /** Re-warp anti-TP: la nave salta al nuevo mundo conservando fase y carga;
+     *  el haz renace 12 bl por detrás del jugador y retoma la caza. */
+    @Override
+    protected void onTargetRelocated(ServerLevel newLevel, ServerPlayer target) {
+        if (this.age >= T_OUT || this.ship == null) {
+            return;
+        }
+        byte phase = this.ship.getPhase();
+        float charge = this.ship.getCharge();
+        if (!this.ship.isRemoved()) {
+            if (this.ship.level() instanceof ServerLevel oldLevel) {
+                ModNetwork.fx(oldLevel, FxType.WARP_OUT, this.ship.position(), 1.5F);
+            }
+            this.ship.discard();
+        }
+        spawnShip(target, phase, charge);
+    }
+
     @Override
     protected void tickInternal(@Nullable ServerPlayer target) {
         if (this.ship == null || this.ship.isRemoved()) {
             end("ship_lost");
             return;
+        }
+        if (this.bossBar != null) {
+            // Se llena mientras carga; se VACÍA mientras el haz te caza (tiempo
+            // que te queda por sobrevivir); muere tras la sobrecarga.
+            if (this.age < T_BEAM) {
+                this.bossBar.setProgress(Math.max(0.0F, Math.min(1.0F,
+                        (this.age - T_CHARGE) / (float) (T_BEAM - T_CHARGE))));
+            } else if (this.age < T_OVERLOAD) {
+                this.bossBar.setProgress(1.0F - (this.age - T_BEAM) / (float) (T_OVERLOAD - T_BEAM));
+            } else {
+                this.bossBar.setProgress(0.0F);
+            }
         }
         if (this.age == T_CHARGE) {
             this.ship.setPhase(WarshipEntity.PHASE_CHARGE);
@@ -127,6 +170,14 @@ public final class OrbitalStrikeSession extends WarSession {
                 (int) Math.floor(this.beamPoint.x), (int) Math.floor(this.beamPoint.z));
         this.beamPoint = new Vec3(this.beamPoint.x, groundY, this.beamPoint.z);
         this.ship.setBeamTarget(this.beamPoint);
+
+        // Aviso de peligro: el haz está a punto de alcanzarte.
+        if (target != null && this.age % 15 == 0) {
+            double horiz = Math.hypot(target.getX() - this.beamPoint.x, target.getZ() - this.beamPoint.z);
+            if (horiz < BEAM_KILL_RADIUS + 6.0D) {
+                Announcer.actionbar(target, Component.translatable("irontempest.actionbar.leave_zone"));
+            }
+        }
 
         if (this.age % 3 == 0) {
             ModNetwork.fx(this.level, FxType.BEAM_SWEEP, this.beamPoint, 1.0F);

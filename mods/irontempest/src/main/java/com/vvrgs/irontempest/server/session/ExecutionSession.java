@@ -7,11 +7,15 @@ import com.vvrgs.irontempest.net.ModNetwork;
 import com.vvrgs.irontempest.registry.ModDamage;
 import com.vvrgs.irontempest.registry.ModEntities;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
 import com.vvrgs.irontempest.server.util.DamageUtil;
 import com.vvrgs.irontempest.server.util.SustainedDamage;
 import com.vvrgs.irontempest.server.util.TerrainSculptor;
 import com.vvrgs.irontempest.server.util.TotemShredder;
+import com.vvrgs.irontempest.server.util.WarTeam;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -40,10 +44,16 @@ public final class ExecutionSession extends WarSession {
     private Vec3 anchor = Vec3.ZERO;
     private boolean shredLaunched;
     private int climaxAt = -1;
+    private int popsSeen;
 
     ExecutionSession(ServerLevel level, ServerPlayer target) {
         super(level, target, 'U', "execution");
-        spawnShip(target);
+        this.bossBar = Announcer.bar(Component.translatable("irontempest.bar.execution"),
+                BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.NOTCHED_10);
+        this.bossBar.setDarkenScreen(true); // el cielo se oscurece: esto es una sentencia
+        Announcer.title(target, Component.translatable("irontempest.title.execution"),
+                Component.translatable("irontempest.subtitle.execution"));
+        spawnShip(target, WarshipEntity.PHASE_WARP_IN, 0.0F);
         SessionManager.broadcastStarted(level, "execution", this.targetName);
     }
 
@@ -52,7 +62,7 @@ public final class ExecutionSession extends WarSession {
         return 900;
     }
 
-    private void spawnShip(ServerPlayer target) {
+    private void spawnShip(ServerPlayer target, byte phase, float charge) {
         Vec3 pos = target.position().add(0.0D, 34.0D, 0.0D);
         WarshipEntity s = ModEntities.WARSHIP.get().create(this.level);
         if (s == null) {
@@ -61,7 +71,11 @@ public final class ExecutionSession extends WarSession {
         }
         s.setPos(pos.x, pos.y, pos.z);
         s.setSessionId(this.id);
+        // Estado ANTES de addFreshEntity (re-warp a mitad de ejecución).
+        s.setPhase(phase);
+        s.setCharge(charge);
         this.level.addFreshEntity(s);
+        WarTeam.join(s);
         this.ship = s;
         this.anchor = target.position();
         ModNetwork.fx(this.level, FxType.WARP_IN, pos, 2.0F);
@@ -69,11 +83,44 @@ public final class ExecutionSession extends WarSession {
                 ModSounds.WARP_IN.get(), SoundSource.HOSTILE, 3.0F, 0.85F);
     }
 
+    /** Re-warp ENCIMA del objetivo: la ejecución no se negocia — te sigue al
+     *  End, al cielo o a donde te manden tus plugins. */
+    @Override
+    protected void onTargetRelocated(ServerLevel newLevel, ServerPlayer target) {
+        if (this.climaxAt > 0 || this.ship == null) {
+            return;
+        }
+        byte phase = this.ship.getPhase();
+        float charge = this.ship.getCharge();
+        if (!this.ship.isRemoved()) {
+            if (this.ship.level() instanceof ServerLevel oldLevel) {
+                ModNetwork.fx(oldLevel, FxType.WARP_OUT, this.ship.position(), 1.5F);
+            }
+            this.ship.discard();
+        }
+        spawnShip(target, phase, charge); // re-ancla también: anchor = posición nueva
+    }
+
     @Override
     protected void tickInternal(@Nullable ServerPlayer target) {
         if (this.ship == null || this.ship.isRemoved()) {
             end("ship_lost");
             return;
+        }
+        if (this.bossBar != null) {
+            if (this.shredLaunched) {
+                // popsSeen retiene el máximo: la barra no cae a 0 cuando el
+                // shred termina justo antes del clímax.
+                this.popsSeen = Math.max(this.popsSeen, TotemShredder.popsOf(this.targetId));
+                int max = Math.max(1, WarConfig.EXECUTION_MAX_POPS.get());
+                this.bossBar.setProgress(Math.min(1.0F, this.popsSeen / (float) max));
+                if (this.age % 10 == 0) {
+                    this.bossBar.setName(Component.translatable(
+                            "irontempest.bar.execution_pops", this.popsSeen));
+                }
+            } else {
+                this.bossBar.setProgress(0.1F * Math.min(1.0F, this.age / (float) T_SHRED));
+            }
         }
         if (this.age == T_CHARGE) {
             this.ship.setPhase(WarshipEntity.PHASE_CHARGE);

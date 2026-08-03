@@ -58,10 +58,12 @@ src/main/java/com/vvrgs/irontempest/server/session/RocketRainSession.java
 src/main/java/com/vvrgs/irontempest/server/session/SessionManager.java
 src/main/java/com/vvrgs/irontempest/server/session/TankBlitzSession.java
 src/main/java/com/vvrgs/irontempest/server/session/WarSession.java
+src/main/java/com/vvrgs/irontempest/server/util/Announcer.java
 src/main/java/com/vvrgs/irontempest/server/util/DamageUtil.java
 src/main/java/com/vvrgs/irontempest/server/util/SustainedDamage.java
 src/main/java/com/vvrgs/irontempest/server/util/TerrainSculptor.java
 src/main/java/com/vvrgs/irontempest/server/util/TotemShredder.java
+src/main/java/com/vvrgs/irontempest/server/util/WarTeam.java
 verify/stubs/com/google/gson/JsonElement.java
 verify/stubs/com/google/gson/JsonObject.java
 verify/stubs/com/google/gson/JsonParser.java
@@ -90,6 +92,7 @@ verify/stubs/com/mojang/brigadier/exceptions/CommandSyntaxException.java
 verify/stubs/com/mojang/brigadier/tree/LiteralCommandNode.java
 verify/stubs/com/mojang/logging/LogUtils.java
 verify/stubs/com/mojang/math/Axis.java
+verify/stubs/net/minecraft/ChatFormatting.java
 verify/stubs/net/minecraft/client/Camera.java
 verify/stubs/net/minecraft/client/Minecraft.java
 verify/stubs/net/minecraft/client/gui/GuiGraphics.java
@@ -156,6 +159,8 @@ verify/stubs/net/minecraft/network/syncher/SynchedEntityData.java
 verify/stubs/net/minecraft/resources/ResourceKey.java
 verify/stubs/net/minecraft/resources/ResourceLocation.java
 verify/stubs/net/minecraft/server/MinecraftServer.java
+verify/stubs/net/minecraft/server/ServerScoreboard.java
+verify/stubs/net/minecraft/server/level/ServerBossEvent.java
 verify/stubs/net/minecraft/server/level/ServerLevel.java
 verify/stubs/net/minecraft/server/level/ServerPlayer.java
 verify/stubs/net/minecraft/server/network/ServerGamePacketListenerImpl.java
@@ -167,6 +172,7 @@ verify/stubs/net/minecraft/sounds/SoundEvent.java
 verify/stubs/net/minecraft/sounds/SoundSource.java
 verify/stubs/net/minecraft/util/Mth.java
 verify/stubs/net/minecraft/util/RandomSource.java
+verify/stubs/net/minecraft/world/BossEvent.java
 verify/stubs/net/minecraft/world/InteractionHand.java
 verify/stubs/net/minecraft/world/damagesource/DamageSource.java
 verify/stubs/net/minecraft/world/damagesource/DamageType.java
@@ -195,6 +201,8 @@ verify/stubs/net/minecraft/world/phys/BlockHitResult.java
 verify/stubs/net/minecraft/world/phys/EntityHitResult.java
 verify/stubs/net/minecraft/world/phys/HitResult.java
 verify/stubs/net/minecraft/world/phys/Vec3.java
+verify/stubs/net/minecraft/world/scores/PlayerTeam.java
+verify/stubs/net/minecraft/world/scores/Scoreboard.java
 verify/stubs/net/minecraftforge/api/distmarker/Dist.java
 verify/stubs/net/minecraftforge/client/event/ClientPlayerNetworkEvent.java
 verify/stubs/net/minecraftforge/client/event/EntityRenderersEvent.java

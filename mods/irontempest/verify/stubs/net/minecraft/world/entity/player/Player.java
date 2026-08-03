@@ -10,6 +10,8 @@ public abstract class Player extends LivingEntity {
 
     public void playNotifySound(net.minecraft.sounds.SoundEvent sound, net.minecraft.sounds.SoundSource source, float volume, float pitch) { throw new UnsupportedOperationException(); }
 
+    public void displayClientMessage(net.minecraft.network.chat.Component message, boolean actionBar) {}
+
     protected Player(Level level) {
         super(null, level);
     }

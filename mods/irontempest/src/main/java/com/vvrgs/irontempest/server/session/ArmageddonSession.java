@@ -7,9 +7,11 @@ import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import com.vvrgs.irontempest.registry.ModSounds;
+import com.vvrgs.irontempest.server.util.Announcer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.BossEvent;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -32,6 +34,9 @@ public final class ArmageddonSession extends WarSession {
 
     ArmageddonSession(ServerLevel level, ServerPlayer target) {
         super(level, target, 'U', "armageddon");
+        // Timeline completo en la barra: cada muesca ≈ una oleada del guion.
+        this.bossBar = Announcer.bar(Component.translatable("irontempest.bar.armageddon"),
+                BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
         opening(target);
     }
 
@@ -57,6 +62,9 @@ public final class ArmageddonSession extends WarSession {
 
     @Override
     protected void tickInternal(@Nullable ServerPlayer target) {
+        if (this.bossBar != null) {
+            this.bossBar.setProgress(Math.min(1.0F, this.age / (float) T_FIN));
+        }
         if (target == null) {
             return;
         }

@@ -8,10 +8,10 @@ import com.vvrgs.irontempest.registry.ModDamage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
@@ -34,7 +34,7 @@ public final class TotemShredder {
     private static final int MAX_FAIL_STREAK = 3;
 
     private static final class Shred {
-        final ServerLevel level;
+        ServerLevel level; // MUTABLE: el shred PERSIGUE al jugador entre dimensiones
         final UUID target;
         final String targetName;
         String attackKey;
@@ -111,6 +111,26 @@ public final class TotemShredder {
         return false;
     }
 
+    /** Tótems devorados por el shred activo del jugador (0 si no hay shred). */
+    public static int popsOf(UUID target) {
+        for (Shred s : SHREDS) {
+            if (!s.dead && s.target.equals(target)) {
+                return s.pops;
+            }
+        }
+        return 0;
+    }
+
+    /** Presupuesto restante del shred activo (-1 si no hay shred). */
+    public static int budgetLeft(UUID target) {
+        for (Shred s : SHREDS) {
+            if (!s.dead && s.target.equals(target)) {
+                return s.budget;
+            }
+        }
+        return -1;
+    }
+
     // ------------------------------------------------------------ tick
     /** Llamar UNA vez por tick de servidor. Itera sobre snapshot: un pulso puede
      *  matar de verdad → LivingDeathEvent → removeFor() DENTRO del tick (anti-CME). */
@@ -132,11 +152,14 @@ public final class TotemShredder {
     }
 
     private static void pulse(Shred s) {
-        Entity e = s.level.getEntity(s.target);
-        if (!(e instanceof ServerPlayer player) || !player.isAlive() || player.isSpectator()) {
+        // Resolución GLOBAL anti-TP: si un plugin lo mandó al End, el shred
+        // se muda con él y sigue devorando tótems allí.
+        ServerPlayer player = s.level.getServer().getPlayerList().getPlayer(s.target);
+        if (player == null || !player.isAlive() || player.isSpectator()) {
             end(s, "gone");
             return;
         }
+        s.level = player.serverLevel();
         if (WarConfig.SHRED_AUTO_REFILL.get()) {
             refillOffhand(player);
         }
@@ -162,6 +185,9 @@ public final class TotemShredder {
                     s.targetName, s.attackKey, s.pops, after);
             ModNetwork.fx(s.level, FxType.TOTEM_POP,
                     player.position().add(0.0D, 1.2D, 0.0D), 1.0F);
+            // Contador en vivo para el show: tótems que le quedan.
+            Announcer.actionbar(player,
+                    Component.translatable("irontempest.actionbar.totems", after));
             if (s.budget <= 0) {
                 end(s, "budget");
             }

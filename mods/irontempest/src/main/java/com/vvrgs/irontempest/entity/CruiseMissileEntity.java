@@ -57,6 +57,11 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
         setPhase(PHASE_BOOST);
     }
 
+    /** Re-anclaje: arrancar directamente en crucero (el guiado hace el resto). */
+    public void startInCruise() {
+        setPhase(PHASE_CRUISE);
+    }
+
     public byte getPhase() {
         return this.entityData.get(DATA_PHASE);
     }
@@ -78,9 +83,13 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
 
     @Nullable
     private Vec3 targetPos() {
+        // Resolución GLOBAL (anti-TP): solo se actualiza si el jugador sigue en
+        // ESTA dimensión; si se fue, el misil retiene el último punto conocido y
+        // la sesión decide si lo re-warpea.
         if (this.targetId != null && this.level() instanceof ServerLevel server) {
-            if (server.getEntity(this.targetId) instanceof ServerPlayer player
-                    && player.isAlive() && !player.isSpectator()) {
+            ServerPlayer player = server.getServer().getPlayerList().getPlayer(this.targetId);
+            if (player != null && player.isAlive() && !player.isSpectator()
+                    && player.serverLevel() == server) {
                 this.lastKnownTarget = player.position().add(0.0D, 1.0D, 0.0D);
             }
         }
@@ -135,10 +144,21 @@ public class CruiseMissileEntity extends AbstractWarProjectile {
                 setDeltaMovement(dir.scale(1.6D));
                 if (horizDist < 26.0D) {
                     setPhase(PHASE_TERMINAL);
+                    // Telegraph: retícula en el objetivo al iniciar el picado.
+                    if (this.level() instanceof ServerLevel sl) {
+                        ModNetwork.fx(sl, FxType.TARGET_MARKER,
+                                target.add(0.0D, -0.9D, 0.0D), 1.5F);
+                    }
                 }
             }
             case PHASE_TERMINAL -> {
                 if (target != null) {
+                    // El objetivo saltó lejos (TP intra-dim): re-adquisición limpia
+                    // en crucero en vez de un giro eterno a 6°/tick.
+                    if (new Vec3(target.x - getX(), 0.0D, target.z - getZ()).length() > 40.0D) {
+                        setPhase(PHASE_CRUISE);
+                        return;
+                    }
                     if (position().distanceTo(target) < PROX_FUSE) {
                         detonate(position());
                         return;

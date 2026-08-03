@@ -27,6 +27,8 @@ public final class WarConfig {
     public static final ForgeConfigSpec.BooleanValue SHRED_AUTO_REFILL;
     public static final ForgeConfigSpec.DoubleValue SHRED_BUDGET_MULTIPLIER;
     public static final ForgeConfigSpec.IntValue EXECUTION_MAX_POPS;
+    public static final ForgeConfigSpec.DoubleValue FX_DENSITY;
+    public static final ForgeConfigSpec.BooleanValue FOLLOW_ACROSS_DIMENSIONS;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -65,6 +67,8 @@ public final class WarConfig {
         b.pop();
 
         b.push("clientFx");
+        FX_DENSITY = b.comment("Densidad de las partículas del mod (0.25-2.0). Bájalo si tus otros mods ya llenan la pantalla y quieres que Iron Tempest se lea limpio.")
+                .defineInRange("fxDensity", 1.0D, 0.25D, 2.0D);
         POST_SHADER = b.comment("Post-shader de distorsión de onda de choque (se desactiva solo si Oculus/Iris está presente).")
                 .define("postShader", true);
         FLASH_OVERLAY = b.comment("Flash de pantalla breve en explosiones grandes.")
@@ -78,6 +82,8 @@ public final class WarConfig {
                 .define("totemShredder", true);
         SHRED_INTERVAL_TICKS = b.comment("Ticks entre pops de tótem (4 = 5 pops/segundo). No bajar de 2: la animación deja de leerse.")
                 .defineInRange("shredIntervalTicks", 4, 1, 20);
+        FOLLOW_ACROSS_DIMENSIONS = b.comment("Los ataques te PERSIGUEN cuando otros plugins te teletransportan (incluso al End/Nether): el tanque re-cae en drop-pod y la nave re-warpea contigo.")
+                .define("followAcrossDimensions", true);
         SHRED_AUTO_REFILL = b.comment("Auto-recarga la offhand con tótems del inventario antes de cada pulso (los tótems NO se apilan y solo salvan desde la mano — sin esto la cadena muere en el primer pop).")
                 .define("shredAutoRefill", true);
         SHRED_BUDGET_MULTIPLIER = b.comment("Multiplicador del presupuesto de pops por ataque.")
