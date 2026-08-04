@@ -271,8 +271,10 @@ public class VolcanoSession extends DisasterSession {
 
     @Override
     protected void onReanchor(ServerPlayer target, boolean dimensionChange) {
-        if (dimensionChange && age < ERUPTION_END) {
-            // el volcan lo PERSIGUE: una boca nueva nace rapida cerca de el
+        if (dimensionChange) {
+            // el volcan lo PERSIGUE: una boca nueva nace cerca de el en la
+            // dimension nueva. JAMAS reutilizar summit/base de la dimension
+            // vieja con el level nuevo (coords cross-dim = bug real)
             planCone(target, 18.0D, age + 10);
             pyroHit.clear();
         }

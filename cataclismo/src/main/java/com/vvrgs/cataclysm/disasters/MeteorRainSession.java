@@ -80,6 +80,14 @@ public class MeteorRainSession extends DisasterSession implements SpamQueueSessi
     }
 
     @Override
+    protected void onReanchor(ServerPlayer target, boolean dimensionChange) {
+        // los strikes programados llevan coordenadas de la posicion vieja:
+        // jamas aplicarlas tras un TP (menos aun en otra dimension) — la
+        // cola pendiente re-telegrafia sola en la nueva posicion
+        scheduled.clear();
+    }
+
+    @Override
     protected void onTick(ServerPlayer target) {
         // drenaje a ritmo fijo: se ve como lluvia continua
         if (pending > 0 && ++drainTimer >= DRAIN_INTERVAL) {

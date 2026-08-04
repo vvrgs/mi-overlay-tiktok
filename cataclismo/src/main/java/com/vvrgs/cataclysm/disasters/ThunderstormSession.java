@@ -53,6 +53,14 @@ public class ThunderstormSession extends DisasterSession {
     }
 
     @Override
+    protected void onReanchor(ServerPlayer target, boolean dimensionChange) {
+        // el rayo cargandose apuntaba a la posicion vieja: cancelar, el
+        // siguiente predice desde la posicion nueva
+        dischargeTick = -1;
+        nextStrikeTick = Math.max(nextStrikeTick, age + 15);
+    }
+
+    @Override
     protected void onTick(ServerPlayer target) {
         if (age >= DURATION) {
             end("finished");

@@ -233,7 +233,11 @@ public class TsunamiSession extends DisasterSession {
             wall.discard();
         }
         walls.clear();
-        // el agua vieja queda registrada y se limpiara igual (ops guardan su level)
+        // CRITICO: limpiar el agua vieja AHORA, con su ServerLevel de
+        // registro (waterLevel) — spawnFront lo va a reasignar y las
+        // posiciones viejas jamas deben restaurarse en la dimension nueva
+        queueCleanup();
+        cleanupQueued = false;
         if (age < DURATION - 300) {
             spawnFront(target, 30.0D);
         }
