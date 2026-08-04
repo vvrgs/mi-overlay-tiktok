@@ -105,9 +105,12 @@ public class BolideEntity extends DisasterEntity {
             }
         }
 
-        // dano + onda expansiva
+        // dano + onda expansiva (invulnerableTime=0: sin esto la lluvia
+        // pierde la mayoria de golpes por i-frames — cinturon; el tag
+        // bypasses_cooldown del damage type son los tirantes)
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(4.0D + size * 2.0D))) {
+            living.invulnerableTime = 0;
             living.hurt(ModDamageTypes.source(level, ModDamageTypes.METEOR), damage);
             Physics.blast(living, at, 6.0D + size * 2.0D, blastStrength, 0.4D);
         }

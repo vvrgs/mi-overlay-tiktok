@@ -4,7 +4,6 @@
   "cataclysm.command.queued": "§e[Cataclysm]§r %s queued for %s",
   "cataclysm.command.queue_full": "§c[Cataclysm] Queue full: %s discarded. Wait for it to drain.",
   "cataclysm.command.stopall": "§6[Cataclysm]§r Everything stopped: %s sessions ended.",
-
   "cataclysm.attack.meteoros.title": "§6☄ METEOR SHOWER",
   "cataclysm.attack.meteoros.subtitle": "§7The sky is falling apart",
   "cataclysm.attack.rayo.title": "§e⚡ GUIDED LIGHTNING",
@@ -29,7 +28,6 @@
   "cataclysm.attack.apocalipsis.subtitle": "§5All of nature is coming for you",
   "cataclysm.attack.ejecucion_natural.title": "§4⚖ NATURAL EXECUTION",
   "cataclysm.attack.ejecucion_natural.subtitle": "§7You cannot run. Only endure.",
-
   "cataclysm.attack.tornado.bossbar": "§7🌪 Tornado",
   "cataclysm.attack.huracan.bossbar": "§3🌀 Hurricane",
   "cataclysm.attack.terremoto.bossbar": "§8⛰ Earthquake",
@@ -38,8 +36,8 @@
   "cataclysm.attack.impacto.bossbar": "§5☄ Planetary impact",
   "cataclysm.attack.apocalipsis.bossbar": "§5☠ Apocalypse",
   "cataclysm.attack.ejecucion_natural.bossbar": "§4⚖ Natural execution",
-
   "cataclysm.meteoros.pending": "§6☄ Meteors queued: %s",
+  "cataclysm.rayo.pending": "§e⚡ Lightning queued: %s",
   "cataclysm.rayo.charging": "§e⚡ The air around you is ionizing...",
   "cataclysm.tornado.caught": "§7🌪 IT CAUGHT YOU! Enjoy the flight!",
   "cataclysm.huracan.eye.title": "§e☀ THE EYE",
@@ -67,7 +65,6 @@
   "cataclysm.ejecucion.survived.title": "§a✦ YOU SURVIVED",
   "cataclysm.ejecucion.survived.subtitle": "§7Nature forgives you... for now",
   "cataclysm.shred.counter": "§e⛨ Totems left: %s",
-
   "death.attack.cataclysm.meteor": "%1$s was erased by a meteorite",
   "death.attack.cataclysm.lightning": "%1$s was struck down by guided lightning",
   "death.attack.cataclysm.napalm": "%1$s burned to the ground",
@@ -78,13 +75,11 @@
   "death.attack.cataclysm.execution": "%1$s ran out of totems. Nature carried out the sentence.",
   "death.attack.cataclysm.debris": "%1$s was shredded by flying debris",
   "death.attack.cataclysm.ash": "%1$s suffocated under the ash",
-
   "entity.cataclysm.tornado": "Tornado",
   "entity.cataclysm.bolide": "Bolide",
   "entity.cataclysm.volcanic_bomb": "Volcanic bomb",
   "entity.cataclysm.tsunami_wall": "Water wall",
   "entity.cataclysm.impactor": "Planetary impactor",
-
   "subtitles.cataclysm.siren": "Alert siren",
   "subtitles.cataclysm.klaxon": "Execution klaxon",
   "subtitles.cataclysm.rumble": "Underground rumble",

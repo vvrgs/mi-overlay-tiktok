@@ -90,6 +90,11 @@ public class LightningQueueSession extends DisasterSession implements SpamQueueS
             discharge(target);
         }
 
+        if (pending > 10 && age % 20 == 0) {
+            TitleDirector.actionbar(target,
+                    Component.translatable("cataclysm.rayo.pending", pending));
+        }
+
         if (pending == 0 && dischargeTick < 0) {
             if (++idleTicks >= IDLE_GRACE) {
                 end("drained");

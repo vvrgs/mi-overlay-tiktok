@@ -41,7 +41,8 @@ public final class ScreenShake {
 
     public static void tick() {
         trauma = Math.max(0.0F, trauma - DECAY_PER_TICK);
-        time += 1.0F;
+        // wrap: un float que crece para siempre satura y congela el ruido
+        time = (time + 1.0F) % 100000.0F;
     }
 
     public static void apply(ViewportEvent.ComputeCameraAngles event) {

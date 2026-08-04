@@ -60,17 +60,31 @@ public final class TotemShredder {
 
     private static final Map<UUID, Shred> ACTIVE = new HashMap<>();
 
+    /** Presupuesto efectivo tras multiplicador de config y cap activo. */
+    public static int effectiveBudget(int popBudget) {
+        return Math.min(ACTIVE_POP_CAP, Math.max(1, (int) Math.round(
+                popBudget * CataclysmConfig.COMMON.shredBudgetMultiplier.get())));
+    }
+
     /**
      * Arranca (o fusiona) una trituradora sobre el target.
      * @param popBudget presupuesto de pops del desastre (se multiplica por config)
      * @param intervalTicks cadencia (default 4 = 5 pops/s, minimo 2)
+     * @return true si tras la llamada hay shred activo (creado o fusionado);
+     *         false si la config lo impide — el llamador NO debe asumir pops
      */
-    public static void start(ServerPlayer target, String attack, int popBudget, int intervalTicks) {
-        if (!CataclysmConfig.COMMON.totemShredder.get() || !CataclysmConfig.COMMON.lethalStrikes.get()) {
-            return;
+    public static boolean start(ServerPlayer target, String attack, int popBudget, int intervalTicks) {
+        if (!CataclysmConfig.COMMON.streamerMode.get()
+                || !CataclysmConfig.COMMON.totemShredder.get()
+                || !CataclysmConfig.COMMON.lethalStrikes.get()) {
+            return false;
         }
-        int budget = Math.max(1, (int) Math.round(
-                popBudget * CataclysmConfig.COMMON.shredBudgetMultiplier.get()));
+        if (!target.isAlive()) {
+            // un hurt letal en el mismo camino de codigo pudo matarlo YA:
+            // jamas registrar una trituradora zombie sobre un muerto
+            return false;
+        }
+        int budget = effectiveBudget(popBudget);
         int interval = Math.max(2, intervalTicks);
         Shred existing = ACTIVE.get(target.getUUID());
         if (existing != null) {
@@ -78,12 +92,13 @@ public final class TotemShredder {
             existing.budgetLeft = Math.min(ACTIVE_POP_CAP, existing.budgetLeft + budget);
             existing.intervalTicks = Math.min(existing.intervalTicks, interval);
             existing.attack = attack;
-            return;
+            return true;
         }
-        Shred shred = new Shred(target.getUUID(), attack, Math.min(ACTIVE_POP_CAP, budget), interval);
+        Shred shred = new Shred(target.getUUID(), attack, budget, interval);
         ACTIVE.put(target.getUUID(), shred);
         Cataclysm.LOGGER.info("[cataclysm] shred start target={} attack={} budget={} interval={}",
                 target.getGameProfile().getName(), attack, shred.budgetLeft, interval);
+        return true;
     }
 
     public static void cancel(UUID target, String reason) {
@@ -201,7 +216,7 @@ public final class TotemShredder {
      * antes de cada golpe se sube uno del inventario a la offhand, o la
      * cadena muere en el primer pop.
      */
-    private static void refillOffhand(ServerPlayer player) {
+    public static void refillOffhand(ServerPlayer player) {
         if (player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)
                 || player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)) {
             return;

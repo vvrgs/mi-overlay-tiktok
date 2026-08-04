@@ -77,16 +77,18 @@ public class TsunamiWallEntity extends DisasterEntity {
 
     @Override
     protected void clientTick() {
-        // espuma y bruma en la cresta
+        // espuma y bruma en la cresta. headingRad es campo de SERVER: en el
+        // cliente se deriva del yRot (que si viaja por red via setHeading)
+        double heading = Math.toRadians(this.getYRot());
         float height = this.getBbHeight();
         for (int i = 0; i < 3; i++) {
             this.level().addParticle(ModParticles.SPRAY.get(),
                     this.getX() + (this.random.nextDouble() - 0.5D) * this.getBbWidth(),
                     this.getY() + height * (0.75D + this.random.nextDouble() * 0.3D),
                     this.getZ() + (this.random.nextDouble() - 0.5D) * this.getBbWidth(),
-                    Math.sin(headingRad) * 0.3D,
+                    Math.sin(heading) * 0.3D,
                     0.1D + this.random.nextDouble() * 0.1D,
-                    Math.cos(headingRad) * 0.3D);
+                    Math.cos(heading) * 0.3D);
         }
     }
 

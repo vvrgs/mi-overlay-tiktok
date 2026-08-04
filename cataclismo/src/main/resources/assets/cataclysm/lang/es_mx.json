@@ -4,7 +4,6 @@
   "cataclysm.command.queued": "§e[Cataclismo]§r %s en fila para %s",
   "cataclysm.command.queue_full": "§c[Cataclismo] Fila llena: %s descartado. Aguanta a que drene.",
   "cataclysm.command.stopall": "§6[Cataclismo]§r Se cortó todo: %s sesiones terminadas.",
-
   "cataclysm.attack.meteoros.title": "§6☄ LLUVIA DE METEOROS",
   "cataclysm.attack.meteoros.subtitle": "§7Se está cayendo el cielo, carnal",
   "cataclysm.attack.rayo.title": "§e⚡ RAYO DIRIGIDO",
@@ -29,7 +28,6 @@
   "cataclysm.attack.apocalipsis.subtitle": "§5Toda la naturaleza viene por ti",
   "cataclysm.attack.ejecucion_natural.title": "§4⚖ EJECUCIÓN NATURAL",
   "cataclysm.attack.ejecucion_natural.subtitle": "§7No hay pa dónde correr. Puro aguantar.",
-
   "cataclysm.attack.tornado.bossbar": "§7🌪 Tornado",
   "cataclysm.attack.huracan.bossbar": "§3🌀 Huracán",
   "cataclysm.attack.terremoto.bossbar": "§8⛰ Terremoto",
@@ -38,8 +36,8 @@
   "cataclysm.attack.impacto.bossbar": "§5☄ Impacto planetario",
   "cataclysm.attack.apocalipsis.bossbar": "§5☠ Apocalipsis",
   "cataclysm.attack.ejecucion_natural.bossbar": "§4⚖ Ejecución natural",
-
   "cataclysm.meteoros.pending": "§6☄ Meteoros en fila: %s",
+  "cataclysm.rayo.pending": "§e⚡ Rayos en fila: %s",
   "cataclysm.rayo.charging": "§e⚡ El aire se está ionizando alrededor tuyo...",
   "cataclysm.tornado.caught": "§7🌪 ¡TE AGARRÓ! ¡Buen vuelo!",
   "cataclysm.huracan.eye.title": "§e☀ EL OJO",
@@ -67,7 +65,6 @@
   "cataclysm.ejecucion.survived.title": "§a✦ SOBREVIVISTE",
   "cataclysm.ejecucion.survived.subtitle": "§7La naturaleza te la perdona... por ahorita",
   "cataclysm.shred.counter": "§e⛨ Tótems que te quedan: %s",
-
   "death.attack.cataclysm.meteor": "A %1$s lo borró un meteorito",
   "death.attack.cataclysm.lightning": "A %1$s lo fulminó un rayo dirigido",
   "death.attack.cataclysm.napalm": "%1$s ardió hasta los cimientos",
@@ -78,13 +75,11 @@
   "death.attack.cataclysm.execution": "A %1$s se le acabaron los tótems. La naturaleza cobró su sentencia.",
   "death.attack.cataclysm.debris": "A %1$s lo trituraron los escombros",
   "death.attack.cataclysm.ash": "%1$s se ahogó bajo la ceniza",
-
   "entity.cataclysm.tornado": "Tornado",
   "entity.cataclysm.bolide": "Bólido",
   "entity.cataclysm.volcanic_bomb": "Bomba volcánica",
   "entity.cataclysm.tsunami_wall": "Muro de agua",
   "entity.cataclysm.impactor": "Impactor planetario",
-
   "subtitles.cataclysm.siren": "Sirena de alerta",
   "subtitles.cataclysm.klaxon": "Klaxon de ejecución",
   "subtitles.cataclysm.rumble": "Retumbo subterráneo",

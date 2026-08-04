@@ -57,6 +57,9 @@ public class PlanetaryImpactSession extends DisasterSession {
     private ImpactorEntity impactor;
     private Vec3 impactPoint;
     private int impactTick = -1;
+    /** true = el jugador cambio de dimension DESPUES del impacto: el sitio
+     *  del crater quedo atras — sin onda/rumble en coords de otra dimension */
+    private boolean impactSiteLost;
     private final Set<UUID> shocked = new HashSet<>();
 
     public PlanetaryImpactSession(MinecraftServer server, ServerPlayer target) {
@@ -118,10 +121,13 @@ public class PlanetaryImpactSession extends DisasterSession {
             if (arrived || age >= IMPACT_DEADLINE) {
                 doImpact(target);
             } else if (bossBar != null) {
-                bossBar.setProgress(1.0F - (float) age / IMPACT_DEADLINE); // cuenta atras
-                if (age % 20 == 0 && age > APPROACH_TICK) {
+                // la cuenta atras apunta al impacto ESPERADO (T+10s), no al
+                // deadline failsafe (T+12s)
+                int expected = ENTRY_TICK + 40;
+                bossBar.setProgress(Mth.clamp(1.0F - (float) age / expected, 0.0F, 1.0F));
+                if (age % 20 == 0 && age > APPROACH_TICK && age < expected) {
                     TitleDirector.actionbar(target, Component.translatable(
-                            "cataclysm.impacto.countdown", (IMPACT_DEADLINE - age) / 20));
+                            "cataclysm.impacto.countdown", Math.max(0, (expected - age) / 20)));
                 }
             }
             return;
@@ -135,7 +141,7 @@ public class PlanetaryImpactSession extends DisasterSession {
 
         // onda expansiva fisica que avanza como anillo
         double ring = since * SHOCKWAVE_SPEED;
-        if (ring <= SHOCKWAVE_MAX) {
+        if (!impactSiteLost && ring <= SHOCKWAVE_MAX) {
             for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class,
                     impactor != null ? impactor.getBoundingBox().inflate(SHOCKWAVE_MAX + 10.0D)
                             : target.getBoundingBox().inflate(SHOCKWAVE_MAX + 10.0D))) {
@@ -149,7 +155,7 @@ public class PlanetaryImpactSession extends DisasterSession {
             }
         }
 
-        if (since % 120 == 0 && since < 600) {
+        if (!impactSiteLost && since % 120 == 0 && since < 600) {
             FxDirector.sound(level, impactPoint, ModSounds.RUMBLE.get(), 3.0F, 0.6F);
         }
         if (since % 15 == 0 && since < 1200) {
@@ -234,6 +240,14 @@ public class PlanetaryImpactSession extends DisasterSession {
 
     @Override
     protected void onReanchor(ServerPlayer target, boolean dimensionChange) {
+        if (impactTick >= 0) {
+            // post-impacto: el crater es terreno y no se mueve; si ademas
+            // cambio de dimension, el sitio quedo atras (solo sigue la ceniza)
+            if (dimensionChange) {
+                impactSiteLost = true;
+            }
+            return;
+        }
         if (impactTick < 0) {
             // pre-impacto: el punto de impacto lo sigue a la nueva posicion
             chooseImpactPoint(target);
@@ -246,7 +260,6 @@ public class PlanetaryImpactSession extends DisasterSession {
             }
             shocked.clear();
         }
-        // post-impacto: el crater es terreno, no se mueve
     }
 
     @Override

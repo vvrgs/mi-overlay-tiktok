@@ -51,10 +51,16 @@ public final class ClientFxDirector {
         if (mc.level == null) {
             return;
         }
-        // el effek del manifest ELEVA los FX nativos cuando esta mapeado
+        // el effek del manifest ELEVA los FX nativos cuando esta mapeado.
+        // data solo es yaw en los eventos direccionales — para el resto el
+        // effek va sin rotar (data seria un radio/blockId/altura, no un angulo)
         ResourceLocation effek = EffekManifest.INSTANCE.effekFor(type);
         if (effek != null) {
-            AAABridge.play(mc.level, effek, x, y, z, Math.max(0.4F, intensity), data);
+            float effekYaw = switch (type) {
+                case WIND_GUST, FISSURE_BURST, PYROCLASTIC_FRONT -> data;
+                default -> 0.0F;
+            };
+            AAABridge.play(mc.level, effek, x, y, z, Math.max(0.4F, intensity), effekYaw);
         }
         switch (type) {
             case TELEGRAPH -> recipeTelegraph(x, y, z, intensity, data);

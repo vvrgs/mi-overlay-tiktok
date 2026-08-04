@@ -8,7 +8,8 @@ package com.vvrgs.cataclysm.fx;
  * effeks/manifest.json (hot-swap de effeks de Effekseer sin tocar codigo).
  */
 public enum FxEvent {
-    /** Retcula pulsante de telegraph: anillo dorado + motas convergentes. data=radio*10. */
+    /** Reticula pulsante de telegraph: anillo dorado + motas convergentes.
+     *  data = duracion del telegraph en ticks (debe cubrir hasta el impacto). */
     TELEGRAPH,
     /** Impacto de meteorito pequeno: flash, bola de fuego, escombros, humo. */
     METEOR_IMPACT,

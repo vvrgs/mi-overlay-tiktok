@@ -50,7 +50,12 @@ public class EarthquakeSession extends DisasterSession {
     private double axisX;
     private double axisZ;
     private double axisAngle;
+    /** altura del borde ORIGINAL de la fisura (pre-excavacion): comparar
+     *  contra el heightmap vivo es una fase muerta — la propia zanja lo baja */
+    private int rimY;
     private boolean swallowRewarded;
+    /** true = el eje quedo en otra dimension y ya no se replanea: succion OFF */
+    private boolean suctionDead;
 
     public EarthquakeSession(MinecraftServer server, ServerPlayer target) {
         super(server, target);
@@ -79,6 +84,8 @@ public class EarthquakeSession extends DisasterSession {
         axisX = target.getX();
         axisZ = target.getZ();
         axisAngle = random.nextDouble() * Math.PI * 2.0D;
+        // superficie pre-excavacion (planFissure corre ANTES de carvear nada)
+        rimY = Anchors.surfaceY(level, Mth.floor(axisX), Mth.floor(axisZ));
         double dirX = Math.sin(axisAngle);
         double dirZ = Math.cos(axisAngle);
         double perpX = dirZ;
@@ -88,7 +95,7 @@ public class EarthquakeSession extends DisasterSession {
         for (int s = -halfLength; s <= halfLength; s++) {
             double t = Math.abs(s) / (double) halfLength;
             // ancho 3-5 con taper en las puntas; profundidad 20-30 con taper
-            int halfWidth = Math.max(1, (int) Math.round(2.5D * (1.0D - t * t)));
+            int halfWidth = Math.max(1, (int) Math.round(2.0D * (1.0D - t * t)));
             int depth = Math.max(6, (int) Math.round(
                     Math.min(maxDepth, 22 + random.nextInt(8)) * (1.0D - Math.pow(t, 1.5D))));
             int openTick = startTick + Math.abs(s) * 4 + random.nextInt(3);
@@ -141,7 +148,7 @@ public class EarthquakeSession extends DisasterSession {
         }
 
         // ==== succion hacia la grieta ====
-        if (age >= FISSURE_START && age < SUCTION_END) {
+        if (!suctionDead && age >= FISSURE_START && age < SUCTION_END) {
             Vec3 pos = target.position();
             // proyeccion del jugador sobre el eje de la fisura
             double dirX = Math.sin(axisAngle);
@@ -164,9 +171,9 @@ public class EarthquakeSession extends DisasterSession {
                             Component.translatable("cataclysm.terremoto.warning"));
                 }
             }
-            // dentro de la grieta: dano + trituradora
-            double surfaceApprox = Anchors.surfaceY(level, Mth.floor(pos.x), Mth.floor(pos.z));
-            if (lateral < 4.0D && pos.y < surfaceApprox - 3.0D) {
+            // dentro de la grieta: dano + trituradora. Se compara contra el
+            // borde ORIGINAL (rimY): el heightmap vivo ya bajo con la zanja
+            if (lateral < 4.0D && pos.y < rimY - 3.0D) {
                 if (age % 10 == 0) {
                     target.invulnerableTime = 0;
                     target.hurt(ModDamageTypes.source(level, ModDamageTypes.QUAKE), 3.0F);
@@ -213,6 +220,15 @@ public class EarthquakeSession extends DisasterSession {
         if (age < SUCTION_END - 60) {
             planFissure(target, age + 20, dimensionChange ? 14 : 18);
             swallowRewarded = false;
+            suctionDead = false;
+        } else if (dimensionChange) {
+            // demasiado tarde para replanear: JAMAS arrastrar columnas ni
+            // eje de succion de la dimension anterior a la nueva
+            plan.clear();
+            planCursor = 0;
+            suctionDead = true;
         }
+        // salto intra-dimension tardio: la fisura vieja termina de abrirse
+        // en su sitio — "la fisura QUEDA en el mapa"
     }
 }

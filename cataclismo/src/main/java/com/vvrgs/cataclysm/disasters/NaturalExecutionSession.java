@@ -28,6 +28,7 @@ public class NaturalExecutionSession extends DisasterSession {
     private static final int DURATION = 20 * 90;
 
     private int initialBudget;
+    private int popBase;
     private int maxPopped;
     private boolean shredStarted;
 
@@ -79,14 +80,26 @@ public class NaturalExecutionSession extends DisasterSession {
         // arranque de la trituradora a cadencia maxima
         if (!shredStarted && age >= ANCHOR_IN) {
             shredStarted = true;
-            initialBudget = CataclysmConfig.COMMON.executionPopBudget.get();
-            TotemShredder.start(target, kind().commandName(), initialBudget, 2);
+            // presupuesto EFECTIVO (multiplicador de config incluido): el
+            // denominador de la bossbar debe corresponder a pops reales
+            initialBudget = TotemShredder.effectiveBudget(
+                    CataclysmConfig.COMMON.executionPopBudget.get());
+            if (!TotemShredder.start(target, kind().commandName(),
+                    CataclysmConfig.COMMON.executionPopBudget.get(), 2)) {
+                // la config impide triturar: NO es un climax de superviviente
+                end("shred_unavailable");
+                return;
+            }
+            // si habia un shred previo fusionado (spam de /rayo), el contador
+            // arranca desde MIS pops, no desde los ajenos
+            popBase = TotemShredder.getPopped(targetId);
         }
 
         if (shredStarted) {
             // contador en pantalla: la bossbar RETIENE el maximo (no cae a 0
             // al acabar el shred)
-            maxPopped = Math.max(maxPopped, TotemShredder.getPopped(targetId));
+            maxPopped = Math.max(maxPopped,
+                    TotemShredder.getPopped(targetId) - popBase);
             if (bossBar != null && initialBudget > 0) {
                 bossBar.setProgress(Mth.clamp((float) maxPopped / initialBudget, 0.0F, 1.0F));
                 if (age % 10 == 0) {

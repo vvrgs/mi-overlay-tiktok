@@ -7,6 +7,9 @@
     "cataclysm:quake",
     "cataclysm:pyroclastic",
     "cataclysm:tsunami",
-    "cataclysm:debris"
+    "cataclysm:debris",
+    "cataclysm:meteor",
+    "cataclysm:lightning",
+    "cataclysm:shockwave"
   ]
 }

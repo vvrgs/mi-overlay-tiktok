@@ -131,7 +131,9 @@ public class MeteorRainSession extends DisasterSession implements SpamQueueSessi
         double y = Anchors.surfaceY(level, (int) Math.floor(x), (int) Math.floor(z));
         Vec3 ground = new Vec3(x, y, z);
 
-        FxDirector.fire(level, FxEvent.TELEGRAPH, ground, 1.0F, 20);
+        // duracion = lead del telegraph + vuelo del bolido: la reticula
+        // aguanta pulsando hasta el instante del impacto
+        FxDirector.fire(level, FxEvent.TELEGRAPH, ground, 1.0F, TELEGRAPH_LEAD + 12);
         FxDirector.sound(level, ground, ModSounds.TELEGRAPH_PING.get(), 1.5F,
                 1.4F + random.nextFloat() * 0.2F);
         scheduled.add(new Strike(age + TELEGRAPH_LEAD, ground.x, ground.y, ground.z));

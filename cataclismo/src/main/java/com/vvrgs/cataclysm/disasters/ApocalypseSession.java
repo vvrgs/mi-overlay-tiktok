@@ -4,7 +4,6 @@ import com.vvrgs.cataclysm.CataclysmConfig;
 import com.vvrgs.cataclysm.core.DisasterManager;
 import com.vvrgs.cataclysm.core.DisasterSession;
 import com.vvrgs.cataclysm.core.Disasters;
-import com.vvrgs.cataclysm.core.SpamQueueSession;
 import com.vvrgs.cataclysm.core.TitleDirector;
 import com.vvrgs.cataclysm.fx.FxDirector;
 import com.vvrgs.cataclysm.fx.FxEvent;
@@ -103,11 +102,14 @@ public class ApocalypseSession extends DisasterSession {
         TitleDirector.title(target,
                 Component.translatable(wave.stageKey()),
                 Component.translatable("cataclysm.apocalipsis.wave.subtitle"));
-        // reutiliza las sesiones existentes tal cual (saltando cupos: el
-        // apocalipsis ES el ultra activo)
-        DisasterSession session = DisasterManager.forceStart(server, target, wave.kind());
-        if (wave.spamCount() > 0 && session instanceof SpamQueueSession spam) {
-            spam.enqueueSpam(wave.spamCount());
+        // reutiliza las sesiones existentes tal cual. Tier S va por submit():
+        // si ya hay cola spam de ese tipo para el jugador se FUSIONA en ella
+        // (jamas dos colas del mismo tipo). El resto salta cupos con
+        // forceStart — el apocalipsis ES el ultra activo.
+        if (wave.kind().tier() == com.vvrgs.cataclysm.core.Tier.S) {
+            DisasterManager.enqueueSpam(server, target, wave.kind(), wave.spamCount());
+        } else {
+            DisasterManager.forceStart(server, target, wave.kind());
         }
     }
 

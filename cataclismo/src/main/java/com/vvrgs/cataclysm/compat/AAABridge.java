@@ -22,7 +22,7 @@ import java.lang.reflect.Method;
  *       .addParticle(Level, boolean force, ParticleEmitterInfo)  [estatico]
  *   mod.chloeprime.aaaparticles.api.common.ParticleEmitterInfo
  *       ctor(ResourceLocation) + encadenables .position(x,y,z) .scale(f)
- *       .rotationLocal(rx,ry,rz) — los opcionales se resuelven con
+ *       .rotation(rx,ry,rz) [radianes] — los opcionales se resuelven con
  *       reflexion TOLERANTE: si faltan, se pierde ESA feature, no el puente.
  */
 public final class AAABridge {
@@ -55,7 +55,12 @@ public final class AAABridge {
             addParticle = aaaLevel.getMethod("addParticle", Level.class, boolean.class, infoClass);
             position = tolerant(infoClass, "position", double.class, double.class, double.class);
             scale = tolerant(infoClass, "scale", float.class);
-            rotationLocal = tolerant(infoClass, "rotationLocal", float.class, float.class, float.class);
+            // API real 1.20.1-1.4.x: rotation(float,float,float) en radianes;
+            // rotationLocal solo como fallback de versiones que lo tengan
+            rotationLocal = tolerant(infoClass, "rotation", float.class, float.class, float.class);
+            if (rotationLocal == null) {
+                rotationLocal = tolerant(infoClass, "rotationLocal", float.class, float.class, float.class);
+            }
             available = true;
             Cataclysm.LOGGER.info("[cataclysm] puente AAA Particles/Effekseer ACTIVO");
         } catch (Throwable t) {

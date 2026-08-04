@@ -74,6 +74,15 @@ public final class PostShaders {
         Minecraft mc = Minecraft.getInstance();
         int width = mc.getWindow().getWidth();
         int height = mc.getWindow().getHeight();
+        // redimensionado ANTES del bucle y para TODOS los chains cacheados:
+        // un chain inactivo durante el resize quedaria con framebuffers viejos
+        if (width != lastWidth || height != lastHeight) {
+            for (PostChain cached : CHAINS.values()) {
+                cached.resize(width, height);
+            }
+            lastWidth = width;
+            lastHeight = height;
+        }
         for (Effect effect : TICKS_LEFT.keySet()) {
             if (BROKEN.getOrDefault(effect, false)) {
                 continue;
@@ -86,9 +95,6 @@ public final class PostShaders {
                     chain.resize(width, height);
                     CHAINS.put(effect, chain);
                 }
-                if (width != lastWidth || height != lastHeight) {
-                    chain.resize(width, height);
-                }
                 chain.process(partialTick);
                 mc.getMainRenderTarget().bindWrite(false);
             } catch (Exception e) {
@@ -96,8 +102,6 @@ public final class PostShaders {
                 Cataclysm.LOGGER.warn("[cataclysm] post-shader {} desactivado: {}", effect, e.toString());
             }
         }
-        lastWidth = width;
-        lastHeight = height;
     }
 
     public static void stopAll() {

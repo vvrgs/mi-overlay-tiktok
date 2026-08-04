@@ -91,7 +91,9 @@ public class TsunamiSession extends DisasterSession {
         if (age == 1) {
             FxDirector.sound(level, target.position(), ModSounds.TSUNAMI_ROAR.get(), 4.0F, 0.8F);
         }
-        if (age == WALL_SPAWN) {
+        if (age == WALL_SPAWN && walls.isEmpty() && waterLevel == null) {
+            // guard: un re-anclaje antes de T+20 ya spawneo su frente — jamas
+            // un segundo frente con rumbos mezclados
             spawnFront(target, START_DISTANCE);
         }
 
@@ -180,6 +182,10 @@ public class TsunamiSession extends DisasterSession {
             double off = (i - (SEGMENTS - 1) / 2.0D) * 7.5D;
             double x = originX + perpX * off;
             double z = originZ + perpZ * off;
+            // guard de vacio: segmento sin suelo (borde de isla del End) no se spawnea
+            if (Anchors.groundAt(level, x, z) == null) {
+                continue;
+            }
             double y = Anchors.surfaceY(level, Mth.floor(x), Mth.floor(z));
             TsunamiWallEntity wall = new TsunamiWallEntity(ModEntities.TSUNAMI_WALL.get(), level);
             wall.setPos(x, y, z);

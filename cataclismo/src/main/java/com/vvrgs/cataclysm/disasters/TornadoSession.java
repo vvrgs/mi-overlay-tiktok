@@ -110,6 +110,13 @@ public class TornadoSession extends DisasterSession {
         double angle = random.nextDouble() * Math.PI * 2.0D;
         double x = target.getX() + Math.cos(angle) * distance;
         double z = target.getZ() + Math.sin(angle) * distance;
+        // guard de vacio: en el End la columna elegida puede no tener suelo —
+        // caer al anchor (que el re-anclaje ya garantizo con suelo)
+        Vec3 ground = Anchors.groundAt(level, x, z);
+        if (ground == null) {
+            x = anchor.x;
+            z = anchor.z;
+        }
         double y = Anchors.surfaceY(level, Mth.floor(x), Mth.floor(z));
 
         TornadoEntity entity = new TornadoEntity(ModEntities.TORNADO.get(), level);

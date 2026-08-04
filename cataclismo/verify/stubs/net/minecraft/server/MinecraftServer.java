@@ -4,4 +4,5 @@ public abstract class MinecraftServer {
     public net.minecraft.server.players.PlayerList getPlayerList() { throw new UnsupportedOperationException(); }
     public net.minecraft.server.ServerScoreboard getScoreboard() { throw new UnsupportedOperationException(); }
     public int getTickCount() { throw new UnsupportedOperationException(); }
+    public Iterable<net.minecraft.server.level.ServerLevel> getAllLevels() { throw new UnsupportedOperationException(); }
 }

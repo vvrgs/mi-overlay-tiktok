@@ -89,6 +89,7 @@ public class VolcanicBombEntity extends DisasterEntity {
         }
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(3.5D))) {
+            living.invulnerableTime = 0;
             living.hurt(ModDamageTypes.source(level, ModDamageTypes.METEOR), damage);
             living.setSecondsOnFire(3);
             Physics.blast(living, at, 5.0D, 0.8D, 0.35D);

@@ -1,11 +1,13 @@
 package com.vvrgs.cataclysm.disasters;
 
+import com.vvrgs.cataclysm.CataclysmConfig;
 import com.vvrgs.cataclysm.core.Anchors;
 import com.vvrgs.cataclysm.core.DisasterSession;
 import com.vvrgs.cataclysm.core.Disasters;
 import com.vvrgs.cataclysm.core.Afflictions;
 import com.vvrgs.cataclysm.core.TerrainBudget;
 import com.vvrgs.cataclysm.core.TitleDirector;
+import com.vvrgs.cataclysm.core.TotemShredder;
 import com.vvrgs.cataclysm.entity.VolcanicBombEntity;
 import com.vvrgs.cataclysm.fx.FxDirector;
 import com.vvrgs.cataclysm.fx.FxEvent;
@@ -212,8 +214,16 @@ public class VolcanoSession extends DisasterSession {
                     double d = Math.sqrt(Math.pow(living.getX() - base.x, 2)
                             + Math.pow(living.getZ() - base.z, 2));
                     if (Math.abs(d - radius) < 3.0D && pyroHit.add(living.getUUID())) {
+                        // REGLA SAGRADA: antes de todo golpe letal, subir un
+                        // totem a la offhand — sin esto el totem no salva
+                        if (living instanceof ServerPlayer player
+                                && CataclysmConfig.COMMON.shredAutoRefill.get()) {
+                            TotemShredder.refillOffhand(player);
+                        }
                         living.invulnerableTime = 0;
-                        living.hurt(ModDamageTypes.source(level, ModDamageTypes.PYROCLASTIC), 10000.0F);
+                        float pyroDamage = CataclysmConfig.COMMON.lethalStrikes.get()
+                                ? 10000.0F : 12.0F;
+                        living.hurt(ModDamageTypes.source(level, ModDamageTypes.PYROCLASTIC), pyroDamage);
                     }
                 }
             }

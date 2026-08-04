@@ -2,14 +2,18 @@ package com.vvrgs.cataclysm.core;
 
 import com.vvrgs.cataclysm.Cataclysm;
 import com.vvrgs.cataclysm.CataclysmConfig;
+import com.vvrgs.cataclysm.entity.DisasterEntity;
 import com.vvrgs.cataclysm.fx.FxDirector;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.server.ServerLifecycleHooks;
@@ -162,6 +166,24 @@ public final class DisasterManager {
         return start(server, target, kind, 0);
     }
 
+    /**
+     * Encola N unidades en LA cola spam del jugador para ese tipo (creandola
+     * si no existe). Jamas una segunda sesion S del mismo tipo por jugador.
+     */
+    public static void enqueueSpam(MinecraftServer server, ServerPlayer target, Disasters kind, int amount) {
+        for (DisasterSession s : SESSIONS) {
+            if (!s.isEnded() && s.kind() == kind && s.targetId.equals(target.getUUID())
+                    && s instanceof SpamQueueSession spam) {
+                spam.enqueueSpam(amount);
+                return;
+            }
+        }
+        DisasterSession session = start(server, target, kind, 0);
+        if (session instanceof SpamQueueSession spam) {
+            spam.enqueueSpam(amount);
+        }
+    }
+
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
@@ -241,6 +263,18 @@ public final class DisasterManager {
         for (DisasterSession session : snapshot) {
             session.end(reason);
         }
+        // proyectiles sueltos (bolidos, eyecta, bombas volcanicas): son
+        // fire-and-forget, no pertenecen a ninguna sesion — barrido explicito
+        // con snapshot (discard en caliente muta el entity storage)
+        for (ServerLevel level : server.getAllLevels()) {
+            List<Entity> loose = new ArrayList<>();
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof DisasterEntity) {
+                    loose.add(entity);
+                }
+            }
+            loose.forEach(Entity::discard);
+        }
         int stopped = snapshot.size();
         SESSIONS.removeIf(DisasterSession::isEnded);
         PENDING.clear();
@@ -294,8 +328,11 @@ public final class DisasterManager {
         TitleDirector.forget(id);
     }
 
-    /** Hook 3: el target muere (sin totem que lo salve) — todo lo suyo termina. */
-    @SubscribeEvent
+    /** Hook 3: el target muere (sin totem que lo salve) — todo lo suyo termina.
+     *  MONITOR: si un plugin de Mohist cancela la muerte (revive), este
+     *  listener ni se entera y el show sigue — jamas desmontar por una
+     *  muerte cancelada. */
+    @SubscribeEvent(priority = EventPriority.MONITOR)
     public static void onLivingDeath(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
