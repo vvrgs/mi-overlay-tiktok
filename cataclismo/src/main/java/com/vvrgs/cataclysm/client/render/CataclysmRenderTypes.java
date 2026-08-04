@@ -2,17 +2,17 @@ package com.vvrgs.cataclysm.client.render;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * RenderTypes propios. El shader de scroll (core shader GLSL propio,
- * registrado en RegisterShadersEvent) desplaza las UVs con GameTime:
+ * RenderTypes propios. Se extiende RenderType (patron estandar de mods) para
+ * acceder a los shards protegidos. El shader de scroll (core shader GLSL
+ * propio, registrado en RegisterShadersEvent) desplaza las UVs con GameTime:
  * muros de agua y cortinas que FLUYEN de verdad, sin animar la malla.
  */
-public final class CataclysmRenderTypes extends RenderStateShard {
+public final class CataclysmRenderTypes extends RenderType {
 
     private static ShaderInstance scrollShader;
 
@@ -25,7 +25,7 @@ public final class CataclysmRenderTypes extends RenderStateShard {
 
     /** Lamina con scroll de UV vertical (GameTime): el agua del tsunami fluye. */
     public static RenderType uvScroll(ResourceLocation texture) {
-        return RenderType.create("cataclysm_uv_scroll",
+        return create("cataclysm_uv_scroll",
                 DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 256, true, true,
                 RenderType.CompositeState.builder()
                         .setShaderState(SCROLL_SHADER)
@@ -37,9 +37,10 @@ public final class CataclysmRenderTypes extends RenderStateShard {
                         .createCompositeState(false));
     }
 
-    private CataclysmRenderTypes() {
-        super("", () -> {
-        }, () -> {
-        });
+    /** No instanciable: solo hereda para alcanzar los shards protegidos. */
+    private CataclysmRenderTypes(String name, VertexFormat format, VertexFormat.Mode mode,
+                                 int bufferSize, boolean affectsCrumbling, boolean sortOnUpload,
+                                 Runnable setup, Runnable clear) {
+        super(name, format, mode, bufferSize, affectsCrumbling, sortOnUpload, setup, clear);
     }
 }
