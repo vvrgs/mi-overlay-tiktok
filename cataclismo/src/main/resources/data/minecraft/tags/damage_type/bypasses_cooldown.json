@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "cataclysm:execution",
+    "cataclysm:napalm",
+    "cataclysm:ash",
+    "cataclysm:quake",
+    "cataclysm:pyroclastic",
+    "cataclysm:tsunami",
+    "cataclysm:debris"
+  ]
+}

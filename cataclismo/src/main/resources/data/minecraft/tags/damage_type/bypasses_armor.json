@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "cataclysm:meteor",
+    "cataclysm:lightning",
+    "cataclysm:napalm",
+    "cataclysm:quake",
+    "cataclysm:tsunami",
+    "cataclysm:pyroclastic",
+    "cataclysm:shockwave",
+    "cataclysm:execution",
+    "cataclysm:debris",
+    "cataclysm:ash"
+  ]
+}

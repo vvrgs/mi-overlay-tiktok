@@ -1,0 +1,166 @@
+{
+  "siren": {
+    "sounds": [
+      {
+        "name": "cataclysm:siren",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.siren"
+  },
+  "klaxon": {
+    "sounds": [
+      {
+        "name": "cataclysm:klaxon",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.klaxon"
+  },
+  "rumble": {
+    "sounds": [
+      {
+        "name": "cataclysm:rumble",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.rumble"
+  },
+  "rock_crack": {
+    "sounds": [
+      {
+        "name": "cataclysm:rock_crack",
+        "stream": false
+      },
+      {
+        "name": "cataclysm:rock_crack_2",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.rock_crack"
+  },
+  "meteor_whistle": {
+    "sounds": [
+      {
+        "name": "cataclysm:meteor_whistle",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.meteor_whistle"
+  },
+  "impact_blast": {
+    "sounds": [
+      {
+        "name": "cataclysm:impact_blast",
+        "stream": false
+      },
+      {
+        "name": "cataclysm:impact_blast_2",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.impact_blast"
+  },
+  "thunder": {
+    "sounds": [
+      {
+        "name": "cataclysm:thunder",
+        "stream": false
+      },
+      {
+        "name": "cataclysm:thunder_2",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.thunder"
+  },
+  "ionize": {
+    "sounds": [
+      {
+        "name": "cataclysm:ionize",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.ionize"
+  },
+  "tornado_loop": {
+    "sounds": [
+      {
+        "name": "cataclysm:tornado_loop",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.tornado_loop"
+  },
+  "wind_gust": {
+    "sounds": [
+      {
+        "name": "cataclysm:wind_gust",
+        "stream": false
+      },
+      {
+        "name": "cataclysm:wind_gust_2",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.wind_gust"
+  },
+  "lava_loop": {
+    "sounds": [
+      {
+        "name": "cataclysm:lava_loop",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.lava_loop"
+  },
+  "eruption": {
+    "sounds": [
+      {
+        "name": "cataclysm:eruption",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.eruption"
+  },
+  "tsunami_roar": {
+    "sounds": [
+      {
+        "name": "cataclysm:tsunami_roar",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.tsunami_roar"
+  },
+  "telegraph_ping": {
+    "sounds": [
+      {
+        "name": "cataclysm:telegraph_ping",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.telegraph_ping"
+  },
+  "totem_pop": {
+    "sounds": [
+      {
+        "name": "cataclysm:totem_pop",
+        "stream": false
+      },
+      {
+        "name": "cataclysm:totem_pop_2",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.totem_pop"
+  },
+  "atmosphere_tear": {
+    "sounds": [
+      {
+        "name": "cataclysm:atmosphere_tear",
+        "stream": false
+      }
+    ],
+    "subtitle": "subtitles.cataclysm.atmosphere_tear"
+  }
+}
