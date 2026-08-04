@@ -249,13 +249,66 @@ Mis plugins me teletransportan al End, al cielo, a donde sea. Regla:
   `ViewportEvent.ComputeCameraAngles`) y **flash overlay** con falloff por
   distancia. **Post-shader** de distorsión (pipeline propio) con
   auto-desactivado si Iris/Oculus está presente.
-- **Shader core** GLSL para haces/columnas de energía (registrado en
-  `RegisterShadersEvent`), RenderTypes aditivos para trazadores, retículas
-  y beacons.
-- **Puente Effekseer opcional**: si el cliente tiene AAA Particles,
-  disparar un `.efkefc` por evento vía reflexión, mapeado por
-  `manifest.json` (clave = nombre del evento en minúsculas). Sin AAA
-  Particles todo funciona igual con el motor nativo.
+- **Shaders — úsalos a fondo** (yo ya he hecho un agujero negro con shader
+  que se ve en el cielo; ese es el nivel):
+  - **Core shaders GLSL** propios registrados en `RegisterShadersEvent`
+    (POSITION_COLOR_TEX o el vertex format que toque) para haces, columnas
+    de energía, muros de agua con scroll de UV, cortinas de lava.
+  - **Post-procesado** (pipeline propio de EffectInstance/PostChain):
+    distorsión de pantalla en ondas expansivas, heat-haze sobre la lava,
+    aberración en el impacto, viñeta de pánico. SIEMPRE con auto-apagado
+    si Iris/Oculus está cargado (los post propios rompen con shaderpacks).
+  - **CIELO**: render de objetos celestes vía `RenderLevelStageEvent`
+    (etapa AFTER_SKY / AFTER_PARTICLES según el caso) — el meteorito del
+    `/impacto` que crece durante segundos, un agujero negro con disco de
+    acreción (quad gigante a distancia fija de cámara con shader propio:
+    disco rotando + lensing fake distorsionando las UVs del fondo), cielo
+    teñido de rojo/ceniza, oscurecimiento progresivo. Depth-test off y
+    fog-aware para que se lea a cualquier distancia.
+  - RenderTypes aditivos para trazadores, retículas, beacons y estrobos.
+- **Effekseer / AAA Particles — integración COMPLETA (investigada, API
+  real)**: el mod **AAA Particles** (`aaa_particles`, de ChloePrime,
+  GitHub ChloePrime/AAAParticles) carga efectos de **Effekseer 1.70e**
+  (`.efkefc`) dentro de Minecraft 1.18+, Forge y Fabric, Win/Linux/macOS.
+  Yo YA creo effeks (rayos, cosas 3D con texturas, etc.) — el mod debe
+  explotarlo al máximo:
+  - **Dependencia de compilación** (Forge 1.20.1): maven
+    `https://maven.chloeprime.cn:4080/releases/` (grupo `mod.chloeprime`)
+    o el maven de Modrinth; `implementation fg.deobf('mod.chloeprime:
+    aaa-particles-forge:1.20.1-1.4.11')` + Architectury API. PERO en
+    runtime trátalo como **dependencia OPCIONAL vía reflexión** (patrón
+    probado): si no está instalado, si la API no coincide o si cualquier
+    invocación lanza, el puente se auto-desactiva con UN log y el mod
+    sigue perfecto con sus FX nativos. Jamás hard-depend, jamás crashear.
+  - **API real**: `mod.chloeprime.aaaparticles.api.common.AAALevel
+    .addParticle(Level, boolean force, ParticleEmitterInfo)` (estático) y
+    `mod.chloeprime.aaaparticles.api.common.ParticleEmitterInfo` con ctor
+    `(ResourceLocation)` y encadenables `.position(x,y,z)`,
+    `.scale(float)`, `.rotation(...)`/`.rotationLocal(rx,ry,rz)`. Si se
+    reutiliza una instancia estática, `.clone()` ANTES de mutarla. Métodos
+    opcionales (scale/rotation) se resuelven con reflexión tolerante: si
+    faltan en la versión instalada, se pierde ESA feature, no el puente.
+  - **Assets**: `assets/<modid>/effeks/<carpeta>/<nombre>.efkefc` (con su
+    carpeta `Texture/` al lado), referenciado por
+    `ResourceLocation(modid, "carpeta/nombre")` SIN extensión. SOLO
+    `.efkefc` (los `.efkproj` se exportan desde el editor de Effekseer).
+    AAA Particles quita la validación de nombres de ruta: las texturas
+    con mayúsculas de Effekseer funcionan tal cual.
+  - **Manifest hot-swap**: mapping evento→effek en un
+    `effeks/manifest.json` (clave = nombre del evento de FX en minúsculas,
+    valor = ruta sin extensión, "" = solo FX nativos). Yo suelto mis
+    `.efkefc` en la carpeta, edito el manifest y NO se toca código.
+    Escala del effek ligada a la intensidad del evento (`.scale`).
+  - **Bonus consola**: registrar además ParticleTypes vanilla que disparan
+    el effek en su tick — así mis effeks se pueden lanzar directamente con
+    `/particle` desde la consola (= regalos de TikTok sin pasar por el
+    mod). Documentar la lista en el README.
+  - **Dónde brillan los effeks** (yo los hago con mi flujo de Effekseer):
+    rayos con ribbons/trails, ondas con rings, modelos 3D texturizados
+    dentro del efecto, distorsión de fondo, campos de fuerza/turbulencia —
+    ideales para los rayos dirigidos, el embudo del tornado, portales
+    cósmicos y el flash del impacto. El mod trae sus FX nativos COMPLETOS
+    de serie y los effeks los ELEVAN cuando están.
 - **Sonido**: OGGs mono sintetizados por script Python (sin copyright),
   loops sin costura para embudo/viento/lava, variantes de pitch. OJO:
   radio audible = 16 × volumen — los avisos lejanos (sirena, klaxon,
@@ -332,8 +385,11 @@ Entrega: README en español con build en Windows (`.\gradlew build`, JDK 17;
 gotcha: OneDrive bloquea archivos — copiar fuera o pausar sync), deploy del
 MISMO jar a cliente (`Instances\ss\mods`) y server Mohist
 (`minecraftServer\mods`), verificación de hash tras copiar, tabla de
-comandos para mapear regalos de TikTok, sección de config comentada, y los
-previews. Commit y push al terminar cada versión con mensajes descriptivos.
+comandos para mapear regalos de TikTok, sección de config comentada, guía
+de effeks (dónde soltar mis `.efkefc`, cómo editar el manifest, qué versión
+de AAA Particles instalar: `aaa_particles-1.20.1-1.4.x-forge` +
+Architectury API en el cliente), y los previews. Commit y push al terminar
+cada versión con mensajes descriptivos.
 
 ---
 
@@ -341,5 +397,7 @@ previews. Commit y push al terminar cada versión con mensajes descriptivos.
 dirigidos a mí, que me persiguen entre dimensiones, revientan mis tótems en
 cadena a 5–7/s sin saltarse jamás al tótem, destrozan el mapa de forma
 amortizada, se anuncian con títulos/bossbars/telegraphs legibles entre el
-caos, con FX 100% propios de calidad AAA — y todo verificado, revisado
-adversarialmente y entregado pulido de una vez.
+caos, con FX 100% propios de calidad AAA — partículas custom, shaders en el
+cielo (agujeros negros, meteoros que se ven venir), y mis effeks de
+Effekseer vía AAA Particles con manifest hot-swap — y todo verificado,
+revisado adversarialmente y entregado pulido de una vez.
