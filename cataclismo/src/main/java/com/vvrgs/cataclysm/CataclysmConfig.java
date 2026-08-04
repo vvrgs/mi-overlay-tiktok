@@ -51,6 +51,7 @@ public final class CataclysmConfig {
         public final ForgeConfigSpec.IntValue shredIntervalTicks;
         public final ForgeConfigSpec.BooleanValue shredAutoRefill;
         public final ForgeConfigSpec.DoubleValue shredBudgetMultiplier;
+        public final ForgeConfigSpec.IntValue executionPopBudget;
         public final ForgeConfigSpec.BooleanValue followAcrossDimensions;
         // feedback
         public final ForgeConfigSpec.BooleanValue broadcastMessages;
@@ -126,6 +127,9 @@ public final class CataclysmConfig {
             shredBudgetMultiplier = b
                     .comment("Multiplicador del presupuesto de pops de cada desastre.")
                     .defineInRange("shredBudgetMultiplier", 1.0D, 0.0D, 10.0D);
+            executionPopBudget = b
+                    .comment("Presupuesto de pops de /ejecucion_natural (trituradora a cadencia maxima).")
+                    .defineInRange("executionPopBudget", 40, 1, 90);
             followAcrossDimensions = b
                     .comment("Los desastres persiguen al jugador incluso al cambiar de dimension (plugins que teletransportan).")
                     .define("followAcrossDimensions", true);

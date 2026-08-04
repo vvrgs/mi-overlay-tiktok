@@ -102,6 +102,18 @@ public final class TotemShredder {
         return ACTIVE.containsKey(target);
     }
 
+    /** Pops ya reventados de la trituradora activa (0 si no hay). */
+    public static int getPopped(UUID target) {
+        Shred shred = ACTIVE.get(target);
+        return shred == null ? 0 : shred.popped;
+    }
+
+    /** Presupuesto restante de la trituradora activa (0 si no hay). */
+    public static int getBudgetLeft(UUID target) {
+        Shred shred = ACTIVE.get(target);
+        return shred == null ? 0 : shred.budgetLeft;
+    }
+
     static void tick(MinecraftServer server) {
         if (ACTIVE.isEmpty()) {
             return;
