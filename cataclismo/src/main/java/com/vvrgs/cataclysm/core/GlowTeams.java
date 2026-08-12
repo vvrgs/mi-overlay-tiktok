@@ -12,10 +12,10 @@ import java.util.ArrayList;
 /**
  * Glow outline rojo para toda entidad de desastre via scoreboard team.
  *
- * La limpieza de cada entidad va en su override de setRemoved (NO en
+ * La limpieza de cada entidad va en su override de onRemovedFromWorld (NO en
  * remove(): la descarga de chunks no pasa por remove y deja UUIDs huerfanos
- * en scoreboard.dat). Ademas: purga total del team en ServerStarted (restos
- * de un crash) y en ServerStopping.
+ * en scoreboard.dat; y setRemoved es final en 1.20.1). Ademas: purga total
+ * del team en ServerStarted (restos de un crash) y en ServerStopping.
  */
 public final class GlowTeams {
 
@@ -50,8 +50,13 @@ public final class GlowTeams {
         }
         ServerScoreboard scoreboard = server.getScoreboard();
         PlayerTeam team = scoreboard.getPlayerTeam(TEAM_NAME);
-        if (team != null) {
-            scoreboard.removePlayerFromTeam(entity.getStringUUID(), team);
+        String key = entity.getStringUUID();
+        // removePlayerFromTeam lanza IllegalStateException si la entidad no
+        // esta en ESE team ("Player is either on another team or not on any
+        // team. Cannot remove from team..."). Pasa de verdad: si la entidad se
+        // retira antes de su primer tick de servidor nunca llego a registrarse.
+        if (team != null && scoreboard.getPlayersTeam(key) == team) {
+            scoreboard.removePlayerFromTeam(key, team);
         }
     }
 

@@ -1,5 +1,5 @@
 # =====================================================================
-#  CATACLISMO — build + deploy a cliente y server Mohist
+#  CATACLISMO - build + deploy a cliente y server Mohist
 #  Uso:  .\deploy.ps1              (compila y despliega)
 #        .\deploy.ps1 -SoloCopiar  (salta el build, copia el jar ya hecho)
 # =====================================================================
@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 Write-Host ""
-Write-Host "=== CATACLISMO — build + deploy ===" -ForegroundColor Cyan
+Write-Host "=== CATACLISMO - build + deploy ===" -ForegroundColor Cyan
 Write-Host ""
 
 # ---------- 1. BUILD ----------

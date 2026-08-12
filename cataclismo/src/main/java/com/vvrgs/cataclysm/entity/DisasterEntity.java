@@ -12,8 +12,12 @@ import net.minecraft.world.level.Level;
  * Base de toda entidad set-piece.
  *
  * Reglas aprendidas a golpes:
- *  - Glow cleanup en setRemoved, NUNCA en remove(): la descarga de chunks no
- *    pasa por remove() y deja UUIDs huerfanos en scoreboard.dat.
+ *  - Glow cleanup en onRemovedFromWorld, NUNCA en remove(): la descarga de
+ *    chunks no pasa por remove() y deja UUIDs huerfanos en scoreboard.dat.
+ *    setRemoved() seria el sitio natural, pero en 1.20.1 es final y no se
+ *    puede sobreescribir; el hook de Forge que SI cubre todas las vias de
+ *    retirada (incluida la descarga de chunks) es onRemovedFromWorld, que
+ *    se llama desde ServerLevel$EntityCallbacks.
  *  - Interpolacion de red estilo Boat (lerpTo con 3 pasos): sin ella el yaw
  *    cuantizado a ~1.4 grados salta.
  *  - NBT COMPLETO: el re-anclaje cross-dim recrea la entidad via NBT; un
@@ -64,11 +68,11 @@ public abstract class DisasterEntity extends Entity {
     }
 
     @Override
-    public void setRemoved(Entity.RemovalReason reason) {
+    public void onRemovedFromWorld() {
         if (!this.level().isClientSide()) {
             GlowTeams.unregister(this);
         }
-        super.setRemoved(reason);
+        super.onRemovedFromWorld();
     }
 
     @Override

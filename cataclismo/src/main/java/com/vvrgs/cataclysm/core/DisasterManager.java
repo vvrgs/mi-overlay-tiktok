@@ -329,10 +329,14 @@ public final class DisasterManager {
     }
 
     /** Hook 3: el target muere (sin totem que lo salve) — todo lo suyo termina.
-     *  MONITOR: si un plugin de Mohist cancela la muerte (revive), este
+     *  LOWEST: corremos los ultimos, asi que si un plugin de Mohist cancela
+     *  la muerte (revive) ya lo ha hecho antes de llegar aqui; y como
+     *  @SubscribeEvent ignora por defecto los eventos cancelados, este
      *  listener ni se entera y el show sigue — jamas desmontar por una
-     *  muerte cancelada. */
-    @SubscribeEvent(priority = EventPriority.MONITOR)
+     *  muerte cancelada.
+     *  (Forge NO tiene EventPriority.MONITOR: esa es la enum de Bukkit. El
+     *  equivalente a "ejecutar el ultimo, solo observar" es LOWEST.) */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onLivingDeath(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
