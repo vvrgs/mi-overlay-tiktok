@@ -1,6 +1,7 @@
 package com.vvrgs.cataclysm.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.vvrgs.cataclysm.Cataclysm;
 import com.vvrgs.cataclysm.core.DisasterManager;
 import com.vvrgs.cataclysm.core.Disasters;
@@ -17,8 +18,11 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Contrato TikTok -> consola: un comando Brigadier por desastre, en espanol,
- * sin mayusculas ni tildes en el literal.
+ * Contrato TikTok -> consola: UN comando raiz `/disaster` con un subcomando
+ * por desastre, en espanol, sin mayusculas ni tildes en el literal:
+ *   /disaster meteoros [jugador]
+ *   /disaster tornado  [jugador]
+ *   /disaster stopall
  *
  * FALLBACK DE CONSOLA (el contrato principal, no un extra): los regalos de
  * TikTok (Stream to Earn / TikFinity / ServerTap) ejecutan comandos de
@@ -28,23 +32,28 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = Cataclysm.MODID)
 public final class CataclysmCommands {
 
+    /** Raiz de todos los comandos del mod. */
+    public static final String ROOT = "disaster";
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal(ROOT)
+                .requires(src -> src.hasPermission(2));
+
         for (Disasters kind : Disasters.values()) {
-            dispatcher.register(Commands.literal(kind.commandName())
-                    .requires(src -> src.hasPermission(2))
+            root.then(Commands.literal(kind.commandName())
                     .executes(ctx -> execute(ctx.getSource(), kind, null))
                     .then(Commands.argument("jugador", EntityArgument.player())
                             .executes(ctx -> execute(ctx.getSource(), kind,
                                     EntityArgument.getPlayer(ctx, "jugador")))));
         }
 
-        dispatcher.register(Commands.literal(Cataclysm.MODID)
-                .requires(src -> src.hasPermission(2))
-                .then(Commands.literal("stopall")
-                        .executes(ctx -> stopAll(ctx.getSource()))));
+        root.then(Commands.literal("stopall")
+                .executes(ctx -> stopAll(ctx.getSource())));
+
+        dispatcher.register(root);
     }
 
     private static int execute(CommandSourceStack source, Disasters kind, @Nullable ServerPlayer explicit) {

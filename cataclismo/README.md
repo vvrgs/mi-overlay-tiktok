@@ -18,11 +18,12 @@ solo con el wrapper.
 # ⚠ GOTCHA OneDrive: OneDrive bloquea archivos a mitad de build.
 # Copia la carpeta cataclismo\ FUERA de OneDrive (p.ej. C:\dev\cataclismo)
 # o pausa la sincronización antes de compilar.
-cd C:\dev\cataclismo
+cd C:\dev\mi-overlay-tiktok\cataclismo
 .\gradlew build
 ```
 
-El jar queda en `build\libs\cataclysm-1.0.0.jar`.
+El jar queda en `build\libs\cataclysm-1.0.0.jar`. (O directamente
+`.\deploy.ps1`, que compila y despliega de una vez — ver sección 2.)
 
 > La primera compilación descarga Forge y las mappings (necesita internet).
 > Si tu red bloquea los maven de Forge, `verify\compile.sh` (Linux/WSL/Git
@@ -31,40 +32,50 @@ El jar queda en `build\libs\cataclysm-1.0.0.jar`.
 
 ## 2. Deploy (el MISMO jar en cliente y server)
 
-```powershell
-$JAR = "build\libs\cataclysm-1.0.0.jar"
-# cliente
-Copy-Item $JAR "C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\mods\"
-# server Mohist
-Copy-Item $JAR "C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\minecraftServer\mods\"
+Un solo comando hace build + copia a las dos carpetas + verificación de hash:
 
-# verificación de hash tras copiar (un jar parcial = NoClassDefFoundError):
-Get-FileHash $JAR, "C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\mods\cataclysm-1.0.0.jar", "C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\minecraftServer\mods\cataclysm-1.0.0.jar" | Format-Table Hash, Path
+```powershell
+.\deploy.ps1
 ```
 
-Los **tres hashes deben ser idénticos**. Reinicia server y cliente.
+El script borra versiones viejas del mod en destino (dos jars del mismo mod
+crashean al arrancar), copia y compara los SHA256 — si alguno no cuadra, te
+avisa en rojo y no da el deploy por bueno. Si ya tienes el jar compilado y
+solo quieres recopiarlo: `.\deploy.ps1 -SoloCopiar`.
+
+Rutas por defecto (cámbialas con `-Cliente` / `-Server` si mueves las instancias):
+
+- Cliente: `C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\mods`
+- Server Mohist: `C:\Users\Luis Angel\curseforge\minecraft\Instances\ss\minecraftServer\mods`
+
+Reinicia server y cliente al terminar.
 
 ## 3. Comandos (mapear a regalos de TikTok)
 
-Todos con `permission level 2`. **Fallback de consola**: si el comando llega
-por consola sin argumento (Stream to Earn / TikFinity / ServerTap), apunta
-al **primer jugador online** — ese es el contrato principal.
+Todo cuelga de un único comando raíz: **`/disaster <desastre> [jugador]`**,
+con `permission level 2`. **Fallback de consola**: si el comando llega por
+consola sin argumento (Stream to Earn / TikFinity / ServerTap), apunta al
+**primer jugador online** — ese es el contrato principal, así que en los
+regalos basta con poner `disaster tornado`.
+
+> Si algún plugin de Mohist ya registra un `/disaster`, usa el nombre
+> completo `/cataclysm:disaster ...`, que siempre apunta a este mod.
 
 | Comando | Tier | Monedas sugeridas | Qué pasa |
 |---|---|---|---|
-| `/meteoros` | S (spameable) | 1–30 | +1 meteorito a TU cola de lluvia (telegraph 1 s → bólido → cráter r=2 + zona ardiente). 100 regalos = 100 en UNA cola que drena a ritmo fijo |
-| `/rayo` | S | 1–30 | Rayo dirigido REAL: 8 ticks de ionización visible → rama fractal propia → 2 pops de tótem |
-| `/tormenta` | M (hasta 5) | 100–700 | 60 s de célula sobre ti: rayos que PREDICEN tu movimiento + viento con ráfagas |
-| `/fuego` | M | 100–700 | Frente de llamas que te persigue + napalm que ignora armadura (y te sigue al End) |
-| `/tornado` | C (cinemático) | 1000–3000 | Embudo procedural que te CAZA a 0.4 b/t, succión física r=12, te lanza al cielo |
-| `/huracan` | C | 1000–3000 | 30 s primera pared → 15 s de OJO (calma sepia, silencio total) → segunda pared PEOR |
-| `/terremoto` | C | 1000–3000 | 5 s de temblor → FISURA REAL bajo tus pies (3–5 ancho, 20–30 profundo, 40+ largo) que te TRAGA. Queda en el mapa |
-| `/volcan` | C | 1000–3000 | Un volcán NACE: abombamiento → cono 15 s → erupción con bombas dirigidas A TI → flujo piroclástico (mata salvo tótem) → ceniza 60 s. El cono QUEDA |
-| `/tsunami` | C | 1000–3000 | Muro de agua de 11×45 que SE VE VENIR, arrasa, resaca que te arrastra de vuelta, y su agua se retira sola |
-| `/impacto` | U (uno por server) | 4880+ | IMPACTO PLANETARIO: sirena global → punto de luz que CRECE en el cielo → entrada atmosférica → flash blanco + anillo + cráter r=13 + eyecta + 90 s de polvo + trituradora a tope |
-| `/apocalipsis` | U | 4880+ | Director de oleadas: meteoros → rayos → tornado → terremoto → volcán → IMPACTO final, con agujero negro en el cielo y bossbar del timeline |
-| `/ejecucion_natural` | U | 4880+ | Te ANCLA (succión física, no puedes huir) y tritura tótems a cadencia máxima con contador en pantalla (default 40 pops). Clímax si sobrevives |
-| `/cataclysm stopall` | — | — | Corta TODO y limpia TODO (sesiones, colas, FX, cielo, teams) |
+| `/disaster meteoros` | S (spameable) | 1–30 | +1 meteorito a TU cola de lluvia (telegraph 1 s → bólido → cráter r=2 + zona ardiente). 100 regalos = 100 en UNA cola que drena a ritmo fijo |
+| `/disaster rayo` | S | 1–30 | Rayo dirigido REAL: 8 ticks de ionización visible → rama fractal propia → 2 pops de tótem |
+| `/disaster tormenta` | M (hasta 5) | 100–700 | 60 s de célula sobre ti: rayos que PREDICEN tu movimiento + viento con ráfagas |
+| `/disaster fuego` | M | 100–700 | Frente de llamas que te persigue + napalm que ignora armadura (y te sigue al End) |
+| `/disaster tornado` | C (cinemático) | 1000–3000 | Embudo procedural que te CAZA a 0.4 b/t, succión física r=12, te lanza al cielo |
+| `/disaster huracan` | C | 1000–3000 | 30 s primera pared → 15 s de OJO (calma sepia, silencio total) → segunda pared PEOR |
+| `/disaster terremoto` | C | 1000–3000 | 5 s de temblor → FISURA REAL bajo tus pies (3–5 ancho, 20–30 profundo, 40+ largo) que te TRAGA. Queda en el mapa |
+| `/disaster volcan` | C | 1000–3000 | Un volcán NACE: abombamiento → cono 15 s → erupción con bombas dirigidas A TI → flujo piroclástico (mata salvo tótem) → ceniza 60 s. El cono QUEDA |
+| `/disaster tsunami` | C | 1000–3000 | Muro de agua de 11×45 que SE VE VENIR, arrasa, resaca que te arrastra de vuelta, y su agua se retira sola |
+| `/disaster impacto` | U (uno por server) | 4880+ | IMPACTO PLANETARIO: sirena global → punto de luz que CRECE en el cielo → entrada atmosférica → flash blanco + anillo + cráter r=13 + eyecta + 90 s de polvo + trituradora a tope |
+| `/disaster apocalipsis` | U | 4880+ | Director de oleadas: meteoros → rayos → tornado → terremoto → volcán → IMPACTO final, con agujero negro en el cielo y bossbar del timeline |
+| `/disaster ejecucion_natural` | U | 4880+ | Te ANCLA (succión física, no puedes huir) y tritura tótems a cadencia máxima con contador en pantalla (default 40 pops). Clímax si sobrevives |
+| `/disaster stopall` | — | — | Corta TODO y limpia TODO (sesiones, colas, FX, cielo, teams) |
 
 ### Bonus: disparar FX sueltos con `/particle` (sin pasar por el mod)
 
@@ -155,7 +166,7 @@ plugin lo rebota en bucle), `no_ground` (void del End), `exception`,
 En `previews/`: beauty shots y turntables GIF de las 5 entidades (tornado,
 bólido, bomba volcánica, muro de tsunami, impactor) renderizados por
 software desde la MISMA geometría y texturas del juego, más la secuencia de
-la coreografía del `/impacto`. Regenerables con `python3 tools/preview_render.py`.
+la coreografía del `/disaster impacto`. Regenerables con `python3 tools/preview_render.py`.
 
 ## 9. Regenerar assets (Python 3.11 + Pillow + numpy + soundfile)
 
